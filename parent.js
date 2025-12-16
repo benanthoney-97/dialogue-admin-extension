@@ -12,10 +12,10 @@ function escapeHtml(text) {
 }
 
 function renderSentence(entry) {
-  if (!entry?.sentence) {
+  if (!entry?.text) {
     return '';
   }
-  return `<p class="sentence">${escapeHtml(entry.sentence)}</p>`;
+  return `<p class="sentence">${escapeHtml(entry.text)}</p>`;
 }
 
 function hasFinalVerdict(entries, sentence) {
@@ -63,14 +63,34 @@ function renderEntry(entry) {
     return '';
   }
   const meta = renderMeta(entry);
-  const feedback = escapeHtml(entry.text ?? '');
+  const assistantPreview = createAssistantPreview(entry);
+  const assistantHtml = assistantPreview
+    ? `<p class="ai-text">${escapeHtml(assistantPreview)}</p>`
+    : '';
   return `
     <article class="entry ai">
       ${meta}
-      <p class="ai-text">${feedback}</p>
+      ${assistantHtml}
       ${renderSentence(entry)}
     </article>
   `;
+}
+
+function createAssistantPreview(entry) {
+  if (!entry) {
+    return '';
+  }
+  const text = entry.sentence ?? entry.text ?? '';
+  if (!text) {
+    return '';
+  }
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const previewLines = lines.slice(0, 2);
+  const previewText = previewLines.join(' ').trim() || text.trim();
+  return previewText.length <= 320 ? previewText : `${previewText.slice(0, 320)}…`;
 }
 
 function formatAIDecision(decision) {

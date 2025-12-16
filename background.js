@@ -1,4 +1,5 @@
 const OFFSCREEN_URL = 'offscreen.html';
+const NETWORK_LOG_TYPE = 'network-log';
 let creatingOffscreen;
 let userActivationGranted = false;
 
@@ -64,6 +65,10 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
+    return;
+  }
+
+  if (message?.type === NETWORK_LOG_TYPE) {
     return;
   }
 
