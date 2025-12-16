@@ -72,11 +72,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.info(`[Dialogue Safety][Nano] ${message.message}`, detail);
     return;
   }
-  if (message?.type === 'network-log') {
-    console.info('[Dialogue Safety][Network]', message.payload);
-    return;
-  }
-
   if (message.type === 'log-entry') {
     logEntry(message.entry);
     return;

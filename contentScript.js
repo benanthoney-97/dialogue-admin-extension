@@ -323,33 +323,10 @@ function setupSendWatcher() {
   });
 }
 
-function logNetworkPayload(payload) {
-  let snippet;
-  if (typeof payload === 'string') {
-    snippet = payload.slice(0, 300);
-  } else {
-    snippet = JSON.stringify(payload, (key, value) => {
-      if (key === 'content' || key === 'text' || key === 'message') {
-        if (typeof value === 'string') {
-          return value.slice(0, 120);
-        }
-        return value;
-      }
-      return value;
-    });
-  }
-  safeSendMessage({ type: 'network-log', payload: snippet }, () => {});
-}
-
 function logAssistantSnippet(url, snippet) {
   if (!snippet) {
     return;
   }
-  logNetworkPayload({
-    url,
-    snippet,
-    type: 'assistant-snippet',
-  });
 }
 
 function stripMetadataPrefix(snippet) {
