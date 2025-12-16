@@ -45,7 +45,8 @@ function logEntry(entry) {
     : entry.text;
   const timestamp = entry.date ? `${entry.date} ${entry.time}` : entry.time;
   const suffix = entry.platform ? `(platform: ${entry.platform})` : '';
-  console.info(`[Dialogue Safety] ${timestamp} ${entry.type} ${details} ${suffix}`);
+  const sourceLabel = entry.source ? `[${entry.source}]` : '';
+  console.info(`[Dialogue Safety] ${timestamp} ${entry.type} ${details} ${sourceLabel} ${suffix}`);
 }
 
 function logActivity(entry) {
@@ -63,6 +64,16 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message) {
+    return;
+  }
+
+  if (message?.type === 'offscreen-log') {
+    const detail = message.detail ?? '';
+    console.info(`[Dialogue Safety][Nano] ${message.message}`, detail);
+    return;
+  }
+  if (message?.type === 'network-log') {
+    console.info('[Dialogue Safety][Network]', message.payload);
     return;
   }
 
@@ -99,7 +110,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       keywords: message.keywords,
     })
       .then((response) => {
-        sendResponse(response);
+        sendResponse({ ...response, source: message.source ?? 'unknown' });
       })
       .catch((error) => {
         logModel('offscreen prompt error', error?.message ?? error);

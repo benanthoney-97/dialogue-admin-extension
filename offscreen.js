@@ -3,8 +3,18 @@ const LANGUAGE_OPTIONS = {
   expectedInputs: [{ type: 'text', languages: ['en'] }],
   expectedOutputs: [{ type: 'text', languages: ['en'] }],
 };
-const log = (message, detail) => {
-  console.info('[Dialogue Safety][Nano]', message, detail ?? '');
+const log = (message, detail, level = 'info') => {
+  if (message === 'prompt output') {
+    return;
+  }
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({
+      type: 'offscreen-log',
+      level,
+      message,
+      detail,
+    });
+  }
 };
 
 let session = null;

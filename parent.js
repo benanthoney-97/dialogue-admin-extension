@@ -11,12 +11,6 @@ function escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
-function createKeywordsHTML(keywords) {
-  return keywords
-    .map((word) => `<span>${word}</span>`)
-    .join('');
-}
-
 function renderSentence(entry) {
   if (!entry?.sentence) {
     return '';
@@ -24,48 +18,58 @@ function renderSentence(entry) {
   return `<p class="sentence">${escapeHtml(entry.sentence)}</p>`;
 }
 
+function hasFinalVerdict(entries, sentence) {
+  if (!sentence) {
+    return false;
+  }
+  return entries.some((entry) => (
+    entry?.type === 'ai-decision'
+    && entry.source !== 'draft'
+    && entry.sentence === sentence
+  ));
+}
+
+function filterEntriesForDisplay(entries = []) {
+  return entries.filter((entry) => {
+    if (!entry || entry.type !== 'ai-decision' || entry.source !== 'draft') {
+      return true;
+    }
+    if (hasFinalVerdict(entries, entry.sentence)) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function renderEntries(entries) {
   if (!entriesRoot) {
     return;
   }
   if (!entries || !entries.length) {
-    entriesRoot.innerHTML = '<div class="empty-state">No keywords logged yet.</div>';
+    entriesRoot.innerHTML = '<div class="empty-state">No AI verdicts yet.</div>';
     return;
   }
-  entriesRoot.innerHTML = entries.map(renderEntry).join('');
+  const filtered = filterEntriesForDisplay(entries)
+    .filter((entry) => entry?.type === 'ai-decision');
+  if (!filtered.length) {
+    entriesRoot.innerHTML = '<div class="empty-state">No AI verdicts yet.</div>';
+    return;
+  }
+  entriesRoot.innerHTML = filtered.map(renderEntry).join('');
 }
 
 function renderEntry(entry) {
-  const meta = renderMeta(entry);
-  if (entry.type === 'keyword') {
-    return `
-      <article class="entry">
-        ${meta}
-        <div class="keywords">${createKeywordsHTML(entry.keywords)}</div>
-        ${renderSentence(entry)}
-        ${renderClassification(entry)}
-      </article>
-    `;
-  }
-  return `
-    <article class="entry system">
-      ${meta}
-      <div class="keywords">${entry.text}</div>
-    </article>
-  `;
-}
-
-function renderClassification(entry) {
-  const { toxicity } = entry;
-  if (!toxicity || !toxicity.label) {
+  if (!entry || entry.type !== 'ai-decision') {
     return '';
   }
-  const confidence = (toxicity.score ?? 0) * 100;
+  const meta = renderMeta(entry);
+  const feedback = escapeHtml(entry.text ?? '');
   return `
-    <div class="classification">
-      <span class="classification-label">${toxicity.label}</span>
-      <span class="classification-score">${confidence.toFixed(1)}%</span>
-    </div>
+    <article class="entry ai">
+      ${meta}
+      <p class="ai-text">${feedback}</p>
+      ${renderSentence(entry)}
+    </article>
   `;
 }
 

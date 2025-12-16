@@ -11,18 +11,6 @@ const PROVIDER_SITES = [
   { match: 'chatgpt.com', label: 'ChatGPT' },
   { match: 'chat.openai.com', label: 'ChatGPT' },
 ];
-const ASSISTANT_SELECTOR = [
-  '[data-role="assistant"]',
-  '[data-testid="assistant-response"]',
-  '.assistant-message',
-  '.assistant-response',
-  '.agent-response',
-  '.model-response-text',
-  '.structured-content-container',
-  '.model-response-text.ng-star-inserted',
-  '.structured-content-container.ng-star-inserted',
-  '.assistant-bubble',
-].join(',');
 const SEND_BUTTON_SELECTORS = [
   'button[type="submit"]',
   'button[aria-label="Send"]',
@@ -38,9 +26,9 @@ const COMPOSER_SELECTORS = [
 const IS_CHATGPT = location.hostname.includes('chatgpt.com') || location.hostname.includes('chat.openai.com');
 const ACTIVITY_STORAGE_KEY = 'dialogueSafetyLastActivity';
 const ACTIVITY_EVENTS = ['keydown', 'mousedown', 'touchstart'];
-const ACTIVITY_THROTTLE_MS = 5000;
+const ACTIVITY_THROTTLE_MS = 60000;
 const AI_DECISION_KEY = 'dialogueSafetyLastAIDecision';
-const AI_CHECK_DEBOUNCE_MS = 2000;
+const AI_CHECK_DEBOUNCE_MS = 4000;
 let lastActivityTimestamp = 0;
 let activityDebounce;
 
@@ -52,12 +40,14 @@ let aiCheckTimeout = null;
 let pendingAICheck = null;
 let lastAICheckSentence = '';
 let nanoTriggersSetup = false;
-let assistantObserver = null;
-const assistantNodeTimers = new WeakMap();
-const assistantLastTexts = new WeakMap();
-const assistantProcessedText = new WeakMap();
-const ASSISTANT_DEBOUNCE_MS = 2000;
 let hasUserInteracted = false;
+const ASSISTANT_ID_KEYS = ['message_id', 'messageId', 'response_id', 'responseId', 'id'];
+const MAX_ASSISTANT_IDS = 200;
+const assistantProcessedIds = new Set();
+const assistantIdQueue = [];
+const MAX_ASSISTANT_PAYLOADS = 200;
+const assistantPayloadHistory = new Set();
+const assistantPayloadQueue = [];
 
 function formatTime(date = new Date()) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -167,7 +157,9 @@ function pushLogEntry(entry) {
         console.debug('[Dialogue Safety] storage write failed', chrome.runtime.lastError);
         return;
       }
-      notifyBackground(entryWithMeta);
+      if (entryWithMeta.type !== 'keyword') {
+        notifyBackground(entryWithMeta);
+      }
       lastLoggedEntry = entryWithMeta;
     });
   });
@@ -223,8 +215,8 @@ function logKeywords(keywords, text = '') {
   });
 }
 
-function scheduleAICheck(sentence, keywords) {
-  const payload = { sentence, keywords };
+function scheduleAICheck(sentence, keywords, source = 'draft') {
+  const payload = { sentence, keywords, source };
   pendingAICheck = payload;
   if (aiCheckTimeout) {
     clearTimeout(aiCheckTimeout);
@@ -239,13 +231,13 @@ function scheduleAICheck(sentence, keywords) {
       return;
     }
     lastAICheckSentence = pendingAICheck.sentence;
-    const { sentence: queuedSentence, keywords: queuedKeywords } = pendingAICheck;
+    const { sentence: queuedSentence, keywords: queuedKeywords, source: queuedSource } = pendingAICheck;
     pendingAICheck = null;
-    checkWithAI(queuedSentence, queuedKeywords);
+    checkWithAI(queuedSentence, queuedKeywords, queuedSource);
   }, AI_CHECK_DEBOUNCE_MS);
 }
 
-function runImmediateAICheck(sentence, keywords = []) {
+function runImmediateAICheck(sentence, keywords = [], source = 'sent') {
   if (!sentence) {
     return;
   }
@@ -258,13 +250,12 @@ function runImmediateAICheck(sentence, keywords = []) {
     aiCheckTimeout = null;
   }
   pendingAICheck = null;
-  checkWithAI(sentence, keywords);
+  checkWithAI(sentence, keywords, source);
 }
 
 function markUserInteracted() {
   if (!hasUserInteracted) {
     hasUserInteracted = true;
-    captureExistingAssistantState();
   }
 }
 
@@ -307,7 +298,7 @@ function setupDraftWatcher() {
     }
     markUserInteracted();
     const text = getComposerText();
-    scheduleAICheck(text, []);
+    scheduleAICheck(text, [], 'draft');
   }, { capture: true });
 }
 
@@ -316,7 +307,7 @@ function setupSendWatcher() {
     const target = event.target;
     if (event.key === 'Enter' && !event.shiftKey && isComposerTarget(target)) {
       markUserInteracted();
-      runImmediateAICheck(getComposerText(), []);
+      runImmediateAICheck(getComposerText(), [], 'sent');
     }
   }, { capture: true });
   document.addEventListener('click', (event) => {
@@ -327,109 +318,459 @@ function setupSendWatcher() {
     const button = target.closest(SEND_BUTTON_SELECTORS.join(','));
     if (button) {
       markUserInteracted();
-      runImmediateAICheck(getComposerText(), []);
+      runImmediateAICheck(getComposerText(), [], 'sent');
     }
   });
 }
 
-function getTopLevelAssistant(element) {
-  if (!(element instanceof Element)) {
-    return null;
+function logNetworkPayload(payload) {
+  let snippet;
+  if (typeof payload === 'string') {
+    snippet = payload.slice(0, 300);
+  } else {
+    snippet = JSON.stringify(payload, (key, value) => {
+      if (key === 'content' || key === 'text' || key === 'message') {
+        if (typeof value === 'string') {
+          return value.slice(0, 120);
+        }
+        return value;
+      }
+      return value;
+    });
   }
-  let candidate = element.matches(ASSISTANT_SELECTOR) ? element : element.closest(ASSISTANT_SELECTOR);
-  if (!candidate) {
-    return null;
-  }
-  let ancestor = candidate.parentElement;
-  while (ancestor) {
-    if (ancestor.matches?.(ASSISTANT_SELECTOR)) {
-      candidate = ancestor;
-    }
-    ancestor = ancestor.parentElement;
-  }
-  return candidate;
+  safeSendMessage({ type: 'network-log', payload: snippet }, () => {});
 }
 
-function scanAssistantNodes(node) {
-  if (!(node instanceof Element)) {
+function logAssistantSnippet(url, snippet) {
+  if (!snippet) {
     return;
   }
-  const targets = new Set();
-  const root = getTopLevelAssistant(node);
-  if (root) {
-    targets.add(root);
-  }
-  node.querySelectorAll(ASSISTANT_SELECTOR).forEach((candidate) => {
-    const assistantRoot = getTopLevelAssistant(candidate);
-    if (assistantRoot) {
-      targets.add(assistantRoot);
-    }
-  });
-  targets.forEach(scheduleAssistantCheck);
-}
-
-function scheduleAssistantCheck(node) {
-  if (!(node instanceof Element)) {
-    return;
-  }
-  if (!hasUserInteracted) {
-    return;
-  }
-  const record = assistantNodeTimers.get(node);
-  if (record?.timer) {
-    clearTimeout(record.timer);
-  }
-  const timer = setTimeout(() => {
-    assistantNodeTimers.delete(node);
-    const finalText = node.textContent?.trim() ?? '';
-    if (!finalText) {
-      return;
-    }
-    if (assistantLastTexts.get(node) === finalText) {
-      return;
-    }
-    assistantLastTexts.set(node, finalText);
-    if (assistantProcessedText.get(node) === finalText) {
-      return;
-    }
-    assistantProcessedText.set(node, finalText);
-    runImmediateAICheck(finalText, []);
-  }, ASSISTANT_DEBOUNCE_MS);
-  assistantNodeTimers.set(node, { timer });
-}
-
-function captureExistingAssistantState() {
-  document.querySelectorAll(ASSISTANT_SELECTOR).forEach((node) => {
-    const assistantRoot = getTopLevelAssistant(node);
-    if (!(assistantRoot instanceof Element)) {
-      return;
-    }
-    if (assistantLastTexts.has(assistantRoot)) {
-      return;
-    }
-    const text = assistantRoot.textContent?.trim() ?? '';
-    if (text) {
-      assistantLastTexts.set(assistantRoot, text);
-      assistantProcessedText.set(assistantRoot, text);
-    }
+  logNetworkPayload({
+    url,
+    snippet,
+    type: 'assistant-snippet',
   });
 }
 
-function setupAIReplyWatcher() {
-  if (assistantObserver) {
+function stripMetadataPrefix(snippet) {
+  if (!snippet) {
+    return '';
+  }
+  const normalized = snippet.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return '';
+  }
+  const parts = normalized.split(' ');
+  let idx = 0;
+  while (idx < parts.length && /^[a-z0-9_.-]+$/i.test(parts[idx])) {
+    idx += 1;
+  }
+  if (idx < parts.length) {
+    return parts.slice(idx).join(' ').trim();
+  }
+  return normalized;
+}
+
+function cleanAssistantSnippet(snippet) {
+  const normalized = normalizeTextValue(snippet);
+  const stripped = stripMetadataPrefix(normalized);
+  if (!stripped) {
+    return normalized;
+  }
+  return stripped;
+}
+
+function processAssistantSnippet(snippet, url, id = null) {
+  if (!snippet) {
     return;
   }
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach((node) => scanAssistantNodes(node));
-      } else if (mutation.type === 'characterData') {
-        scanAssistantNodes(mutation.target?.parentElement);
+  const cleaned = cleanAssistantSnippet(snippet);
+  if (!cleaned) {
+    return;
+  }
+  if (!recordAssistantMessage(cleaned, id)) {
+    return;
+  }
+  runImmediateAICheck(cleaned, [], 'assistant');
+  logAssistantSnippet(url, cleaned);
+}
+
+function handleAssistantPayload(payload, url, requestKey) {
+  if (!hasUserInteracted || payload == null) {
+    return;
+  }
+  const key = requestKey || getStreamRequestKey(url);
+
+  const bufferSnippet = (snippet, id = null) => {
+    const cleaned = cleanAssistantSnippet(snippet);
+    if (!cleaned) {
+      return;
+    }
+    bufferStreamSnippet(key, url, cleaned, id);
+  };
+
+  if (typeof payload === 'string') {
+    const snippets = extractAssistantTextSnippets([payload]);
+    snippets.forEach((snippet) => bufferSnippet(snippet));
+    return;
+  }
+
+  const messages = extractAssistantMessages(payload);
+  if (messages.length) {
+    messages.forEach(({ text, id }) => bufferSnippet(text, id));
+    return;
+  }
+
+  const snippets = extractAssistantTextSnippets([payload]);
+  snippets.forEach((snippet) => bufferSnippet(snippet));
+}
+
+function normalizeTextValue(value) {
+  if (value == null) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (/^[\[{"]/.test(trimmed)) {
+      try {
+        return normalizeTextValue(JSON.parse(trimmed));
+      } catch {
+        // fallthrough to unescaped string
       }
     }
-  });
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  assistantObserver = observer;
+    const unescaped = unescapeJsonValue(trimmed);
+    if (unescaped !== trimmed) {
+      return normalizeTextValue(unescaped);
+    }
+    return trimmed;
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeTextValue).filter(Boolean).join(' ');
+  }
+  if (typeof value === 'object') {
+    if ('text' in value) {
+      return normalizeTextValue(value.text);
+    }
+    if ('content' in value) {
+      return normalizeTextValue(value.content);
+    }
+    if ('message' in value) {
+      return normalizeTextValue(value.message);
+    }
+    if ('output' in value) {
+      return normalizeTextValue(value.output);
+    }
+    return Object.values(value).map(normalizeTextValue).filter(Boolean).join(' ');
+  }
+  return '';
+}
+
+function findAssistantId(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  for (const key of ASSISTANT_ID_KEYS) {
+    const candidate = payload[key];
+    if (candidate == null) {
+      continue;
+    }
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+    if (typeof candidate === 'number' || typeof candidate === 'bigint') {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+function extractAssistantMessages(payload, results = []) {
+  if (!payload) {
+    return results;
+  }
+  if (Array.isArray(payload)) {
+    payload.forEach((item) => extractAssistantMessages(item, results));
+    return results;
+  }
+  if (typeof payload === 'object') {
+    const role = payload.role ?? payload.author?.role ?? payload.sender?.role ?? payload.person?.role;
+    if (role === 'assistant') {
+      const text = normalizeTextValue(payload.content ?? payload.text ?? payload.message ?? payload.output);
+      const id = findAssistantId(payload);
+      if (text) {
+        results.push({ text, id });
+      }
+    }
+    Object.values(payload).forEach((child) => extractAssistantMessages(child, results));
+  }
+  return results;
+}
+
+function recordAssistantMessage(text, id) {
+  if (!text) {
+    return false;
+  }
+  if (id) {
+    if (assistantProcessedIds.has(id)) {
+      return false;
+    }
+    assistantProcessedIds.add(id);
+    assistantIdQueue.push(id);
+    if (assistantIdQueue.length > MAX_ASSISTANT_IDS) {
+      const removed = assistantIdQueue.shift();
+      if (removed) {
+        assistantProcessedIds.delete(removed);
+      }
+    }
+  }
+  if (assistantPayloadHistory.has(text)) {
+    return false;
+  }
+  assistantPayloadHistory.add(text);
+  assistantPayloadQueue.push(text);
+  if (assistantPayloadQueue.length > MAX_ASSISTANT_PAYLOADS) {
+    const removed = assistantPayloadQueue.shift();
+    if (removed) {
+      assistantPayloadHistory.delete(removed);
+    }
+  }
+  return true;
+}
+
+function recordAssistantPayload(text) {
+  if (!text) {
+    return false;
+  }
+  if (assistantPayloadHistory.has(text)) {
+    return false;
+  }
+  assistantPayloadHistory.add(text);
+  assistantPayloadQueue.push(text);
+  if (assistantPayloadQueue.length > MAX_ASSISTANT_PAYLOADS) {
+    const removed = assistantPayloadQueue.shift();
+    if (removed) {
+      assistantPayloadHistory.delete(removed);
+    }
+  }
+  return true;
+}
+
+const NETWORK_BRIDGE_SOURCE = 'dialogueSafetyNetwork';
+const NETWORK_REQUEST_TYPE = 'SAFETY_INTERCEPT_REQUEST';
+const NETWORK_RESPONSE_TYPE = 'SAFETY_INTERCEPT_RESPONSE';
+const STREAM_URL_SEGMENT = '/StreamGenerate';
+const STREAM_FINALIZE_DELAY = 2000;
+const streamState = new Map();
+let networkBridgeListenerInitialized = false;
+
+function getStreamRequestKey(url) {
+  if (!url) {
+    return '';
+  }
+  try {
+    const parsed = new URL(url, window.location.href);
+    const reqid = parsed.searchParams.get('_reqid');
+    if (reqid) {
+      return `${parsed.pathname}_${reqid}`;
+    }
+  } catch {
+    // ignore
+  }
+  return url;
+}
+
+function finalizeStreamSnippet(key) {
+  const state = streamState.get(key);
+  if (!state) {
+    return;
+  }
+  if (state.timer) {
+    clearTimeout(state.timer);
+  }
+  streamState.delete(key);
+  if (state.snippet) {
+    processAssistantSnippet(state.snippet, state.url, state.id ?? key);
+  }
+}
+
+function bufferStreamSnippet(key, url, snippet, id = null) {
+  if (!key || !snippet) {
+    return;
+  }
+  const state = streamState.get(key) ?? {};
+  const text = snippet.trim();
+  if (!text) {
+    return;
+  }
+  const current = state.snippet ?? '';
+  if (!current || text.length >= current.length) {
+    state.snippet = text;
+    state.url = url;
+    state.id = id ?? state.id;
+  }
+  if (state.timer) {
+    clearTimeout(state.timer);
+  }
+  state.timer = setTimeout(() => finalizeStreamSnippet(key), STREAM_FINALIZE_DELAY);
+  streamState.set(key, state);
+}
+
+function parseNetworkResponseText(text) {
+  const results = [];
+  if (!text) {
+    return results;
+  }
+  const events = text.split(/\r?\n\r?\n/);
+  const pushPayload = (payloadText) => {
+    if (!payloadText) {
+      return;
+    }
+    const trimmedPayload = payloadText.trim();
+    if (!trimmedPayload) {
+      return;
+    }
+    try {
+      results.push(JSON.parse(trimmedPayload));
+    } catch {
+      results.push(trimmedPayload);
+    }
+  };
+
+  for (const event of events) {
+    const lines = event.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine || trimmedLine.startsWith(")]}'")) {
+        continue;
+      }
+      if (/^\d+$/.test(trimmedLine)) {
+        continue;
+      }
+      const dataMatch = trimmedLine.match(/^data:\s*(.*)$/);
+      if (dataMatch) {
+        pushPayload(dataMatch[1]);
+        continue;
+      }
+      const numericPrefixMatch = trimmedLine.match(/^(\d+)\s*(.+)$/);
+      if (numericPrefixMatch && numericPrefixMatch[2]) {
+        pushPayload(numericPrefixMatch[2]);
+        continue;
+      }
+      pushPayload(trimmedLine);
+    }
+  }
+  return results;
+}
+
+function isStreamUrl(url) {
+  return typeof url === 'string' && url.includes(STREAM_URL_SEGMENT);
+}
+
+function unescapeJsonValue(value) {
+  try {
+    return JSON.parse(`"${value.replace(/\\n/g, '\\\\n')}"`);
+  } catch {
+    return value;
+  }
+}
+
+function isLikelyAssistantText(text) {
+  if (!text) {
+    return false;
+  }
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.startsWith(")]}'")) {
+    return false;
+  }
+  if (/^\d+\s*\[\[/.test(trimmed)) {
+    return false;
+  }
+  if (/^\[.*\]$/.test(trimmed)) {
+    return false;
+  }
+  if (trimmed.length < 10) {
+    return false;
+  }
+  if (!/\s/.test(trimmed)) {
+    return false;
+  }
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) {
+    return false;
+  }
+  if (!/[A-Za-z]/.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+function extractAssistantTextSnippets(payloads) {
+  const snippets = new Set();
+
+  function walk(value) {
+    if (typeof value === 'string') {
+      const candidate = value.trim();
+      if (!candidate) {
+        return;
+      }
+      const normalized = normalizeTextValue(candidate);
+      const snippet = normalized.trim();
+      if (isLikelyAssistantText(snippet)) {
+        snippets.add(snippet);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  }
+
+  payloads.forEach((payload) => walk(payload));
+  return Array.from(snippets);
+}
+
+function handleNetworkResponse(text, url) {
+  if (!text || !isStreamUrl(url)) {
+    return;
+  }
+  const payloads = parseNetworkResponseText(text);
+  if (!payloads.length) {
+    return;
+  }
+  payloads.forEach((payload) => handleAssistantPayload(payload, url));
+}
+
+function handleNetworkMessage(event) {
+  if (event.source !== window) {
+    return;
+  }
+  const data = event.data;
+  if (!data || data.source !== NETWORK_BRIDGE_SOURCE) {
+    return;
+  }
+  if (data.type === NETWORK_RESPONSE_TYPE) {
+    handleNetworkResponse(data.text ?? '', data.url ?? '');
+    } else if (data.type === NETWORK_REQUEST_TYPE && isStreamUrl(data.url)) {
+      // skip logging request payload to avoid noise
+    }
+}
+
+function setupNetworkBridgeListener() {
+  if (networkBridgeListenerInitialized) {
+    return;
+  }
+  networkBridgeListenerInitialized = true;
+  window.addEventListener('message', handleNetworkMessage);
 }
 
 function setupNanoTriggers() {
@@ -439,7 +780,7 @@ function setupNanoTriggers() {
   nanoTriggersSetup = true;
   setupDraftWatcher();
   setupSendWatcher();
-  setupAIReplyWatcher();
+  setupNetworkBridgeListener();
 }
 
 
@@ -480,7 +821,7 @@ function requestLanguageModel(userActivated) {
   });
 }
 
-function checkWithAI(sentence, keywords) {
+function checkWithAI(sentence, keywords, source = 'draft') {
   if (!sentence) {
     return;
   }
@@ -489,6 +830,7 @@ function checkWithAI(sentence, keywords) {
     sentence,
     keywords,
     userActivated: navigator.userActivation?.isActive ?? true,
+    source,
   };
   safeSendMessage(payload, (response) => {
     if (chrome.runtime.lastError) {
@@ -508,11 +850,21 @@ function handleAIDecision(response) {
     safe: Boolean(response.safe),
     reason: response.reason ?? '',
     confidence: typeof response.confidence === 'number' ? response.confidence : 0,
+    source: response.source ?? 'unknown',
     sentence: response.sentence ?? '',
     timestamp: Date.now(),
   };
   safeStorageSet({ [AI_DECISION_KEY]: decision }, () => {});
   document.body.dataset.dialogueSafetyAlert = decision.safe ? 'safe' : 'unsafe';
+  const entry = {
+    type: 'ai-decision',
+    text: `${decision.safe ? 'Safe' : 'Unsafe'} (${decision.source}): ${decision.reason}`,
+    source: decision.source,
+    safe: decision.safe,
+    confidence: decision.confidence,
+    sentence: decision.sentence,
+  };
+  pushLogEntry(entry);
 }
 
 function recordActivity() {

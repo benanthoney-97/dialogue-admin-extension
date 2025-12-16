@@ -13,7 +13,20 @@
     "storage",
     "offscreen"
   ],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*"
+  ],
   "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/app/*",
+        "https://chatgpt.com/c/*"
+      ],
+      "js": ["content_bridge.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": [
         "https://gemini.google.com/app/*",
@@ -21,6 +34,16 @@
       ],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "network_spy.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "background": {
