@@ -1,4 +1,4 @@
-import { geminiModel } from '../lib/clients.js'
+import { geminiModel } from '../lib/clients.mjs'
 
 export async function generateAdvice({ 
   query, 
@@ -10,8 +10,8 @@ export async function generateAdvice({
 }) {
 
   // --- HISTORY FORMATTING ---
-  // 1. Slice: Take only the last 6 messages to prevent token overflow.
-  // 2. Filter: Remove the very last message if it's identical to the 'query' (to avoid repeating it in history + current query)
+  // 1. Slice: Last 7 messages
+  // 2. Filter: Remove the active query to prevent duplication
   const relevantHistory = history
     .slice(-7) 
     .filter(msg => msg.content !== query) 
@@ -21,6 +21,17 @@ export async function generateAdvice({
         `${msg.role === 'user' ? 'USER' : 'YOU'}: ${msg.content}`
       ).join("\n")
     : "No previous conversation."
+
+  // --- 🕵️‍♂️ 2. DEBUG: MEMORY CHECK ---
+  console.log(`\n🧠 CONTEXT MEMORY CHECK:`)
+  console.log(`   - Raw History Count: ${history.length}`)
+  console.log(`   - Filtered History Count: ${relevantHistory.length}`)
+  if (relevantHistory.length > 0) {
+      console.log(`   - 📜 INJECTING CONTEXT:\n"""\n${historyBlock}\n"""`)
+  } else {
+      console.log(`   - ⚪ No context injected (First message or history empty).`)
+  }
+  // ---------------------------------
 
   // --- PROMPT ASSEMBLY ---
   const refinedSystemPrompt = systemPrompt.replace(/\[Provider Name\]/g, providerName)
@@ -39,7 +50,7 @@ export async function generateAdvice({
       ${refinedSystemPrompt}
       ${rulesBlock}
 
-      ### INTERNAL KNOWLEDGE LIBRARY (Use this first)
+      ### INTERNAL KNOWLEDGE LIBRARY
       ${contextText}
 
       ### CONVERSATION HISTORY (Context)
@@ -49,10 +60,9 @@ export async function generateAdvice({
       "${query}"
       
       ### INSTRUCTION
-      Answer the current query. refer to the History if the user asks "what did we just talk about?" or "elaborate on that".
+      Answer the current query. Refer to the CONVERSATION HISTORY if the user references previous topics.
     `
   } else {
-    // Audit Mode (Usually no history needed, but good to keep consistent)
     fullPrompt = `
       ${refinedSystemPrompt}
       ${rulesBlock}
@@ -69,7 +79,7 @@ export async function generateAdvice({
   }
 
   // --- EXECUTE ---
-  console.log(`🤖 CALLING GEMINI... (History Length: ${relevantHistory.length})`)
+  console.log(`🤖 CALLING GEMINI...`)
   
   const result = await geminiModel.generateContent({
     contents: [{ role: "user", parts: [{ text: fullPrompt }] }],

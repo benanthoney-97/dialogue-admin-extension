@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
-import { analyzeController } from './src/controllers/analyze.js'
+// Change the import to end in .mjs
+import { analyzeController } from './src/controllers/analyze.mjs'
+
 
 const app = express()
 app.use(cors())

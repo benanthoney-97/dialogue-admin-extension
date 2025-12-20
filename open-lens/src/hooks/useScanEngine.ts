@@ -1,7 +1,5 @@
-// src/hooks/useScanEngine.ts
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
-// Ensure this path matches where you put your source card type
 import type { SourceDocument } from "../components/ui/sourceReferenceCard"
 
 // Initialize Supabase Client
@@ -10,56 +8,38 @@ const supabase = createClient(
   process.env.PLASMO_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// Define Message Interface to include sources
 interface Message {
   role: "user" | "assistant"
   content: string
-  sources?: SourceDocument[] // 👈 Added sources to the type definition
+  sources?: SourceDocument[] 
 }
 
 export function useScanEngine() {
-  // State
   const [currentView, setCurrentView] = useState<'dashboard' | 'chat'>('dashboard')
   const [providers, setProviders] = useState<any[]>([])
   const [activeProvider, setActiveProvider] = useState<any>(null)
   
-  // Update State Type to use the new Message interface
   const [messages, setMessages] = useState<Message[]>([])
-  
   const [isScanning, setIsScanning] = useState(false)
   const [pendingFallback, setPendingFallback] = useState<{text: string, type: string} | null>(null)
 
-  // 1. Load Providers on Mount
+  // 1. Load Providers
   useEffect(() => {
-    // MOCK USER: Change to test security
     const SIMULATED_USER_EMAIL = "steve@acme.com" 
     const userDomain = SIMULATED_USER_EMAIL.split('@')[1]
 
     const fetchProviders = async () => {
-      // Fetch Public
-      const { data: publicProviders } = await supabase
-        .from('providers')
-        .select('*')
-        .eq('is_public', true)
-
-      // Fetch Private Access
-      const { data: accessList } = await supabase
-        .from('provider_access')
-        .select('provider_id')
-        .eq('domain_pattern', userDomain)
+      const { data: publicProviders } = await supabase.from('providers').select('*').eq('is_public', true)
       
+      const { data: accessList } = await supabase.from('provider_access').select('provider_id').eq('domain_pattern', userDomain)
       const allowedIds = accessList?.map(a => a.provider_id) || []
       
       let privateProviders: any[] = []
       if (allowedIds.length > 0) {
-        const { data } = await supabase
-            .from('providers')
-            .select('*')
-            .in('id', allowedIds)
+        const { data } = await supabase.from('providers').select('*').in('id', allowedIds)
         if(data) privateProviders = data
       }
 
-      // Merge & De-duplicate
       const allProviders = [...(publicProviders || []), ...privateProviders]
       const unique = allProviders.filter((v,i,a)=>a.findIndex(v2=>(v2.id===v.id))===i)
 
@@ -71,7 +51,7 @@ export function useScanEngine() {
     fetchProviders()
   }, [])
 
-  // 2. Logic: Reset
+  // 2. Reset Logic
   const handleReset = () => {
     setCurrentView('dashboard')
     setMessages([])
@@ -79,35 +59,40 @@ export function useScanEngine() {
     setPendingFallback(null)
   }
 
-
-// 3. Logic: Analyze (The Core Loop)
+  // 3. Analyze Logic (The Fix)
   const runAnalysis = async (text: string, scanType: string, force = false) => {
     if (!activeProvider) return
     
-    // Switch to Chat View
     setCurrentView('chat')
-
-    // --- STATE UPDATE LOGIC ---
-    if (force) {
-        // 1. Force Retry: Just add "Thinking..." (Keep history)
-        setMessages(prev => [...prev, { role: "assistant", content: "Generating general opinion..." }])
-    
-    } else if (scanType === 'full' || scanType === 'summary') {
-        // 2. Full Page Scan: EXPLICITLY Reset History (Wipe history)
-        setMessages([{ role: "assistant", content: `**${activeProvider.name}** is analyzing the page...` }])
-    
-    } else {
-        // 3. Chat / Default: ALWAYS Append (Safe fallback)
-        // This catches 'chat', 'selection', or any typos and preserves history
-        setMessages(prev => [
-            ...prev, 
-            { role: "user", content: text }, 
-            { role: "assistant", content: `**${activeProvider.name}** is thinking...` }
-        ])
-    }
-    
     setIsScanning(true)
     setPendingFallback(null)
+
+    // --- 🅰️ CALCULATE HISTORY PAYLOAD ---
+    let historyPayload: Message[] = []
+
+    // Rule: If it's a NEW scan (selection/page) or a Force Retry, we RESET history.
+    // We only keep history if it is a 'chat' follow-up.
+    if (scanType === 'chat' && !force) {
+       historyPayload = [...messages, { role: "user", content: text }]
+    } else {
+       // Start Fresh for new audits
+       historyPayload = [] 
+    }
+
+    // --- 🅱️ UPDATE UI (Optimistic) ---
+    if (scanType === 'chat' && !force) {
+        setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: `**${activeProvider.name}** is thinking...` }])
+    } else {
+        setMessages([{ role: "assistant", content: `**${activeProvider.name}** is analyzing...` }])
+    }
+
+    // --- 🕵️‍♂️ DEBUG LOG (Check your browser console!) ---
+    console.log("🚀 SENDING TO API:", {
+        text,
+        scanType,
+        historyLength: historyPayload.length,
+        historyContent: historyPayload
+    })
 
     try {
         const response = await fetch('http://localhost:3000/api/analyze', {
@@ -115,6 +100,7 @@ export function useScanEngine() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 text, 
+                messages: historyPayload, // 👈 KEY: Sending the calculated variable, NOT the state
                 scanType,
                 providerId: activeProvider.id,
                 forceFallback: force 
@@ -133,12 +119,15 @@ export function useScanEngine() {
             ? result.advice.replace(/^```markdown\s*/i, "").replace(/```$/, "").trim()
             : "No output generated."
 
+        // Update UI with real answer
         setMessages(prev => {
-            const history = prev.slice(0, -1) // Remove "Thinking..."
-            return [...history, { 
+            // If we started fresh, 'prev' is just the "Thinking..." message. 
+            // If we chatted, 'prev' is History + User + "Thinking..."
+            const base = prev.slice(0, -1) 
+            return [...base, { 
                 role: "assistant", 
                 content: cleanAdvice,
-                sources: result.sources // 👈 CRITICAL FIX: Save API sources to state
+                sources: result.sources 
             }] 
         })
 
@@ -153,7 +142,7 @@ export function useScanEngine() {
     }
   }
 
-  // 4. Logic: Chrome Scripting
+  // 4. Chrome Scripting
   const performScan = async (type: 'full' | 'selection' | 'summary') => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!tab?.id) return
@@ -178,18 +167,7 @@ export function useScanEngine() {
   }
 
   return {
-    // State
-    currentView,
-    activeProvider,
-    providers,
-    messages,
-    isScanning,
-    pendingFallback,
-    // Setters
-    setActiveProvider,
-    // Actions
-    handleReset,
-    runAnalysis,
-    performScan
+    currentView, activeProvider, providers, messages, isScanning, pendingFallback,
+    setActiveProvider, handleReset, runAnalysis, performScan
   }
 }

@@ -1,4 +1,4 @@
-import { supabase, openai } from '../lib/clients.js'
+import { supabase, openai } from '../lib/clients.mjs'
 
 export async function searchKnowledgeBase(query, providerId) {
   console.log(`🧮 Generating Vectors for: "${query.substring(0, 30)}..."`)

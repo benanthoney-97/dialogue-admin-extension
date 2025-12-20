@@ -1,14 +1,19 @@
-import { supabase } from '../lib/clients.js'
-import { searchKnowledgeBase } from '../services/retrieval.js'
-import { generateAdvice } from '../services/generation.js'
+import { supabase } from '../lib/clients.mjs'
+import { searchKnowledgeBase } from '../services/retrieval.mjs'
+import { generateAdvice } from '../services/generation.mjs'
 
 export const analyzeController = async (req, res) => {
   try {
     const { text, messages, scanType, providerId, forceFallback } = req.body
 
-    // 1. DETERMINE CURRENT QUERY
-    // If 'text' is provided (e.g. from the highlight scan), use it.
-    // If not, use the LAST message from the chat history.
+    // --- 🕵️‍♂️ 1. DEBUG: INPUT VALIDATION ---
+    console.log(`\n===================================================`)
+    console.log(`📥 NEW REQUEST RECEIVED`)
+    console.log(`   - Scan Type: ${scanType}`)
+    console.log(`   - Provider ID: ${providerId}`)
+    console.log(`   - Messages Array Length: ${messages ? messages.length : 0}`)
+    
+    // DETERMINE CURRENT QUERY
     let currentQuery = text
     if (!currentQuery && messages && messages.length > 0) {
       const lastMessage = messages[messages.length - 1]
@@ -16,12 +21,10 @@ export const analyzeController = async (req, res) => {
         currentQuery = lastMessage.content
       }
     }
+    console.log(`   - Active Query: "${currentQuery?.slice(0, 50)}..."`)
+    console.log(`===================================================\n`)
 
     if (!currentQuery) return res.status(400).json({ error: "No query provided" })
-
-    console.log(`\n---------------------------------------------------`)
-    console.log(`🔍 NEW REQUEST: Provider ${providerId} | Type: ${scanType}`)
-    console.log(`📝 Query: "${currentQuery.slice(0, 50)}..."`)
 
     // 2. FETCH PROVIDER
     const { data: provider } = await supabase
@@ -35,8 +38,7 @@ export const analyzeController = async (req, res) => {
     // @ts-ignore
     const systemPrompt = provider.provider_types?.system_prompt || "You are a helpful assistant."
 
-    // 3. RETRIEVE KNOWLEDGE (RAG)
-    // We only search based on the CURRENT query, not the whole history (saves tokens/noise)
+    // 3. RETRIEVE KNOWLEDGE (Based on CURRENT query only)
     const { hasKnowledge, contextText, sourceDocs } = await searchKnowledgeBase(currentQuery, providerId)
 
     // 4. STOP IF NO MATCH (Unless it's a chat or forced)
@@ -45,10 +47,10 @@ export const analyzeController = async (req, res) => {
       return res.json({ match: false, advice: null, requiresConfirmation: true })
     }
 
-    // 5. GENERATE ADVICE (LLM)
+    // 5. GENERATE ADVICE
     const advice = await generateAdvice({
       query: currentQuery,
-      history: messages || [], // 👈 PASS FULL HISTORY
+      history: messages || [], 
       contextText,
       systemPrompt,
       providerName: provider.name,
