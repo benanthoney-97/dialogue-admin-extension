@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeedLegals | Video Intelligence Console</title>
+    <style>
+        :root { --primary: #00bfa5; --bg: #f4f6f8; --card: #ffffff; --text: #2c3e50; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { font-size: 24px; font-weight: 700; margin: 0; }
+        .badge { background: #e0f2f1; color: var(--primary); padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+
+        /* Cards */
+        .card { background: var(--card); border-radius: 12px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card h2 { font-size: 18px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        
+        /* Controls */
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        .slider-container { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+        input[type="range"] { flex: 1; height: 6px; background: #eee; border-radius: 5px; appearance: none; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; cursor: pointer; }
+        .value-display { font-weight: bold; font-size: 18px; color: var(--primary); width: 50px; text-align: right; }
+        
+        input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 14px; box-sizing: border-box; }
+        .helper { font-size: 12px; color: #7f8c8d; margin-top: 5px; }
+
+        /* Action Bar */
+        .actions { text-align: right; margin-top: 20px; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        button.saving { opacity: 0.7; cursor: wait; }
+
+        /* Code Block */
+        pre { background: #2d3436; color: #dfe6e9; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:24px; height:24px; background:var(--primary); border-radius:4px;"></div>
+            <h1>Video Intelligence Console</h1>
+        </div>
+        <span class="badge">Live Pilot</span>
+    </header>
+
+    <div class="card">
+        <h2>🧠 AI Matching Behavior</h2>
+        
+        <label>Confidence Threshold (The "Relevance Slider")</label>
+        <div class="slider-container">
+            <span>Broad</span>
+            <input type="range" id="threshold" min="0.50" max="0.99" step="0.01">
+            <span>Precise</span>
+            <div class="value-display" id="thresholdVal">0.85</div>
+        </div>
+        <p class="helper">Set to <strong>0.85+</strong> for high precision (Legal/Compliance). Set lower for maximum engagement.</p>
+
+        <br>
+
+        <label>Active Paths (Where should this run?)</label>
+        <input type="text" id="allowedPaths" placeholder="/resources, /blog">
+        <p class="helper">Comma separated list of URL paths. E.g. <code>/resources/</code> will match <code>seedlegals.com/resources/seis</code>.</p>
+    </div>
+
+    <div class="actions">
+        <button id="saveBtn">Save Changes</button>
+    </div>
+
+    <div class="card" style="margin-top: 30px; background: #fafafa;">
+        <h2>🔌 Installation Snippet</h2>
+        <p style="font-size:14px; margin-bottom:10px;">Forward this code to your WordPress / Engineering team.</p>
+        <pre id="codeBlock">
+</pre>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js"></script>
+
+</body>
+</html>
