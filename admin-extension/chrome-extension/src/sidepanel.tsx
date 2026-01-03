@@ -17,6 +17,16 @@ function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
 
   useEffect(() => {
+    const port = chrome.runtime.connect({ name: "admin-mode" })
+    console.log("[panel] admin port connected")
+
+    return () => {
+      console.log("[panel] disconnecting admin port")
+      port.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
     console.log("[panel] mounted, requesting latest match")
     const listener = (message: any) => {
       console.log("[panel] received message", message)

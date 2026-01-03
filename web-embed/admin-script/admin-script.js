@@ -4,11 +4,15 @@
   const MATCH_DATA_SCRIPT_ID = "sl-match-map-data";
   const HIGHLIGHT_STYLE_ID = "sl-smart-link-style";
 
+  const MODE_VISITOR = "visitor";
+  const MODE_ADMIN = "admin";
+
   const state = {
     matches: [],
     observer: null,
     highlightTimer: null,
-    initialized: false
+    initialized: false,
+    mode: MODE_VISITOR
   };
 
   const getMatchIdentifier = (match) =>
@@ -62,6 +66,9 @@
       }
       .sl-smart-link.sl-smart-link--inactive::after {
         color: rgba(148, 163, 184, 0.9);
+      }
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
+        display: none;
       }
     `;
     document.head.appendChild(style);
@@ -220,6 +227,20 @@
     });
   };
 
+  const applyMode = (mode) => {
+    state.mode = mode === MODE_ADMIN ? MODE_ADMIN : MODE_VISITOR;
+    const root = document.documentElement;
+    const body = document.body;
+    if (root) {
+      root.classList.toggle("sl-admin-mode", state.mode === MODE_ADMIN);
+      root.classList.toggle("sl-visitor-mode", state.mode === MODE_VISITOR);
+    }
+    if (body) {
+      body.classList.toggle("sl-admin-mode", state.mode === MODE_ADMIN);
+      body.classList.toggle("sl-visitor-mode", state.mode === MODE_VISITOR);
+    }
+  };
+
   const addMatchHighlight = (match) => {
     console.log("[sl-admin-script] addMatchHighlight called", match?.page_match_id, match)
     if (!match) return;
@@ -274,4 +295,11 @@
   };
   window.__SL_removeMatchHighlight = removeMatchHighlight;
   window.__SL_addMatchHighlight = addMatchHighlight;
+  window.__SL_setMode = (mode) => {
+    console.log("[sl-admin-script] set mode", mode);
+    applyMode(mode);
+  };
+  window.__SL_getMode = () => state.mode;
+
+  applyMode(state.mode);
 })();

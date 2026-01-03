@@ -154,6 +154,9 @@ const fetchDecisionData = async (match: MatchPayload) => {
   return mergeDecisionPayload(match, pageMatch, doc, knowledge)
 }
 
+const MODE_ADMIN = "admin"
+const MODE_VISITOR = "visitor"
+
 const notifyMatchData = (payload: MatchPayload) => {
   chrome.runtime.sendMessage({ action: "matchData", match: payload }, () => {
     if (chrome.runtime.lastError) {
@@ -203,6 +206,29 @@ const executePageHighlightAddition = async (tabId: number, match: MatchPayload) 
     console.log("[background] executePageHighlightAddition success", { tabId, match })
   } catch (error) {
     console.error("[background] scripting addition error", error)
+  }
+}
+
+const executePageMode = async (tabId: number, mode: string) => {
+  console.log("[background] executePageMode start", { tabId, mode })
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: (modeValue: string) => {
+        console.log("[background] invoke setMode from page", modeValue)
+        const setter = (window as any).__SL_setMode
+        if (typeof setter === "function") {
+          setter(modeValue)
+        } else {
+          console.warn("[background] mode setter missing on page")
+        }
+      },
+      args: [mode]
+    })
+    console.log("[background] executePageMode success", { tabId, mode })
+  } catch (error) {
+    console.error("[background] scripting mode error", error)
   }
 }
 
@@ -267,10 +293,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
+  if (message.action === "setPageMode") {
+    const mode = message.mode === MODE_ADMIN ? MODE_ADMIN : MODE_VISITOR
+    console.log("[background] setPageMode received", mode)
+    const targetTabId = lastMatchTabId ?? sender.tab?.id
+    if (targetTabId) {
+      executePageMode(targetTabId, mode)
+    } else {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        const fallback = tabs?.[0]
+        const fallbackId = fallback?.id
+        if (fallbackId) {
+          lastMatchTabId = fallbackId
+          executePageMode(fallbackId, mode)
+        }
+      })
+    }
+    return false
+  }
+
   if (message.action === "getLatestMatch") {
     sendResponse({ match: latestMatch })
     return true
   }
 
   return false
+})
+
+const getActiveTabId = () =>
+  new Promise<number | null>((resolve) => {
+    chrome.tabs?.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      const active = tabs?.[0]
+      resolve(active?.id ?? null)
+    })
+  })
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "admin-mode") return
+  getActiveTabId().then((tabId) => {
+    console.log("[background] admin port connected", { tabId })
+    if (tabId) {
+      lastMatchTabId = tabId
+      executePageMode(tabId, MODE_ADMIN)
+    }
+  })
+  port.onDisconnect.addListener(() => {
+    getActiveTabId().then((tabId) => {
+      console.log("[background] admin port disconnected", { tabId })
+      if (tabId) {
+        lastMatchTabId = tabId
+        executePageMode(tabId, MODE_VISITOR)
+      }
+    })
+  })
 })
