@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SeedLegals | Video Intelligence Console</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <video-sidebar default-section="home"></video-sidebar>
+
+  <main>
+    <section data-section="home">
+      <h2>Home</h2>
+      <p class="hint">Welcome back to the Video Intelligence console. The slider is now part of the Control page.</p>
+    </section>
+
+    <section data-section="connections" class="hidden">
+      <h2>Connections</h2>
+      <sources-table></sources-table>
+    </section>
+  </main>
+
+  <script type="module" src="../components/sidebar/sidebar.js"></script>
+  <script type="module" src="../components/sources-table/sources-table.js"></script>
+  <script type="module" src="../components/right-panel/right-panel.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../components/index/platforms.js"></script>
+  <script>
+    const sections = document.querySelectorAll('[data-section]');
+
+    function showHome() {
+      sections.forEach(section => {
+        section.classList.toggle('hidden', section.dataset.section !== 'home');
+      });
+    }
+
+    function handleSidebarSelect(event) {
+      const selectedSection = event?.detail?.section || 'home';
+      if (selectedSection === 'home') {
+        showHome();
+        return;
+      }
+
+      if (selectedSection === 'control') {
+        console.log('Navigating to control page via sidebar');
+        window.location.href = './control.html';
+        return;
+      }
+
+      if (selectedSection === 'connections') {
+        console.log('Navigating to platforms page via sidebar');
+        window.location.href = './platforms.html';
+        return;
+      }
+    }
+
+    document.addEventListener('sidebar-select', handleSidebarSelect);
+    showHome();
+  </script>
+
+  <div class="right-panel-shell" id="rightPanelShell">
+    <right-panel></right-panel>
+  </div>
+  <script>
+    const rightPanelShell = document.getElementById('rightPanelShell');
+    const rightPanelEl = document.querySelector('right-panel');
+
+    function closeRightPanel() {
+      rightPanelShell.classList.remove('visible');
+    }
+
+    let suppressClose = false;
+
+    document.addEventListener('click', (event) => {
+      if (suppressClose) {
+        suppressClose = false;
+        return;
+      }
+      if (!rightPanelShell.contains(event.target)) {
+        closeRightPanel();
+      }
+    });
+
+    rightPanelShell.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+
+    document.addEventListener('sources-row-select', (event) => {
+      if (!rightPanelEl || !rightPanelShell) return;
+      const item = event.detail?.item || {};
+      rightPanelEl.data = [{
+        name: item.name,
+        url: item.url,
+        type: item.type ?? 'platform'
+      }];
+      rightPanelShell.classList.add('visible');
+      suppressClose = true;
+    });
+</script>
+  <script type="module">
+    import { updateDocumentActiveStatus } from '../components/index/platforms.js';
+
+    document.addEventListener('right-panel-toggle', async (event) => {
+      const item = event.detail?.item;
+      if (!item?.id) return;
+      try {
+        await updateDocumentActiveStatus(item.id, Boolean(item.active));
+        console.log('Updated document', item.id, 'is_active ->', item.active);
+      } catch (error) {
+        console.error('Unable to update document active state:', error);
+      }
+    });
+  </script>
+  <script src="../auto-reload.js"></script>
+</body>
+</html>

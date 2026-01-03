@@ -1,0 +1,14 @@
+{
+  "name": "dialogue-brain",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "generate-config": "node scripts/generate-config.js",
+    "dev": "node scripts/dev-server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.41.0",
+    "dotenv": "^16.4.7",
+    "serve-handler": "^6.1.0"
+  }
+}

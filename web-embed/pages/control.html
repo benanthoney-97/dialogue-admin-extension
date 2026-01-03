@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SeedLegals | Control Center</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <video-sidebar default-section="control"></video-sidebar>
+    <main>
+      <admin-panel></admin-panel>
+    </main>
+  </div>
+
+  <script type="module" src="../components/sidebar/sidebar.js"></script>
+  <script type="module" src="../components/admin-panel/admin-panel.js"></script>
+  <script>
+    console.log('Control page loaded');
+    const sections = document.querySelectorAll('[data-section]');
+
+    function handleSidebarSelect(event) {
+      console.log('sidebar-select event (control page)', event.detail?.section);
+      const section = event?.detail?.section || 'home';
+      if (section === 'home') {
+        window.location.href = '/pages/index.html';
+      } else if (section === 'control') {
+        // already here
+      } else if (section === 'connections') {
+        window.location.href = '/pages/platforms.html';
+      }
+    }
+
+    document.addEventListener('sidebar-select', handleSidebarSelect);
+  </script>
+  <script src="../auto-reload.js"></script>
+</body>
+</html>
