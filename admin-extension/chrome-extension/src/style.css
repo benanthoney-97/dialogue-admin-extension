@@ -22,3 +22,28 @@
   animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
+
+.timestamp-view {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timestamp-view__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #475467;
+  gap: 6px;
+}
+
+.timestamp-view__back {
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}

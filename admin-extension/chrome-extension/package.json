@@ -52,6 +52,16 @@
       "scripting",
       "activeTab"
     ],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "static/player.js"
+        ],
+        "matches": [
+          "<all_urls>"
+        ]
+      }
+    ],
     "action": {
       "default_title": "Dialogue"
     }

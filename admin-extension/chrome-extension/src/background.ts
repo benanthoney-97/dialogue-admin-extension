@@ -312,6 +312,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
+  if (message.action === "refreshMatch") {
+    const payloadMatch = message.match
+    if (!payloadMatch) {
+      return false
+    }
+    fetchDecisionData(payloadMatch)
+      .then((data) => {
+        latestMatch = data
+        notifyMatchData(data)
+      })
+      .catch((error) => {
+        console.error("[background] refreshMatch error", error)
+      })
+    return false
+  }
+
   if (message.action === "getLatestMatch") {
     sendResponse({ match: latestMatch })
     return true

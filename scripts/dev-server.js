@@ -9,6 +9,7 @@ const pageMatchStatusHandler = require('../web-embed/api/page-match-status');
 const pageMatchHandler = require('../admin-extension/chrome-extension/api/page-match');
 const providerDocumentHandler = require('../admin-extension/chrome-extension/api/provider-document');
 const providerKnowledgeHandler = require('../admin-extension/chrome-extension/api/provider-knowledge');
+const providerDocumentsListHandler = require('../admin-extension/chrome-extension/api/provider-documents-list');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
 const HTTP_PORT = 4173;
@@ -86,6 +87,11 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/provider-document') {
       await providerDocumentHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/provider-documents') {
+      await providerDocumentsListHandler(req, res);
       return;
     }
 

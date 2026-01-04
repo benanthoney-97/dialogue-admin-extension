@@ -9,6 +9,7 @@ export interface DecisionCardProps {
   videoUrl?: string
   knowledgeId?: number | null
   pageMatchId?: number | null
+  onDecisionSelect?: (action: string) => void
 }
 
 export function DecisionCard({
@@ -19,8 +20,24 @@ export function DecisionCard({
   videoUrl,
   knowledgeId,
   pageMatchId,
+  onDecisionSelect,
 }: DecisionCardProps) {
   const ref = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!onDecisionSelect || !element) return
+    const listener = (event: any) => {
+      const action = event?.detail?.action
+      if (typeof action === "string") {
+        onDecisionSelect(action)
+      }
+    }
+    element.addEventListener("decision-select", listener)
+    return () => {
+      element.removeEventListener("decision-select", listener)
+    }
+  }, [onDecisionSelect])
 
   useEffect(() => {
     const element = ref.current
