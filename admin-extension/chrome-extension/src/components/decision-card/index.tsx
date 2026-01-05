@@ -7,6 +7,7 @@ export interface DecisionCardProps {
   content?: string
   phrase?: string
   videoUrl?: string
+  status?: string
   knowledgeId?: number | null
   pageMatchId?: number | null
   onDecisionSelect?: (action: string) => void
@@ -18,6 +19,7 @@ export function DecisionCard({
   content,
   phrase,
   videoUrl,
+  status,
   knowledgeId,
   pageMatchId,
   onDecisionSelect,
@@ -44,16 +46,20 @@ export function DecisionCard({
     if (!element) return
     if (title !== undefined) element.setAttribute("data-title", title)
     if (confidence !== undefined) element.setAttribute("data-confidence", String(confidence))
-    if (phrase !== undefined) element.setAttribute("data-phrase", phrase)
     if (content !== undefined) element.setAttribute("data-content", content)
     if (videoUrl !== undefined) element.setAttribute("data-video", videoUrl)
+    if (phrase !== undefined) element.setAttribute("data-phrase", phrase)
+    if (status !== undefined) {
+      console.log("[DecisionCard] setting attribute data-status", status)
+      element.setAttribute("data-status", status)
+    }
     if (knowledgeId !== undefined && knowledgeId !== null) {
       element.setAttribute("data-knowledge-id", String(knowledgeId))
     }
     if (pageMatchId !== undefined && pageMatchId !== null) {
       element.setAttribute("data-page-match-id", String(pageMatchId))
     }
-  }, [title, confidence, content, phrase, videoUrl, knowledgeId, pageMatchId])
+  }, [title, confidence, content, phrase, videoUrl, status, knowledgeId, pageMatchId])
 
   return <decision-card ref={ref} />
 }

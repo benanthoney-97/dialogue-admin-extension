@@ -144,7 +144,6 @@
     const disallowedTags = /SCRIPT|STYLE|A|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
 
     matches.forEach((match, matchIndex) => {
-      console.log("[sl-admin-script] processing match", matchIndex, match?.phrase, match?.status);
       if (!match || !match.phrase) return;
       const target = normalize(match.phrase);
       if (!target) return;
@@ -178,8 +177,9 @@
             if (!Number.isNaN(confidence)) {
               span.dataset.confidence = String(confidence);
             }
-            if (match.status === "inactive") {
-              console.log("[sl-admin-script] marking inactive span", matchId);
+            const status = (match.status || "active").toLowerCase()
+            span.dataset.matchStatus = status;
+            if (status === "inactive") {
               span.classList.add("sl-smart-link--inactive");
             }
             span.textContent = part;
@@ -329,12 +329,12 @@
   const markSpansInactive = (pageMatchId) => {
     const spans = Array.from(document.querySelectorAll(`.sl-smart-link[data-page-match-id="${pageMatchId}"]`));
     if (!spans.length) {
-      console.log("[sl-admin-script] no spans found for", pageMatchId);
       return;
     }
     spans.forEach((span) => {
       span.classList.add("sl-smart-link--inactive");
       span.style.opacity = "1";
+      span.dataset.matchStatus = "inactive";
     });
   };
 
@@ -352,6 +352,10 @@
     const spans = document.querySelectorAll(".sl-smart-link");
     spans.forEach((span) => {
       const confidence = getSpanConfidence(span);
+      const status = span.dataset.matchStatus || "active";
+      if (status === "inactive") {
+        return;
+      }
       if (confidence === null) {
         span.classList.remove("sl-smart-link--inactive");
         return;
@@ -366,14 +370,19 @@
   };
 
   const removeMatchHighlight = (pageMatchId) => {
-    console.log("[sl-admin-script] removeMatchHighlight called", pageMatchId);
     const normalized = getMatchIdentifier({ page_match_id: pageMatchId });
     if (!normalized) return;
     const targetId = String(normalized);
     markSpansInactive(targetId);
-    state.matches = state.matches.filter((match) => {
+    state.matches = state.matches.map((match) => {
       const identifier = getMatchIdentifier(match);
-      return !(identifier && String(identifier) === targetId);
+      if (identifier && String(identifier) === targetId) {
+        return {
+          ...match,
+          status: "inactive",
+        };
+      }
+      return match;
     });
     window.__SL_MATCH_MAP__ = state.matches;
     persistMatches(state.matches);
@@ -402,7 +411,6 @@
   };
 
   const addMatchHighlight = (match) => {
-    console.log("[sl-admin-script] addMatchHighlight called", match?.page_match_id, match)
     if (!match) return;
     const matchId = getMatchIdentifier(match);
     if (!matchId) return;
@@ -457,7 +465,6 @@
   window.__SL_removeMatchHighlight = removeMatchHighlight;
   window.__SL_addMatchHighlight = addMatchHighlight;
   window.__SL_setMode = (mode) => {
-    console.log("[sl-admin-script] set mode", mode);
     applyMode(mode);
   };
   window.__SL_getMode = () => state.mode;
