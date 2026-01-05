@@ -13,7 +13,8 @@
     highlightTimer: null,
     initialized: false,
     mode: MODE_VISITOR,
-    visitorListenerAttached: false
+    visitorListenerAttached: false,
+    thresholdValue: 0
   };
 
   const getMatchIdentifier = (match) =>
@@ -165,23 +166,25 @@
 
         parts.forEach((part) => {
           if (!part) return;
-            if (part.toLowerCase() === target.toLowerCase()) {
-              const span = document.createElement("span");
-              span.className = "sl-smart-link";
-              span.dataset.matchIndex = matchIndex;
-              const matchId = getMatchIdentifier(match);
-              if (matchId) {
-                span.dataset.pageMatchId = String(matchId);
-              }
-              if (match.status === "inactive") {
-                console.log("[sl-admin-script] marking inactive span", matchId);
-              }
-      if (match.status === "inactive") {
-        span.classList.add("sl-smart-link--inactive");
-      }
-              span.textContent = part;
-              fragment.appendChild(span);
-            } else {
+          if (part.toLowerCase() === target.toLowerCase()) {
+            const span = document.createElement("span");
+            span.className = "sl-smart-link";
+            span.dataset.matchIndex = matchIndex;
+            const matchId = getMatchIdentifier(match);
+            if (matchId) {
+              span.dataset.pageMatchId = String(matchId);
+            }
+            const confidence = Number(match.confidence);
+            if (!Number.isNaN(confidence)) {
+              span.dataset.confidence = String(confidence);
+            }
+            if (match.status === "inactive") {
+              console.log("[sl-admin-script] marking inactive span", matchId);
+              span.classList.add("sl-smart-link--inactive");
+            }
+            span.textContent = part;
+            fragment.appendChild(span);
+          } else {
             fragment.appendChild(document.createTextNode(part));
           }
         });
@@ -316,6 +319,7 @@
     whenDOMReady(() => {
       ensureHighlightStyle();
       highlightMatches(state.matches);
+      applyThresholdToSpans(state.thresholdValue);
       setupObserver();
       ensureVisitorPlayer();
       setupVisitorClicks();
@@ -331,6 +335,33 @@
     spans.forEach((span) => {
       span.classList.add("sl-smart-link--inactive");
       span.style.opacity = "1";
+    });
+  };
+
+  const getSpanConfidence = (span) => {
+    const raw = span.dataset.confidence;
+    if (!raw) return null;
+    const value = Number(raw);
+    if (Number.isNaN(value)) return null;
+    return value;
+  };
+
+  const applyThresholdToSpans = (value) => {
+    if (typeof value !== "number") return;
+    state.thresholdValue = value;
+    const spans = document.querySelectorAll(".sl-smart-link");
+    spans.forEach((span) => {
+      const confidence = getSpanConfidence(span);
+      if (confidence === null) {
+        span.classList.remove("sl-smart-link--inactive");
+        return;
+      }
+      if (confidence < value) {
+        span.classList.add("sl-smart-link--inactive");
+        span.style.opacity = "1";
+      } else {
+        span.classList.remove("sl-smart-link--inactive");
+      }
     });
   };
 
@@ -396,6 +427,7 @@
     whenDOMReady(() => {
       ensureHighlightStyle();
       highlightMatches([normalizedMatch]);
+      applyThresholdToSpans(state.thresholdValue);
     });
   };
 
@@ -429,6 +461,11 @@
     applyMode(mode);
   };
   window.__SL_getMode = () => state.mode;
+  window.__SL_applyThreshold = (value) => {
+    if (typeof value === "number") {
+      applyThresholdToSpans(value);
+    }
+  };
 
   applyMode(state.mode);
 })();

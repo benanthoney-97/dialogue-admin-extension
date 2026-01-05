@@ -5,6 +5,7 @@ import type { DecisionCardProps } from "./components/decision-card"
 import { ProviderDocumentsGrid } from "./components/provider-documents-grid"
 import type { ProviderDocument } from "./components/provider-documents-grid"
 import { TimestampPicker } from "./components/timestamp-picker"
+import { ThresholdSelector } from "./components/threshold-selector"
 
 const PROVIDER_ID = 12
 
@@ -22,8 +23,9 @@ type MatchPayload = {
 
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
-  const [view, setView] = useState<"card" | "documents" | "timestamp">("card")
+  const [view, setView] = useState<"threshold" | "card" | "documents" | "timestamp">("threshold")
   const [selectedDoc, setSelectedDoc] = useState<ProviderDocument | null>(null)
+  const [threshold, setThreshold] = useState<"high" | "medium" | "low">("medium")
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
@@ -41,6 +43,12 @@ function SidePanel() {
       console.log("[panel] received message", message)
       if (message.action === "matchData") {
         setMatch(message.match)
+      } else if (message.action === "thresholdData") {
+        const value = message.threshold
+        if (value && ["high","medium","low"].includes(value)) {
+          setThreshold(value)
+          chrome.storage?.local?.set({ threshold: value })
+        }
       }
     }
 
@@ -56,6 +64,14 @@ function SidePanel() {
     return () => {
       chrome.runtime.onMessage.removeListener(listener)
     }
+  }, [])
+
+  useEffect(() => {
+    chrome.storage?.local?.get?.({ threshold: "medium" }, (result) => {
+      if (result?.threshold && ["high", "medium", "low"].includes(result.threshold)) {
+        setThreshold(result.threshold)
+      }
+    })
   }, [])
 
   const cardProps: DecisionCardProps = {
@@ -77,6 +93,12 @@ function SidePanel() {
   const handleDocumentSelect = (doc: ProviderDocument) => {
     setSelectedDoc(doc)
     setView("timestamp")
+  }
+
+  const handleThresholdChange = (value: "high" | "medium" | "low") => {
+    setThreshold(value)
+    chrome.storage?.local?.set?.({ threshold: value })
+    chrome.runtime.sendMessage({ action: "setThreshold", threshold: value })
   }
 
   const extractTimestamp = (url?: string) => {
@@ -144,6 +166,20 @@ function SidePanel() {
   }
 
   const renderBody = () => {
+    if (view === "threshold") {
+      return (
+        <div className="threshold-intro">
+          <ThresholdSelector current={threshold} onChange={handleThresholdChange} />
+          <button
+            type="button"
+            className="threshold-intro__continue"
+            onClick={() => setView("card")}
+          >
+            Continue
+          </button>
+        </div>
+      )
+    }
     if (view === "documents") {
       return <ProviderDocumentsGrid providerId={PROVIDER_ID} onDocumentSelect={handleDocumentSelect} />
     }
@@ -166,7 +202,12 @@ function SidePanel() {
         </div>
       )
     }
-    return <DecisionCard {...cardProps} onDecisionSelect={handleDecisionSelect} />
+    return (
+      <div className="card-with-threshold">
+        <ThresholdSelector current={threshold} onChange={handleThresholdChange} />
+        <DecisionCard {...cardProps} onDecisionSelect={handleDecisionSelect} />
+      </div>
+    )
   }
 
   return (
