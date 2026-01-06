@@ -79,6 +79,14 @@ template.innerHTML = `
       border: none;
     }
 
+    .decision-card-meta-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
     .decision-card-meta {
       text-align: left;
       width: 100%;
@@ -98,28 +106,101 @@ template.innerHTML = `
       font-size: 14px;
       font-weight: 600;
       color: #0b7c55;
-      background: rgba(32, 201, 151, 0.12);
-      border-radius: 999px;
-      padding: 4px 10px;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
       width: fit-content;
+    }
+
+    .decision-card-phrase-container {
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      background: #ffffff;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .decision-card-phrase-box {
+      width: 100%;
+      margin: 0;
+      background: #f2f4f7;
+      border-radius: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .decision-card-phrase {
+      margin: 0;
+      font-size: 13px;
+      color: #0b0c0d;
+      line-height: 1.4;
+      max-height: calc(1.4em * 4);
+      overflow-y: auto;
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+    }
+
+    .decision-card-divider-arrow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      color: #9ca3af;
+      line-height: 1;
+    }
+
+    .decision-card-content-wrapper {
+      position: relative;
     }
 
     .decision-card-content {
       font-size: 13px;
-      color: #475467;
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 10px 12px;
+      color: #0b0c0d;
+      background: #F3E8FF;
+      border: none;
+      padding: 0;
       line-height: 1.5;
       white-space: pre-wrap;
       word-break: break-word;
-      margin-top: 4px;
-      display: block;
-      max-height: 6.8em;
+      max-height: calc(1.5em * 4);
       overflow-y: auto;
-      padding-right: 8px;
-      padding-top: 0;
-      position: relative;
+      padding-right: 6px;
+      display: block;
+      border-radius: 10px;
+    }
+
+    .decision-card-chip-row {
+      display: flex;
+      justify-content: flex-start;
+      padding-bottom: 4px;
+      gap: 6px;
+    }
+
+    .decision-card-chip-row--top {
+      padding-bottom: 4px;
+    }
+
+    .decision-card-chip {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .decision-card-chip--phrase {
+      background: #F1F5F9;
+      color: #475569;
+    }
+
+    .decision-card-chip--content {
+      background: #F3E8FF;
+      color: #6B21A8;
     }
 
     .decision-card-content::-webkit-scrollbar {
@@ -135,57 +216,16 @@ template.innerHTML = `
       border-radius: 999px;
     }
 
-    .snippet-shell {
-      padding-bottom: 8px;
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .snippet-toggle {
-      width: auto;
-      border: none;
-      background: transparent;
-      color: #475467;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 0;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .snippet-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .snippet-icon-up {
-      display: none;
-    }
-
-    .snippet-toggle[aria-expanded="true"] .snippet-icon-down {
-      display: none;
-    }
-
-    .snippet-toggle[aria-expanded="true"] .snippet-icon-up {
-      display: inline-flex;
-    }
-
-
-
     .actions {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 10px;
     }
 
     .decision-card-back {
       border: none;
       background: transparent;
-      color: #047857;
+      color: #0f172a;
       font-size: 13px;
       font-weight: 600;
       display: inline-flex;
@@ -199,8 +239,8 @@ template.innerHTML = `
     }
 
     .action {
-      width: 100%;
-      height: 40px;
+      flex: 1;
+      height: 34px;
       border-radius: 10px;
       border: 1px solid transparent;
       background: #f8fafc;
@@ -229,9 +269,10 @@ template.innerHTML = `
     }
 
     .approve {
-      background: #e5f8f2;
-      border-color: #20c997;
-      color: #0b7c55;
+      background: #047857;
+      border-color: #047857;
+      color: #ffffff;
+      box-shadow: 0 6px 14px rgba(4, 120, 87, 0.35);
     }
 
     .remove {
@@ -262,7 +303,7 @@ template.innerHTML = `
     </style>
     <button class="decision-card-back" type="button" aria-label="Back to page summary">
       <span aria-hidden="true">←</span>
-      <span>Back to page</span>
+      <span>Back</span>
     </button>
     <div class="decision-card-video-wrapper">
       <div class="status-pill" aria-live="polite"></div>
@@ -270,20 +311,33 @@ template.innerHTML = `
       <div class="sl-iframe-container"></div>
     </div>
   </div>
-  <div class="decision-card-meta" aria-live="polite"></div>
-  <div class="decision-card-confidence" aria-live="polite"></div>
+    <div class="decision-card-meta-block">
+      <div class="decision-card-meta" aria-live="polite"></div>
+      <div class="decision-card-confidence" aria-live="polite"></div>
+    </div>
+  <div class="decision-card-phrase-container">
+    <div class="decision-card-chip-row decision-card-chip-row--top" aria-hidden="true">
+      <span class="decision-card-chip decision-card-chip--phrase">Site text</span>
+    </div>
+    <div class="decision-card-phrase-box">
+      <p class="decision-card-phrase" aria-live="polite"></p>
+    </div>
+    <div class="decision-card-divider-arrow" aria-hidden="true">
+      <span>▼</span>
+    </div>
+    <div class="decision-card-content-wrapper">
+      <div class="decision-card-chip-row" aria-hidden="true">
+        <span class="decision-card-chip decision-card-chip--content">Video</span>
+      </div>
+      <div class="decision-card-content" aria-live="polite"></div>
+    </div>
+  </div>
   <div class="actions">
-    <button type="button" class="action approve" data-action="approve" aria-label="Keep">
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
-      </svg>
-      <span class="action-label">Keep</span>
-    </button>
     <button type="button" class="action remove" data-action="remove" aria-label="Hide">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
       </svg>
-      <span class="action-label">Hide</span>
+      <span class="action-label">Remove</span>
     </button>
     <button type="button" class="action change" data-action="change" aria-label="Change">
       <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -292,21 +346,13 @@ template.innerHTML = `
       </svg>
       <span class="action-label">Replace</span>
     </button>
-  </div>
-  <div class="snippet-shell">
-    <button class="snippet-toggle" type="button" aria-expanded="false">
-      <span class="snippet-label">Show snippet</span>
-      <span class="snippet-icon">
-        <svg class="snippet-icon-down" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
-        </svg>
-        <svg class="snippet-icon-up" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z"/>
-        </svg>
-      </span>
+    <button type="button" class="action approve" data-action="approve" aria-label="Keep">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+      </svg>
+      <span class="action-label">Approve</span>
     </button>
   </div>
-  <div class="decision-card-content" aria-live="polite"></div>
 `;
 
 class DecisionCard extends HTMLElement {
@@ -318,6 +364,9 @@ class DecisionCard extends HTMLElement {
       "data-status",
       "data-knowledge-id",
       "data-content",
+      "data-phrase",
+      "data-confidence-label",
+      "data-confidence-color",
       "data-page-match-id"
     ];
   }
@@ -332,14 +381,13 @@ class DecisionCard extends HTMLElement {
     this.videoEl = null;
     this.iframeContainer = null;
     this.contentEl = null;
-    this.snippetButton = null;
-    this.snippetLabel = null;
-    this.snippetVisible = false;
-    this.toggleSnippet = this.toggleSnippet.bind(this);
+    this.phraseEl = null;
     this.backButton = null;
     this.handleBackClick = this.handleBackClick.bind(this);
     this.knowledgeId = null;
     this.pageMatchId = null;
+    this.rawConfidenceValue = null;
+    this.confidenceLabelValue = "";
   }
 
   connectedCallback() {
@@ -350,14 +398,9 @@ class DecisionCard extends HTMLElement {
     this.videoEl = this.shadowRoot.querySelector(".decision-card-video");
     this.iframeContainer = this.shadowRoot.querySelector(".sl-iframe-container");
     this.statusEl = this.shadowRoot.querySelector(".status-pill");
-    this.snippetButton = this.shadowRoot.querySelector(".snippet-toggle");
-    this.snippetLabel = this.shadowRoot.querySelector(".snippet-label");
+    this.phraseEl = this.shadowRoot.querySelector(".decision-card-phrase");
     this.backButton = this.shadowRoot.querySelector(".decision-card-back");
     this.syncAttributes();
-    this.setSnippetVisibility(false);
-    if (this.snippetButton) {
-      this.snippetButton.addEventListener("click", this.toggleSnippet);
-    }
     if (this.backButton) {
       this.backButton.addEventListener("click", this.handleBackClick);
     }
@@ -365,9 +408,6 @@ class DecisionCard extends HTMLElement {
 
   disconnectedCallback() {
     this.shadowRoot.removeEventListener("click", this.handleClick);
-    if (this.snippetButton) {
-      this.snippetButton.removeEventListener("click", this.toggleSnippet);
-    }
     if (this.backButton) {
       this.backButton.removeEventListener("click", this.handleBackClick);
     }
@@ -382,6 +422,8 @@ class DecisionCard extends HTMLElement {
     if (name === "data-status") this.updateStatus(newValue);
     if (name === "data-knowledge-id") this.updateKnowledgeId(newValue);
     if (name === "data-content") this.updateContent(newValue);
+    if (name === "data-confidence-label") this.updateConfidenceLabel(newValue);
+    if (name === "data-confidence-color") this.updateConfidenceColor(newValue);
     if (name === "data-page-match-id") this.updatePageMatchId(newValue);
   }
 
@@ -403,9 +445,41 @@ class DecisionCard extends HTMLElement {
   }
 
   updateConfidence(value) {
+    this.rawConfidenceValue = value;
+    console.debug("[decision-card] updateConfidence raw value", value);
+    this.renderConfidence();
+  }
+
+  updateConfidenceLabel(value) {
+    this.confidenceLabelValue = (value || "").trim();
+    console.debug("[decision-card] updateConfidenceLabel", this.confidenceLabelValue);
+    this.renderConfidence();
+  }
+
+  renderConfidence() {
     if (!this.confidenceEl) return;
-    const formatted = this.formatConfidence(value);
+    if (this.confidenceLabelValue) {
+      this.confidenceEl.textContent = this.confidenceLabelValue;
+      return;
+    }
+    console.debug("[decision-card] rendering fallback percentage", this.rawConfidenceValue);
+    const formatted = this.formatConfidence(this.rawConfidenceValue);
     this.confidenceEl.textContent = formatted;
+  }
+
+  updateConfidenceColor(value) {
+    if (!this.confidenceEl) return;
+    if (value) {
+      this.confidenceEl.style.color = value;
+    } else {
+      this.confidenceEl.style.removeProperty("color");
+    }
+  }
+
+  updatePhrase(value) {
+    if (!this.phraseEl) return;
+    console.debug("[decision-card] updatePhrase", { value });
+    this.phraseEl.textContent = value || "";
   }
 
     formatConfidence(value) {
@@ -427,11 +501,7 @@ class DecisionCard extends HTMLElement {
     const start = raw.startsWith("...") ? "" : "..."
     const end = raw.endsWith("...") ? "" : "..."
     this.contentEl.textContent = `${start}${raw}${end}`;
-    if (this.snippetVisible) {
-      this.contentEl.style.display = "block";
-    } else {
-      this.contentEl.style.display = "none";
-    }
+    this.contentEl.style.display = raw ? "block" : "none";
   }
 
   updateStatus(value) {
@@ -442,18 +512,6 @@ class DecisionCard extends HTMLElement {
     this.statusEl.textContent = normalized === "inactive" ? "Hidden" : "Showing";
     this.statusEl.className = `status-pill ${normalized}`;
     console.log("[decision-card] status pill class", this.statusEl.className);
-  }
-
-  setSnippetVisibility(visible) {
-    if (!this.snippetButton || !this.contentEl || !this.snippetLabel) return;
-    this.snippetVisible = visible;
-    this.snippetButton.setAttribute("aria-expanded", String(visible));
-    this.snippetLabel.textContent = visible ? "Hide snippet" : "Show snippet";
-    this.contentEl.style.display = visible ? "block" : "none";
-  }
-
-  toggleSnippet() {
-    this.setSnippetVisibility(!this.snippetVisible);
   }
 
   updateVideo(value) {

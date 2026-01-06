@@ -21,6 +21,8 @@ type MatchPayload = {
   title?: string
   video_url?: string
   confidence?: string | number
+  confidence_label?: string
+  confidence_color?: string
   content?: string
   knowledge_id?: number
   page_match_id?: number
@@ -101,6 +103,8 @@ function SidePanel() {
     confidence: match?.confidence,
     content: match?.content,
     phrase: match?.phrase,
+    confidenceLabel: match?.confidence_label,
+    confidenceColor: match?.confidence_color,
     knowledgeId: match?.knowledge_id ?? null,
     pageMatchId: match?.page_match_id ?? null,
     status: match?.status,
@@ -156,14 +160,44 @@ function SidePanel() {
   const handleMatchSelect = async (pageMatchId: number) => {
     if (!pageMatchId) return
     try {
-      const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${pageMatchId}`
-      const response = await fetch(endpoint)
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to load match (${response.status}): ${text}`)
+      console.log("[panel] handleMatchSelect start", { pageMatchId })
+      const matchEndpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${pageMatchId}`
+      console.log("[panel] fetching page match", matchEndpoint)
+      const pageMatchResponse = await fetch(matchEndpoint)
+      if (!pageMatchResponse.ok) {
+        const text = await pageMatchResponse.text()
+        throw new Error(`Failed to load match (${pageMatchResponse.status}): ${text}`)
       }
-      const data = await response.json()
-      setMatch(data)
+      const pageMatch = await pageMatchResponse.json()
+      console.log("[panel] page match response", pageMatch)
+
+      const knowledgeId = pageMatch?.knowledge_id ?? ""
+      const documentId = pageMatch?.document_id ?? ""
+      const decisionEndpoint = `${backendBase.replace(/\/+$/, "")}/api/decision-data?provider_id=${PROVIDER_ID}&page_match_id=${pageMatchId}${
+        documentId ? `&document_id=${documentId}` : ""
+      }${knowledgeId ? `&knowledge_id=${knowledgeId}` : ""}`
+      console.log("[panel] fetching decision data", decisionEndpoint)
+      const decisionResponse = await fetch(decisionEndpoint)
+      console.log("[panel] decision response status", decisionResponse.status)
+      const decisionData = decisionResponse.ok ? await decisionResponse.json() : {}
+      console.log("[panel] decision data body", decisionData)
+
+      const merged = {
+        ...decisionData,
+        ...pageMatch,
+      }
+      if (decisionData?.title) {
+        merged.title = decisionData.title
+      }
+      if (decisionData?.video_url) {
+        merged.video_url = decisionData.video_url
+      }
+      if (decisionData?.content) {
+        merged.content = decisionData.content
+      }
+
+      console.debug("[panel] decision payload", merged)
+      setMatch(merged)
       setDecisionCardVisible(true)
       setView(null)
     } catch (error) {

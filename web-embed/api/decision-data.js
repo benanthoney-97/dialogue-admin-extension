@@ -117,6 +117,21 @@ async function getPageMatchMetadata(documentId, providerId, phrase) {
   };
 }
 
+async function getConfidenceTier(providerId, score) {
+  if (!providerId) return null;
+  const normalizedScore = typeof score === 'number' ? score : Number(score);
+  const { data, error } = await supabase
+    .from('confidence_tiers')
+    .select('display_label, color_theme, min_score')
+    .eq('provider_id', providerId)
+    .order('min_score', { ascending: false });
+
+  if (error) throw error;
+
+  const tiers = Array.isArray(data) ? data : [];
+  return tiers.find((tier) => normalizedScore >= tier.min_score) || null;
+}
+
 async function handler(req, res) {
   try {
     if (req.method !== 'GET') {
@@ -140,7 +155,9 @@ async function handler(req, res) {
       cover_image_url: '',
       is_active: null,
       source_url: '',
-      document_id: null
+      document_id: null,
+      confidence_label: '',
+      confidence_color: ''
     };
 
     let knowledgeMeta = null;
@@ -206,12 +223,23 @@ console.log("[decision-data] provider_documents row", doc);
     payload.confidence = pageMatchMeta?.confidence ?? payload.confidence ?? null;
     payload.phrase = pageMatchMeta?.phrase || '';
     payload.page_match_id = pageMatchMeta?.id ?? null;
+    if (providerId) {
+      try {
+        const tier = await getConfidenceTier(providerId, payload.confidence ?? 0);
+        if (tier) {
+          payload.confidence_label = tier.display_label || '';
+          payload.confidence_color = tier.color_theme || '';
+        }
+      } catch (err) {
+        console.warn('[decision-data] failed to resolve confidence tier', err);
+      }
+    }
     console.log(
       `[decision-data] payload page_match_id=${payload.page_match_id} knowledge_id=${knowledgeId}`
     );
     payload.page_match_id = pageMatchMeta?.id ?? null;
     console.log(
-      `[decision-data] provider_id=${providerId} document_id=${documentId} knowledge_id=${knowledgeId} -> title='${payload.title}' video='${payload.video_url}' confidence='${payload.confidence}' phrase='${payload.phrase}' content='${payload.content}'`
+      `[decision-data] provider_id=${providerId} document_id=${documentId} knowledge_id=${knowledgeId} -> title='${payload.title}' video='${payload.video_url}' confidence='${payload.confidence}' label='${payload.confidence_label}' color='${payload.confidence_color}' phrase='${payload.phrase}' content='${payload.content}'`
     );
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
