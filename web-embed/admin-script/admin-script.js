@@ -54,6 +54,11 @@
         color: white;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       }
+      .sl-smart-link.sl-smart-link--hover {
+        background-color: #007a5f;
+        color: white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
       .sl-smart-link::after {
         content: " ▶";
         font-size: 0.8em;

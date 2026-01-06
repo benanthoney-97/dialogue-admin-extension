@@ -278,6 +278,31 @@ const executePageHighlightAddition = async (tabId: number, match: MatchPayload) 
   }
 }
 
+const executePageSetHover = async (tabId: number, matchId: number, hovered: boolean) => {
+  console.log("[background] executePageSetHover start", { tabId, matchId, hovered })
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: (id: number, isHovered: boolean) => {
+        const targetId = String(id)
+        const spans = document.querySelectorAll(`.sl-smart-link[data-page-match-id="${targetId}"]`)
+        spans.forEach((span) => {
+          if (isHovered) {
+            span.classList.add("sl-smart-link--hover")
+          } else {
+            span.classList.remove("sl-smart-link--hover")
+          }
+        })
+      },
+      args: [matchId, hovered],
+    })
+    console.log("[background] executePageSetHover success", { tabId, matchId, hovered })
+  } catch (error) {
+    console.error("[background] scripting hover error", error)
+  }
+}
+
 const executePageMode = async (tabId: number, mode: string) => {
   console.log("[background] executePageMode start", { tabId, mode })
   try {
@@ -409,6 +434,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           executePageHighlightAddition(fallbackId, matchData)
         }
       })
+    }
+    return false
+  }
+
+  if (message.action === "setMatchHover") {
+    const matchId = toNumber(message.page_match_id ?? message.match?.page_match_id ?? message.match?.id)
+    const hovered = Boolean(message.hovered)
+    console.log("[background] setMatchHover received", { matchId, hovered })
+    const targetTabId = lastMatchTabId ?? sender.tab?.id
+    if (matchId && targetTabId) {
+      executePageSetHover(targetTabId, matchId, hovered)
     }
     return false
   }

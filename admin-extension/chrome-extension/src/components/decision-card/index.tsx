@@ -11,6 +11,7 @@ export interface DecisionCardProps {
   knowledgeId?: number | null
   pageMatchId?: number | null
   onDecisionSelect?: (action: string) => void
+  onBack?: () => void
 }
 
 export function DecisionCard({
@@ -23,6 +24,7 @@ export function DecisionCard({
   knowledgeId,
   pageMatchId,
   onDecisionSelect,
+  onBack,
 }: DecisionCardProps) {
   const ref = useRef<HTMLElement | null>(null)
 
@@ -60,6 +62,16 @@ export function DecisionCard({
       element.setAttribute("data-page-match-id", String(pageMatchId))
     }
   }, [title, confidence, content, phrase, videoUrl, status, knowledgeId, pageMatchId])
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element || !onBack) return
+    const listener = () => onBack()
+    element.addEventListener("decision-back", listener)
+    return () => {
+      element.removeEventListener("decision-back", listener)
+    }
+  }, [onBack])
 
   return <decision-card ref={ref} />
 }

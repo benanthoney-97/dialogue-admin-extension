@@ -153,6 +153,28 @@ function SidePanel() {
     }
   }
 
+  const handleMatchSelect = async (pageMatchId: number) => {
+    if (!pageMatchId) return
+    try {
+      const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${pageMatchId}`
+      const response = await fetch(endpoint)
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(`Failed to load match (${response.status}): ${text}`)
+      }
+      const data = await response.json()
+      setMatch(data)
+      setDecisionCardVisible(true)
+      setView(null)
+    } catch (error) {
+      console.error("[panel] fetch match error", error)
+    }
+  }
+
+  const handleDecisionBack = () => {
+    setDecisionCardVisible(false)
+  }
+
   const saveThresholdMatches = async () => {
     setThresholdSaving(true)
     try {
@@ -272,10 +294,22 @@ function SidePanel() {
     }
   }
 
-  const activeMatchesCount = match ? (match.status === "inactive" ? 0 : 1) : 0
-  const inactiveMatchesCount = match ? (match.status === "inactive" ? 1 : 0) : 0
+  const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    chrome.tabs?.query?.({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0 && tabs[0]?.url) {
+        setCurrentTabUrl(tabs[0].url)
+      }
+    })
+  }, [])
+
   const pageUrl =
-    (match?.url || match?.source_url || match?.document_title || "Current page") as string
+    (match?.url ||
+      match?.source_url ||
+      match?.document_title ||
+      currentTabUrl ||
+      "Current page") as string
 
   useEffect(() => {
     console.log("[panel] resolved pageUrl", pageUrl)
@@ -302,13 +336,15 @@ function SidePanel() {
     switch (activeSection) {
       case "page":
         return decisionCardVisible && match ? (
-          <DecisionCard {...cardProps} onDecisionSelect={handleDecisionSelect} />
+          <div className="decision-card-shell">
+            <DecisionCard
+              {...cardProps}
+              onDecisionSelect={handleDecisionSelect}
+              onBack={handleDecisionBack}
+            />
+          </div>
         ) : (
-          <PageSummary
-            pageUrl={pageUrl}
-            activeMatches={activeMatchesCount}
-            inactiveMatches={inactiveMatchesCount}
-          />
+          <PageSummary pageUrl={pageUrl} onMatchSelect={handleMatchSelect} />
         )
       case "threshold":
         return (

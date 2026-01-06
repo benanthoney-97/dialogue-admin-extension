@@ -11,7 +11,6 @@ template.innerHTML = `
       height: 100%;
       border-radius: 12px 12px 0 0;
       background: #ffffff;
-      box-shadow: 0 35px 120px rgba(15, 23, 42, 0.25);
       padding: 20px 24px 24px;
       border: 1px solid rgba(15, 23, 42, 0.08);
       gap: 14px;
@@ -183,6 +182,22 @@ template.innerHTML = `
       gap: 10px;
     }
 
+    .decision-card-back {
+      border: none;
+      background: transparent;
+      color: #047857;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 0;
+      width: 100%;
+      align-self: stretch;
+      justify-content: flex-start;
+    }
+
     .action {
       width: 100%;
       height: 40px;
@@ -245,8 +260,12 @@ template.innerHTML = `
     }
 
     </style>
-  <div class="decision-card-video-wrapper">
-    <div class="status-pill" aria-live="polite"></div>
+    <button class="decision-card-back" type="button" aria-label="Back to page summary">
+      <span aria-hidden="true">←</span>
+      <span>Back to page</span>
+    </button>
+    <div class="decision-card-video-wrapper">
+      <div class="status-pill" aria-live="polite"></div>
     <div class="decision-card-video">
       <div class="sl-iframe-container"></div>
     </div>
@@ -317,6 +336,8 @@ class DecisionCard extends HTMLElement {
     this.snippetLabel = null;
     this.snippetVisible = false;
     this.toggleSnippet = this.toggleSnippet.bind(this);
+    this.backButton = null;
+    this.handleBackClick = this.handleBackClick.bind(this);
     this.knowledgeId = null;
     this.pageMatchId = null;
   }
@@ -331,10 +352,14 @@ class DecisionCard extends HTMLElement {
     this.statusEl = this.shadowRoot.querySelector(".status-pill");
     this.snippetButton = this.shadowRoot.querySelector(".snippet-toggle");
     this.snippetLabel = this.shadowRoot.querySelector(".snippet-label");
+    this.backButton = this.shadowRoot.querySelector(".decision-card-back");
     this.syncAttributes();
     this.setSnippetVisibility(false);
     if (this.snippetButton) {
       this.snippetButton.addEventListener("click", this.toggleSnippet);
+    }
+    if (this.backButton) {
+      this.backButton.addEventListener("click", this.handleBackClick);
     }
   }
 
@@ -342,6 +367,9 @@ class DecisionCard extends HTMLElement {
     this.shadowRoot.removeEventListener("click", this.handleClick);
     if (this.snippetButton) {
       this.snippetButton.removeEventListener("click", this.toggleSnippet);
+    }
+    if (this.backButton) {
+      this.backButton.removeEventListener("click", this.handleBackClick);
     }
   }
 
@@ -437,6 +465,10 @@ class DecisionCard extends HTMLElement {
       return;
     }
     this.iframeContainer.innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen"></iframe>`;
+  }
+
+  handleBackClick() {
+    this.dispatchEvent(new CustomEvent("decision-back", { bubbles: true }));
   }
 
   updateKnowledgeId(value) {

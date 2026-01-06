@@ -14,6 +14,7 @@ const providerSiteSettingsHandler = require('../admin-extension/chrome-extension
 const sitemapFeedsHandler = require('../admin-extension/chrome-extension/api/sitemap-feeds');
 const sitemapPagesHandler = require('../admin-extension/chrome-extension/api/sitemap-pages');
 const sitemapPageStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-page-status');
+const pageMatchesHandler = require('../admin-extension/chrome-extension/api/page-matches');
 const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
@@ -117,6 +118,11 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/sitemap-feed-status') {
       await sitemapFeedStatusHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/page-matches') {
+      await pageMatchesHandler(req, res);
       return;
     }
 
