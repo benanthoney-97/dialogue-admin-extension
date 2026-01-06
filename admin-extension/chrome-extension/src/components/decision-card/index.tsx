@@ -17,7 +17,6 @@ export interface DecisionCardProps {
   content?: string
   phrase?: string
   videoUrl?: string
-  status?: string
   knowledgeId?: number | null
   pageMatchId?: number | null
   onDecisionSelect?: (action: string) => void
@@ -32,7 +31,6 @@ export function DecisionCard({
   content,
   phrase,
   videoUrl,
-  status,
   knowledgeId,
   pageMatchId,
   onDecisionSelect,
@@ -66,10 +64,6 @@ export function DecisionCard({
     if (confidenceLabel !== undefined) element.setAttribute("data-confidence-label", confidenceLabel)
     if (confidenceColor !== undefined) element.setAttribute("data-confidence-color", confidenceColor)
     console.log("[DecisionCard] setting attribute data-phrase", phrase)
-    if (status !== undefined) {
-      console.log("[DecisionCard] setting attribute data-status", status)
-      element.setAttribute("data-status", status)
-    }
     if (knowledgeId !== undefined && knowledgeId !== null) {
       element.setAttribute("data-knowledge-id", String(knowledgeId))
     }
@@ -84,7 +78,6 @@ export function DecisionCard({
     content,
     phrase,
     videoUrl,
-    status,
     knowledgeId,
     pageMatchId,
   ])

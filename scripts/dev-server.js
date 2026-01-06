@@ -86,10 +86,10 @@ function startHttpServer() {
       return;
     }
 
-    if (parsedUrl.pathname === '/api/page-match') {
-      await pageMatchHandler(req, res);
-      return;
-    }
+  if (parsedUrl.pathname === '/api/page-match') {
+    await pageMatchHandler(req, res);
+    return;
+  }
 
     if (parsedUrl.pathname === '/api/provider-document') {
       await providerDocumentHandler(req, res);

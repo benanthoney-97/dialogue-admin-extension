@@ -1,3 +1,9 @@
+const tierBackgrounds = {
+  "Perfect Match": "#D1FAE5",
+  "Good Match": "#ECFDF5",
+  "Potential Match": "#F1F5F9",
+};
+
 const template = document.createElement('template');
 template.innerHTML = `
   <style>
@@ -19,32 +25,9 @@ template.innerHTML = `
     .decision-card-video-wrapper {
       position: relative;
       min-height: 175px;
-    }
-
-    .status-pill {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      background: #e5f8f2;
-      color: #0b7c55;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 12px;
-      border-radius: 999px;
-      text-transform: capitalize;
-      letter-spacing: 0.02em;
-      z-index: 3;
-      border: 1px solid #20c997;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      white-space: nowrap;
-      max-width: fit-content;
-    }
-    .status-pill.inactive {
-      background: #ffecec;
-      border-color: #ff6b6b;
-      color: #ae2d1d;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .decision-card-video {
@@ -57,6 +40,13 @@ template.innerHTML = `
       flex-direction: column;
       height: 175px;
       animation: fadeIn 0.25s ease;
+    }
+
+    .decision-card-video-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 0 6px 8px;
     }
 
     .decision-card-video.open {
@@ -84,7 +74,7 @@ template.innerHTML = `
       flex-direction: column;
       align-items: flex-start;
       gap: 4px;
-      margin-top: 6px;
+      margin-top: 0;
     }
 
     .decision-card-meta {
@@ -103,13 +93,17 @@ template.innerHTML = `
 
     .decision-card-confidence {
       margin: 0;
-      font-size: 14px;
+      font-size: 11px;
       font-weight: 600;
       color: #0b7c55;
-      background: transparent;
-      border-radius: 0;
-      padding: 0;
+      background: rgba(4, 120, 87, 0.08);
+      border-radius: 999px;
+      padding: 4px 14px;
       width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(4, 120, 87, 0.2);
     }
 
     .decision-card-phrase-container {
@@ -306,14 +300,15 @@ template.innerHTML = `
       <span>Back</span>
     </button>
     <div class="decision-card-video-wrapper">
-      <div class="status-pill" aria-live="polite"></div>
-    <div class="decision-card-video">
-      <div class="sl-iframe-container"></div>
-    </div>
-  </div>
-    <div class="decision-card-meta-block">
-      <div class="decision-card-meta" aria-live="polite"></div>
-      <div class="decision-card-confidence" aria-live="polite"></div>
+      <div class="decision-card-video">
+        <div class="sl-iframe-container"></div>
+      </div>
+      <div class="decision-card-video-meta">
+        <div class="decision-card-meta-block">
+          <div class="decision-card-meta" aria-live="polite"></div>
+          <div class="decision-card-confidence" aria-live="polite"></div>
+        </div>
+      </div>
     </div>
   <div class="decision-card-phrase-container">
     <div class="decision-card-chip-row decision-card-chip-row--top" aria-hidden="true">
@@ -327,7 +322,7 @@ template.innerHTML = `
     </div>
     <div class="decision-card-content-wrapper">
       <div class="decision-card-chip-row" aria-hidden="true">
-        <span class="decision-card-chip decision-card-chip--content">Video</span>
+        <span class="decision-card-chip decision-card-chip--content">Video match</span>
       </div>
       <div class="decision-card-content" aria-live="polite"></div>
     </div>
@@ -361,7 +356,6 @@ class DecisionCard extends HTMLElement {
       "data-title",
       "data-confidence",
       "data-video",
-      "data-status",
       "data-knowledge-id",
       "data-content",
       "data-phrase",
@@ -377,7 +371,6 @@ class DecisionCard extends HTMLElement {
     this.handleClick = this.handleClick.bind(this);
     this.metaEl = null;
     this.confidenceEl = null;
-    this.statusEl = null;
     this.videoEl = null;
     this.iframeContainer = null;
     this.contentEl = null;
@@ -388,6 +381,7 @@ class DecisionCard extends HTMLElement {
     this.pageMatchId = null;
     this.rawConfidenceValue = null;
     this.confidenceLabelValue = "";
+    this.confidenceColorValue = "";
   }
 
   connectedCallback() {
@@ -397,7 +391,6 @@ class DecisionCard extends HTMLElement {
     this.contentEl = this.shadowRoot.querySelector(".decision-card-content");
     this.videoEl = this.shadowRoot.querySelector(".decision-card-video");
     this.iframeContainer = this.shadowRoot.querySelector(".sl-iframe-container");
-    this.statusEl = this.shadowRoot.querySelector(".status-pill");
     this.phraseEl = this.shadowRoot.querySelector(".decision-card-phrase");
     this.backButton = this.shadowRoot.querySelector(".decision-card-back");
     this.syncAttributes();
@@ -419,7 +412,6 @@ class DecisionCard extends HTMLElement {
     if (name === "data-confidence") this.updateConfidence(newValue);
     if (name === "data-phrase") this.updatePhrase(newValue);
     if (name === "data-video") this.updateVideo(newValue);
-    if (name === "data-status") this.updateStatus(newValue);
     if (name === "data-knowledge-id") this.updateKnowledgeId(newValue);
     if (name === "data-content") this.updateContent(newValue);
     if (name === "data-confidence-label") this.updateConfidenceLabel(newValue);
@@ -460,20 +452,64 @@ class DecisionCard extends HTMLElement {
     if (!this.confidenceEl) return;
     if (this.confidenceLabelValue) {
       this.confidenceEl.textContent = this.confidenceLabelValue;
-      return;
+    } else {
+      console.debug("[decision-card] rendering fallback percentage", this.rawConfidenceValue);
+      const formatted = this.formatConfidence(this.rawConfidenceValue);
+      this.confidenceEl.textContent = formatted;
     }
-    console.debug("[decision-card] rendering fallback percentage", this.rawConfidenceValue);
-    const formatted = this.formatConfidence(this.rawConfidenceValue);
-    this.confidenceEl.textContent = formatted;
+    this.applyConfidenceStyling();
   }
 
   updateConfidenceColor(value) {
+    this.confidenceColorValue = (value || "").trim();
+    this.renderConfidence();
+  }
+
+  applyConfidenceStyling() {
     if (!this.confidenceEl) return;
-    if (value) {
-      this.confidenceEl.style.color = value;
-    } else {
-      this.confidenceEl.style.removeProperty("color");
+    const background = this.getConfidenceBackground();
+    const borderColor = this.getConfidenceBorderColor();
+    const textColor = this.confidenceColorValue || "#047857";
+    this.confidenceEl.style.background = background;
+    this.confidenceEl.style.borderColor = borderColor;
+    this.confidenceEl.style.color = textColor;
+  }
+
+  getConfidenceBackground() {
+    if (this.confidenceLabelValue && tierBackgrounds[this.confidenceLabelValue]) {
+      return tierBackgrounds[this.confidenceLabelValue];
     }
+    return this.getRgbaFromColor(this.confidenceColorValue, 0.12) || "rgba(4, 120, 87, 0.08)";
+  }
+
+  getConfidenceBorderColor() {
+    return this.getRgbaFromColor(this.confidenceColorValue, 0.35) || "rgba(4, 120, 87, 0.35)";
+  }
+
+  getRgbaFromColor(value, alpha) {
+    const rgb = this.parseHexColor(value);
+    if (!rgb) return null;
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+  }
+
+  parseHexColor(value) {
+    if (typeof value !== "string") return null;
+    let hex = value.trim();
+    if (hex.startsWith("#")) {
+      hex = hex.slice(1);
+    }
+    if (hex.length === 3) {
+      hex = hex
+        .split("")
+        .map((char) => char + char)
+        .join("");
+    }
+    if (hex.length !== 6) return null;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].some((value) => Number.isNaN(value))) return null;
+    return { r, g, b };
   }
 
   updatePhrase(value) {
@@ -502,16 +538,6 @@ class DecisionCard extends HTMLElement {
     const end = raw.endsWith("...") ? "" : "..."
     this.contentEl.textContent = `${start}${raw}${end}`;
     this.contentEl.style.display = raw ? "block" : "none";
-  }
-
-  updateStatus(value) {
-    if (!this.statusEl) return;
-    const raw = (value || "").toString().trim().toLowerCase();
-    const normalized = raw === "inactive" ? "inactive" : "active";
-    console.log("[decision-card] status value", value, "normalized", normalized);
-    this.statusEl.textContent = normalized === "inactive" ? "Hidden" : "Showing";
-    this.statusEl.className = `status-pill ${normalized}`;
-    console.log("[decision-card] status pill class", this.statusEl.className);
   }
 
   updateVideo(value) {
@@ -546,14 +572,9 @@ class DecisionCard extends HTMLElement {
       })
     );
     if (action === "remove") {
-      if (this.pageMatchId) {
-        chrome.runtime.sendMessage({ action: "removeMatchHighlight", page_match_id: this.pageMatchId })
-      }
-      this.setLocalStatus("inactive")
-      this.markMatchStatus("inactive");
+      // Parent handles deletion/confirmation
     }
     if (action === "approve") {
-      this.setLocalStatus("active")
       this.markMatchStatus("active");
       this.restoreMatchHighlight();
     }
@@ -584,29 +605,6 @@ class DecisionCard extends HTMLElement {
     } catch (err) {
       console.error("[decision-card] mark status error", err);
     }
-  }
-
-  setLocalStatus(status) {
-    if (!this.statusEl) return;
-    this.statusEl.textContent = status === "inactive" ? "Hidden" : "Showing";
-    this.statusEl.className = `status-pill ${status === "inactive" ? "inactive" : "active"}`;
-    this.setAttribute("data-status", status);
-    this.updateSpanStatus(status);
-  }
-
-  updateSpanStatus(status) {
-    if (!this.pageMatchId) return;
-    const targetId = String(this.pageMatchId);
-    const spans = document.querySelectorAll(`.sl-smart-link[data-page-match-id="${targetId}"]`);
-    spans.forEach((span) => {
-      span.dataset.matchStatus = status;
-      if (status === "inactive") {
-        span.classList.add("sl-smart-link--inactive");
-        span.style.opacity = "1";
-      } else {
-        span.classList.remove("sl-smart-link--inactive");
-      }
-    });
   }
 
   getMatchPayload() {

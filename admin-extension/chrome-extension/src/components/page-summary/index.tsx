@@ -13,6 +13,8 @@ interface PageMatchSummary {
   status?: string
   document_id?: number
   cover_image_url?: string
+  confidence_label?: string
+  confidence_color?: string
 }
 
 const PROVIDER_ID = 12
@@ -111,15 +113,61 @@ export function PageSummary({
     return words.slice(0, 14).join(" ") + "…"
   }
 
-  const formatConfidence = (value?: number) => {
-    if (typeof value !== "number") return "—"
-    return `${Math.round(value * 100)}%`
-  }
+const formatConfidence = (value?: number) => {
+  if (typeof value !== "number") return "—"
+  return `${Math.round(value * 100)}%`
+}
 
-  const matchPillText = (value?: number) => {
-    const label = formatConfidence(value)
-    return label === "—" ? "Match" : `${label} match`
+const parseHexColor = (value?: string) => {
+  if (!value) return null
+  let hex = value.trim()
+  if (hex.startsWith("#")) {
+    hex = hex.slice(1)
   }
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((char) => char + char)
+      .join("")
+  }
+  if (hex.length !== 6) return null
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  if ([r, g, b].some((value) => Number.isNaN(value))) return null
+  return { r, g, b }
+}
+
+const tierBackgroundMap: Record<string, string> = {
+  "Perfect Match": "#D1FAE5",
+  "Good Match": "#ECFDF5",
+  "Potential Match": "#F1F5F9",
+};
+
+const rgbaFromHex = (value?: string, alpha = 0.12) => {
+  const rgb = parseHexColor(value)
+  if (!rgb) return null
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`
+}
+
+const formatMatchLabel = (match: PageMatchSummary) => {
+  const label = match.confidence_label?.trim()
+  if (label) return label
+  const formatted = formatConfidence(match.confidence)
+  return formatted === "—" ? "Match" : `${formatted} match`
+}
+
+const pillStyle = (label?: string, color?: string) => {
+  const defaultText = "#047857"
+  const textColor = color || defaultText
+  const background =
+    (label && tierBackgroundMap[label.trim()]) ||
+    rgbaFromHex(color, 0.12) ||
+    "rgba(4, 120, 87, 0.08)"
+  const borderColor =
+    rgbaFromHex(color, 0.35) || "rgba(4, 120, 87, 0.35)"
+  return { color: textColor, background, borderColor }
+}
 
   const sendHoverMessage = (match: PageMatchSummary, hovered: boolean) => {
     if (!match?.page_match_id) return
@@ -190,12 +238,17 @@ export function PageSummary({
               <div className="page-summary__match-title">
                 <p className="page-summary__match-phrase">{previewPhrase(match.phrase)}</p>
               </div>
-              <div className="page-summary__match-row">
-                <div className="page-summary__match-arrow" aria-hidden="true">
-                  <span>▼</span>
+                <div className="page-summary__match-row">
+                  <div className="page-summary__match-arrow" aria-hidden="true">
+                    <span>▼</span>
+                  </div>
+                  <span
+                    className="page-summary__match-pill"
+                    style={pillStyle(match.confidence_label, match.confidence_color)}
+                  >
+                    {formatMatchLabel(match)}
+                  </span>
                 </div>
-                <span className="page-summary__match-pill">{matchPillText(match.confidence)}</span>
-              </div>
               <div className="page-summary__match-video">
                 <div className="page-summary__match-video-thumb">
                   {match.cover_image_url ? (
@@ -343,11 +396,8 @@ export function PageSummary({
         .page-summary__match-pill {
           font-size: 10px;
           font-weight: 600;
-          color: #047857;
-          border: 1px solid #047857;
-          background: transparent;
-          padding: 0 10px;
           border-radius: 999px;
+          padding: 0 10px;
           white-space: nowrap;
           line-height: 1;
           display: inline-flex;
@@ -355,6 +405,7 @@ export function PageSummary({
           justify-content: center;
           min-height: 20px;
           margin-left: 18px;
+          border: 1px solid transparent;
         }
         .page-summary__match-arrow {
           text-align: center;

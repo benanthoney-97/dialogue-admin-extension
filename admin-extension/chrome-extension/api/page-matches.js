@@ -33,7 +33,31 @@ async function handler(req, res) {
       new Set((data || []).map((row) => row.document_id).filter((id) => id))
     )
 
-    const documents = {}
+const documents = {}
+async function getConfidenceTiers(providerId) {
+  if (!providerId) return [];
+  const { data, error } = await supabase
+    .from("confidence_tiers")
+    .select("display_label, color_theme, min_score")
+    .eq("provider_id", providerId)
+    .order("min_score", { ascending: false });
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+const normalizeNumber = (value) => {
+  if (typeof value === "number" && !Number.isNaN(value)) {
+    return value;
+  }
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const findTierForScore = (score, tiers) => {
+  const normalizedScore = normalizeNumber(score);
+  return tiers.find((tier) => normalizedScore >= normalizeNumber(tier.min_score)) || null;
+};
     await Promise.all(
       documentIds.map(async (documentId) => {
         const doc = await getProviderDocument(documentId, providerId)
@@ -51,7 +75,9 @@ async function handler(req, res) {
       })
     })
 
+    const tiers = await getConfidenceTiers(providerId)
     const matches = (data || []).map((row) => {
+      const tier = findTierForScore(row.confidence, tiers)
       if (!documents[row.document_id]?.cover_image_url) {
         console.debug("[page-matches] missing cover image for match", {
           page_match_id: row.id,
@@ -66,6 +92,8 @@ async function handler(req, res) {
         document_id: row.document_id,
         confidence: row.confidence,
         status: row.status,
+        confidence_label: tier?.display_label || "",
+        confidence_color: tier?.color_theme || "",
         url: row.url,
       }
     })

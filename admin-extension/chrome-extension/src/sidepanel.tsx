@@ -9,6 +9,7 @@ import { PageSummary } from "./components/page-summary"
 import { BottomNavigation } from "./components/bottom-navigation"
 import { SitemapView } from "./components/sitemap-view"
 import { TimestampView } from "./components/timestamp-view"
+import { ConfirmAction } from "./components/confirm-action"
 
 const PROVIDER_ID = 12
 const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
@@ -26,6 +27,7 @@ type MatchPayload = {
   content?: string
   knowledge_id?: number
   page_match_id?: number
+  id?: number
   phrase?: string
   provider_id?: number
   document_id?: number
@@ -47,6 +49,9 @@ function SidePanel() {
   const toastTimerRef = useRef<number | null>(null)
   const [decisionCardVisible, setDecisionCardVisible] = useState(false)
   const [thresholdSaving, setThresholdSaving] = useState(false)
+  const [removeConfirmVisible, setRemoveConfirmVisible] = useState(false)
+  const [removeConfirmLoading, setRemoveConfirmLoading] = useState(false)
+  const [pendingRemoveMatchId, setPendingRemoveMatchId] = useState<number | null>(null)
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
@@ -107,12 +112,74 @@ function SidePanel() {
     confidenceColor: match?.confidence_color,
     knowledgeId: match?.knowledge_id ?? null,
     pageMatchId: match?.page_match_id ?? null,
-    status: match?.status,
+  }
+
+  const resolveMatchRowId = () => {
+    if (!match) return undefined
+    if (typeof match.id === "number") return match.id
+    if (typeof match.page_match_id === "number") return match.page_match_id
+    return undefined
+  }
+
+  const openRemoveConfirm = () => {
+    const matchRowId = resolveMatchRowId()
+    if (matchRowId) {
+      setPendingRemoveMatchId(matchRowId)
+      setRemoveConfirmVisible(true)
+    }
+  }
+
+  const closeRemoveConfirm = () => {
+    setRemoveConfirmVisible(false)
+    setPendingRemoveMatchId(null)
+    setRemoveConfirmLoading(false)
+  }
+
+  const handleConfirmRemoval = async () => {
+    if (!pendingRemoveMatchId || removeConfirmLoading) return
+    setRemoveConfirmLoading(true)
+    const success = await deleteMatch(pendingRemoveMatchId)
+    setRemoveConfirmLoading(false)
+    if (success) {
+      setRemoveConfirmVisible(false)
+      setPendingRemoveMatchId(null)
+    }
   }
 
   const handleDecisionSelect = (action: string) => {
     if (action === "change") {
       setView("documents")
+      return
+    }
+    if (action === "remove") {
+      openRemoveConfirm()
+    }
+  }
+
+  const deleteMatch = async (matchRowId: number) => {
+    console.log("[panel] deleteMatch triggered", { matchRowId })
+    try {
+      const response = await fetch(
+        `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${matchRowId}`,
+        {
+          method: "DELETE",
+        }
+      )
+      console.log("[panel] delete-page-match response status", response.status)
+      if (!response.ok) {
+        const payload = await response.text()
+        console.log("[panel] delete-page-match body", payload)
+        throw new Error(`Failed to delete match (${response.status}): ${payload}`)
+      }
+      console.log("[panel] match deleted", matchRowId)
+      chrome.runtime.sendMessage({ action: "removeMatchHighlight", page_match_id: matchRowId })
+      setDecisionCardVisible(false)
+      setMatch(null)
+      return true
+    } catch (error) {
+      console.error("[panel] delete match error", error)
+      setToastMessage("Unable to delete match")
+      return false
     }
   }
 
@@ -425,6 +492,16 @@ function SidePanel() {
             setDecisionCardVisible(false)
           }
         }}
+      />
+      <ConfirmAction
+        visible={removeConfirmVisible}
+        title="Delete match?"
+        message="Deleting this match is permanent and cannot be reversed."
+        confirmLabel="Delete"
+        confirmLoadingLabel="Deleting..."
+        confirmDisabled={removeConfirmLoading}
+        onConfirm={handleConfirmRemoval}
+        onCancel={closeRemoveConfirm}
       />
     </div>
   )

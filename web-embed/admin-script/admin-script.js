@@ -74,6 +74,17 @@
       .sl-smart-link.sl-smart-link--inactive::after {
         color: rgba(148, 163, 184, 0.9);
       }
+      .sl-smart-link.sl-smart-link--removed {
+        border-bottom: none !important;
+        background-color: transparent !important;
+        color: rgba(55, 65, 81, 0.85) !important;
+        box-shadow: none !important;
+        cursor: default !important;
+        pointer-events: none !important;
+      }
+      .sl-smart-link.sl-smart-link--removed::after {
+        content: '';
+      }
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
         display: none;
       }
@@ -337,9 +348,11 @@
       return;
     }
     spans.forEach((span) => {
-      span.classList.add("sl-smart-link--inactive");
+      span.classList.remove("sl-smart-link--hover", "sl-smart-link--inactive");
+      span.classList.add("sl-smart-link--removed");
       span.style.opacity = "1";
       span.dataset.matchStatus = "inactive";
+      span.style.pointerEvents = "none";
     });
   };
 

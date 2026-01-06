@@ -8,6 +8,8 @@ export interface ConfirmActionProps {
   cancelLabel?: string
   onConfirm: () => void
   onCancel: () => void
+  confirmDisabled?: boolean
+  confirmLoadingLabel?: string
 }
 
 export function ConfirmAction({
@@ -18,6 +20,8 @@ export function ConfirmAction({
   cancelLabel = "Cancel",
   onConfirm,
   onCancel,
+  confirmDisabled = false,
+  confirmLoadingLabel,
 }: ConfirmActionProps) {
   if (!visible) return null
   return (
@@ -27,8 +31,13 @@ export function ConfirmAction({
         {title && <strong>{title}</strong>}
         <p>{message}</p>
         <div className="confirm-action__controls">
-          <button type="button" className="confirm-action__button confirm-action__button--confirm" onClick={onConfirm}>
-            {confirmLabel}
+          <button
+            type="button"
+            className="confirm-action__button confirm-action__button--confirm"
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+          >
+            {confirmDisabled ? confirmLoadingLabel ?? confirmLabel : confirmLabel}
           </button>
           <button type="button" className="confirm-action__button confirm-action__button--cancel" onClick={onCancel}>
             {cancelLabel}
