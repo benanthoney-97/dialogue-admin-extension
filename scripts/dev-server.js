@@ -7,6 +7,7 @@ const decisionDataHandler = require('../web-embed/api/decision-data');
 const matchMapHandler = require('../web-embed/api/match-map');
 const pageMatchStatusHandler = require('../web-embed/api/page-match-status');
 const pageMatchHandler = require('../admin-extension/chrome-extension/api/page-match');
+const createPageMatchHandler = require('../admin-extension/chrome-extension/api/create-page-match');
 const providerDocumentHandler = require('../admin-extension/chrome-extension/api/provider-document');
 const providerKnowledgeHandler = require('../admin-extension/chrome-extension/api/provider-knowledge');
 const providerDocumentsListHandler = require('../admin-extension/chrome-extension/api/provider-documents-list');
@@ -88,6 +89,11 @@ function startHttpServer() {
 
   if (parsedUrl.pathname === '/api/page-match') {
     await pageMatchHandler(req, res);
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/create-page-match') {
+    await createPageMatchHandler(req, res);
     return;
   }
 

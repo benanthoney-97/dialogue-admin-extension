@@ -13,11 +13,24 @@ let lastMatchTabId: number | null = null
 const PROVIDER_ID = 12
 let globalThresholdLevel: "high" | "medium" | "low" = "medium"
 let globalThresholdValue = 0.6
+let newMatchModeActive = false
 
 const PAGE_MATCH_API = "http://localhost:4173/api/page-match"
 const PROVIDER_DOCUMENT_API = "http://localhost:4173/api/provider-document"
 const PROVIDER_KNOWLEDGE_API = "http://localhost:4173/api/provider-knowledge"
 const SITE_SETTINGS_API = "http://localhost:4173/api/provider-site-settings"
+
+const sendMessageToActiveTab = (message: Record<string, unknown>) => {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const active = tabs?.[0]
+    if (!active?.id) return
+    chrome.tabs.sendMessage(active.id, message, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[background] sendMessageToActiveTab error", chrome.runtime.lastError.message)
+      }
+    })
+  })
+}
 
 const toNumber = (value: unknown) => {
   if (typeof value === 'number' && !Number.isNaN(value)) {
@@ -364,6 +377,25 @@ function propagateThresholdToTab(preferredTabId?: number) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("[background] received message", message)
+  if (message.action === "deliverNewMatchSelection") {
+    return false
+  }
+  if (message.action === "newMatchSelection") {
+    if (newMatchModeActive && message.text) {
+      chrome.runtime.sendMessage({ action: "deliverNewMatchSelection", text: message.text })
+    }
+    return false
+  }
+  if (message.action === "enterNewMatchMode") {
+    newMatchModeActive = true
+    sendMessageToActiveTab({ action: "enterNewMatchMode" })
+    return false
+  }
+  if (message.action === "exitNewMatchMode") {
+    newMatchModeActive = false
+    sendMessageToActiveTab({ action: "exitNewMatchMode" })
+    return false
+  }
   if (message.action === "setThreshold") {
     const threshold = message.threshold
     if (threshold && ["high", "medium", "low"].includes(threshold)) {

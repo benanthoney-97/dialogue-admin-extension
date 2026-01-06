@@ -78,6 +78,30 @@ const sendMatchClick = (matchIndex: number) => {
   })
 }
 
+let newMatchSelectionActive = false
+const handleNewMatchSelection = () => {
+  const selection = window.getSelection()
+  const text = selection?.toString().trim()
+  if (!text) return
+  console.log("[content] new match text selected", text)
+  chrome.runtime.sendMessage({ action: "newMatchSelection", text })
+  disableNewMatchSelection()
+}
+
+const enableNewMatchSelection = () => {
+  if (newMatchSelectionActive) return
+  document.addEventListener("mouseup", handleNewMatchSelection)
+  newMatchSelectionActive = true
+  console.log("[content] new match mode enabled")
+}
+
+const disableNewMatchSelection = () => {
+  if (!newMatchSelectionActive) return
+  document.removeEventListener("mouseup", handleNewMatchSelection)
+  newMatchSelectionActive = false
+  console.log("[content] new match mode disabled")
+}
+
 document.addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest(".sl-smart-link")
   if (!target) return
@@ -96,6 +120,14 @@ document.addEventListener("click", (event) => {
 })
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "enterNewMatchMode") {
+    enableNewMatchSelection()
+    return false
+  }
+  if (request.action === "exitNewMatchMode") {
+    disableNewMatchSelection()
+    return false
+  }
   if (request.action === "removeMatchHighlight") {
     const id = request.page_match_id ?? request.match?.page_match_id ?? request.match?.id
     console.log("[content] removeMatchHighlight received", id)

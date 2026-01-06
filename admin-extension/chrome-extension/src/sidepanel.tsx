@@ -9,6 +9,7 @@ import { PageSummary } from "./components/page-summary"
 import { BottomNavigation } from "./components/bottom-navigation"
 import { SitemapView } from "./components/sitemap-view"
 import { TimestampView } from "./components/timestamp-view"
+import { NewMatchPrompt } from "./components/new-match-prompt"
 import { ConfirmAction } from "./components/confirm-action"
 
 const PROVIDER_ID = 12
@@ -37,7 +38,7 @@ type MatchPayload = {
   source_url?: string
 }
 
-type NavSection = "page" | "threshold" | "sitemap" | "platforms"
+type NavSection = "page" | "threshold" | "sitemap" | "new-match"
 
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
@@ -52,6 +53,10 @@ function SidePanel() {
   const [removeConfirmVisible, setRemoveConfirmVisible] = useState(false)
   const [removeConfirmLoading, setRemoveConfirmLoading] = useState(false)
   const [pendingRemoveMatchId, setPendingRemoveMatchId] = useState<number | null>(null)
+  const [selectedNewMatchText, setSelectedNewMatchText] = useState<string | null>(null)
+  const [manualStage, setManualStage] = useState<"prompt" | "documents" | "timestamp">("prompt")
+  const [manualSelectedDoc, setManualSelectedDoc] = useState<ProviderDocument | null>(null)
+  const newMatchModeRef = useRef(false)
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
@@ -76,6 +81,11 @@ function SidePanel() {
         if (value && ["high", "medium", "low"].includes(value)) {
           setThreshold(value)
           chrome.storage?.local?.set({ threshold: value })
+        }
+      } else if (message.action === "deliverNewMatchSelection") {
+        if (message.text) {
+          setSelectedNewMatchText(message.text)
+          setToastMessage("Text captured for new match")
         }
       }
     }
@@ -133,6 +143,70 @@ function SidePanel() {
     setRemoveConfirmVisible(false)
     setPendingRemoveMatchId(null)
     setRemoveConfirmLoading(false)
+  }
+
+  const resetManualFlow = () => {
+    setManualStage("prompt")
+    setManualSelectedDoc(null)
+  }
+
+  const startManualFlow = () => {
+    setManualStage("documents")
+    setManualSelectedDoc(null)
+  }
+
+  const handleManualDocumentSelect = (doc: ProviderDocument) => {
+    setManualSelectedDoc(doc)
+    setManualStage("timestamp")
+  }
+
+  const handleManualBackToDocuments = () => {
+    setManualStage("documents")
+  }
+
+  const handleManualTimestampConfirm = async (seconds: number) => {
+    if (!manualSelectedDoc || !selectedNewMatchText) {
+      setToastMessage("Please select text and a video")
+      setManualStage("prompt")
+      return
+    }
+    const videoUrl = buildVideoUrl(manualSelectedDoc.source_url, seconds)
+    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/create-page-match`
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          document_id: manualSelectedDoc.id,
+          provider_id: PROVIDER_ID,
+          phrase: selectedNewMatchText,
+          url: pageUrl,
+          video_url: videoUrl,
+          status: "active",
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.text()
+        throw new Error(`Failed to create match (${response.status}): ${payload}`)
+      }
+      const createdMatch = await response.json()
+      console.log("[panel] manual match created", createdMatch)
+      setToastMessage("Match saved")
+      setManualStage("prompt")
+      setManualSelectedDoc(null)
+      setSelectedNewMatchText(null)
+      chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
+      setActiveSection("page")
+      setMatch(createdMatch)
+      setDecisionCardVisible(true)
+      chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+      newMatchModeRef.current = false
+    } catch (error) {
+      console.error("[panel] manual match error", error)
+      setToastMessage("Unable to save match")
+    }
   }
 
   const handleConfirmRemoval = async () => {
@@ -224,6 +298,35 @@ function SidePanel() {
     }
   }
 
+  useEffect(() => {
+    if (activeSection === "new-match") {
+      newMatchModeRef.current = true
+      setSelectedNewMatchText(null)
+      resetManualFlow()
+      chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
+    } else if (newMatchModeRef.current) {
+      newMatchModeRef.current = false
+      chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+    }
+  }, [activeSection])
+
+  const handleGetMatches = () => {
+    if (!selectedNewMatchText) {
+      setToastMessage("Highlight text to fetch matches")
+      return
+    }
+    setToastMessage("Fetching match suggestions…")
+  }
+
+  const handleChooseManually = () => {
+    if (!selectedNewMatchText) {
+      setToastMessage("Highlight text first to choose manually")
+      return
+    }
+    setToastMessage("Opening clip picker…")
+    startManualFlow()
+  }
+
   const handleMatchSelect = async (pageMatchId: number) => {
     if (!pageMatchId) return
     try {
@@ -271,6 +374,12 @@ function SidePanel() {
       console.error("[panel] fetch match error", error)
     }
   }
+
+  useEffect(() => {
+    return () => {
+      chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+    }
+  }, [])
 
   const handleDecisionBack = () => {
     setDecisionCardVisible(false)
@@ -419,6 +528,38 @@ function SidePanel() {
     }
   }, [match, pageUrl])
 
+  const renderNewMatchFlow = () => {
+    switch (manualStage) {
+      case "documents":
+        return (
+          <div className="new-match-documents">
+            <div className="new-match-documents__header">Choose a clip</div>
+            {selectedNewMatchText && (
+              <div className="new-match-documents__phrase">{selectedNewMatchText}</div>
+            )}
+            <ProviderDocumentsGrid onDocumentSelect={handleManualDocumentSelect} />
+          </div>
+        )
+      case "timestamp":
+        return manualSelectedDoc ? (
+          <TimestampView
+            document={manualSelectedDoc}
+            videoUrl={manualSelectedDoc.source_url}
+            onBack={handleManualBackToDocuments}
+            onConfirm={handleManualTimestampConfirm}
+          />
+        ) : null
+      default:
+        return (
+          <NewMatchPrompt
+            selectedText={selectedNewMatchText}
+            onGetMatches={handleGetMatches}
+            onChooseManually={handleChooseManually}
+          />
+        )
+    }
+  }
+
   const renderContent = () => {
   if (view === "documents") {
     return <ProviderDocumentsGrid onDocumentSelect={handleDocumentSelect} />
@@ -435,7 +576,7 @@ function SidePanel() {
   }
 
     switch (activeSection) {
-      case "page":
+      case "page": {
         return decisionCardVisible && match ? (
           <div className="decision-card-shell">
             <DecisionCard
@@ -447,7 +588,8 @@ function SidePanel() {
         ) : (
           <PageSummary pageUrl={pageUrl} onMatchSelect={handleMatchSelect} />
         )
-      case "threshold":
+      }
+      case "threshold": {
         return (
           <ThresholdControls
             current={threshold}
@@ -456,7 +598,8 @@ function SidePanel() {
             saving={thresholdSaving}
           />
         )
-        case "sitemap":
+      }
+      case "sitemap": {
         return (
           <SitemapView
             providerId={PROVIDER_ID}
@@ -464,16 +607,13 @@ function SidePanel() {
             onPageToggle={handlePageToggle}
           />
         )
-      case "platforms":
-        return (
-          <div className="platforms-panel">
-            <p className="platforms-panel__placeholder">
-              Platform-level controls will live here soon.
-            </p>
-          </div>
-        )
-      default:
+      }
+      case "new-match": {
+        return renderNewMatchFlow()
+      }
+      default: {
         return null
+      }
     }
   }
 
