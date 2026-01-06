@@ -136,11 +136,13 @@ export function PageSummary({
   return (
     <div className="page-summary">
       <div className="page-summary__summary">
-        <div className="page-summary__header">
-          <strong>Page summary</strong>
-        </div>
-        <div className="page-summary__url">
-          <div title={pageUrl}>{pageUrl}</div>
+        <div className="page-summary__header-row">
+          <div className="page-summary__header">
+            <strong>Page summary</strong>
+          </div>
+          <div className="page-summary__url">
+            <div title={pageUrl}>{pageUrl}</div>
+          </div>
         </div>
         <div className="page-summary__overview-row">
           <div className="page-summary__overview-card">
@@ -227,6 +229,11 @@ export function PageSummary({
           display: flex;
           flex-direction: column;
           gap: 12px;
+        }
+        .page-summary__header-row {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
         }
         .page-summary__header {
           font-size: 12px;
