@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
+import { formatHumanReadableDate } from "../../utils/format-date"
 
 export interface SitemapPage {
   id: number
@@ -6,18 +7,52 @@ export interface SitemapPage {
   page_url: string
   tracked?: boolean
   status?: string
-  created_at?: string
+  last_modified?: string
 }
 
 export interface SitemapPagesTableProps {
   feedId?: number
+  filter?: string
+  onPageToggle?: (pageId: number, tracked: boolean) => void
 }
 
-export function SitemapPagesTable({ feedId }: SitemapPagesTableProps) {
+const renderPageUrl = (url: string) => {
+  try {
+    const parsed = new URL(url)
+    const prefixString = `${parsed.origin}/`
+    const suffix = parsed.pathname.replace(/^\/+/, "") || "/"
+    return (
+      <>
+        <span className="sitemap-feed-card__url-prefix">{prefixString}</span>
+        <span className="sitemap-feed-card__url-suffix">{suffix}</span>
+      </>
+    )
+  } catch {
+    return <span className="sitemap-feed-card__url-prefix">{url}</span>
+  }
+}
+
+export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: SitemapPagesTableProps) {
   const [pages, setPages] = useState<SitemapPage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState("")
+  const handlePageToggleClick = (page: SitemapPage) => {
+    console.log(
+      `[sitemap-page-card] toggling page ${page.id} (${page.page_url}) tracked=${page.tracked}`
+    )
+    onPageToggle?.(page.id, !page.tracked)
+    setPages((prev) =>
+      prev.map((item) =>
+        item.id === page.id ? { ...item, tracked: !item.tracked } : item
+      )
+    )
+  }
+
+  useEffect(() => {
+    if (!onPageToggle && process.env.NODE_ENV !== "production") {
+      console.warn("[sitemap-page-card] toggle handler missing; page cards will not respond to track/hide actions.")
+    }
+  }, [onPageToggle])
 
   useEffect(() => {
     if (!feedId) {
@@ -61,7 +96,7 @@ export function SitemapPagesTable({ feedId }: SitemapPagesTableProps) {
     }
   }, [feedId])
 
-  const normalizedFilter = filter.trim().toLowerCase()
+  const normalizedFilter = (filter || "").trim().toLowerCase()
   const filteredPages = useMemo(() => {
     if (!normalizedFilter) return pages
     return pages.filter((page) =>
@@ -72,31 +107,8 @@ export function SitemapPagesTable({ feedId }: SitemapPagesTableProps) {
   return (
     <div className="sitemap-pages-table">
       <div className="sitemap-pages-table__shell">
-        <div className="sitemap-pages-table__header">
-          <div>
-            <h3>Sitemap pages</h3>
-            {feedId ? (
-              <p>Tracks every page inside the currently selected feed.</p>
-            ) : (
-              <p>Select a feed to see its tracked pages.</p>
-            )}
-          </div>
-        </div>
+        <div className="sitemap-pages-table__header" />
         <div className="sitemap-pages-table__content">
-          <div className="sitemap-pages-table__actions">
-            <input
-              type="search"
-              placeholder="Filter by URL"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              disabled={!feedId}
-            />
-          </div>
-          {!feedId && (
-            <div className="sitemap-pages-table__empty">
-              Choose a feed to start viewing pages.
-            </div>
-          )}
           {feedId && loading && (
             <div className="sitemap-pages-table__empty">Loading pages…</div>
           )}
@@ -108,74 +120,60 @@ export function SitemapPagesTable({ feedId }: SitemapPagesTableProps) {
           )}
           {feedId && !loading && !error && filteredPages.length > 0 && (
             <div className="sitemap-pages-table__list">
-              {filteredPages.map((page) => (
-                <article key={page.id} className="sitemap-page-card">
-                  <div className="sitemap-page-card__url">{page.page_url}</div>
-                  <div className="sitemap-page-card__meta">
-                    <span className="sitemap-page-card__status">{page.status || "pending"}</span>
-                    <span
-                      className={`status-chip ${
-                        page.tracked ? "status-chip--active" : "status-chip--inactive"
-                      }`}
-                    >
-                      {page.tracked ? "Tracked" : "Hidden"}
-                    </span>
-                  </div>
-                </article>
-              ))}
+              {filteredPages.map((page) => {
+                const formattedLastModified = formatHumanReadableDate(page.last_modified)
+                return (
+                  <article key={page.id} className="sitemap-feed-card">
+                    <div className="sitemap-feed-card__url">{renderPageUrl(page.page_url)}</div>
+                    <div className="sitemap-feed-card__summary">
+                      <span>{formattedLastModified ?? "No date available"}</span>
+                    </div>
+                    <div className="sitemap-feed-card__meta sitemap-feed-card__meta--page">
+                      <span className="sitemap-feed-card__processed-label">
+                        {page.processed ? page.processed : "not processed"}
+                      </span>
+                      <div className="sitemap-feed-card__status-group sitemap-feed-card__status-group--page">
+                        <span
+                          className={`status-chip ${
+                            page.tracked ? "status-chip--active" : "status-chip--inactive"
+                          }`}
+                        >
+                          {page.tracked ? "Tracked" : "Hidden"}
+                        </span>
+                        <button
+                          type="button"
+                          className={`sitemap-feed-card__track-toggle${page.tracked ? " is-tracked" : ""}`}
+                          onClick={() => handlePageToggleClick(page)}
+                          aria-pressed={page.tracked}
+                          aria-label={
+                            page.tracked
+                              ? `Hide page ${page.page_url}`
+                              : `Track page ${page.page_url}`
+                          }
+                        />
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           )}
         </div>
       </div>
       <style>{`
-        .sitemap-pages-table__actions {
-          padding: 12px 0;
-        }
-
-        .sitemap-pages-table__actions input {
-          width: 100%;
-          border-radius: 999px;
-          border: 1px solid #e2e8f0;
-          padding: 8px 14px;
-          font-size: 13px;
-          font-family: inherit;
+        .sitemap-pages-table__content {
+          padding: 12px 16px 16px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          overflow-y: auto;
         }
 
         .sitemap-pages-table__list {
           display: flex;
           flex-direction: column;
           gap: 10px;
-        }
-
-        .sitemap-page-card {
-          padding: 10px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          background: #fff;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .sitemap-page-card__url {
-          font-size: 13px;
-          color: #0f172a;
-          font-weight: 600;
-        }
-
-        .sitemap-page-card__meta {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 12px;
-          color: #475467;
-        }
-
-        .sitemap-page-card__status {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          color: #475467;
         }
 
         .sitemap-pages-table__empty {

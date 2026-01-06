@@ -11,6 +11,10 @@ const providerDocumentHandler = require('../admin-extension/chrome-extension/api
 const providerKnowledgeHandler = require('../admin-extension/chrome-extension/api/provider-knowledge');
 const providerDocumentsListHandler = require('../admin-extension/chrome-extension/api/provider-documents-list');
 const providerSiteSettingsHandler = require('../admin-extension/chrome-extension/api/provider-site-settings');
+const sitemapFeedsHandler = require('../admin-extension/chrome-extension/api/sitemap-feeds');
+const sitemapPagesHandler = require('../admin-extension/chrome-extension/api/sitemap-pages');
+const sitemapPageStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-page-status');
+const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
 const HTTP_PORT = 4173;
@@ -103,6 +107,26 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/provider-knowledge') {
       await providerKnowledgeHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/sitemap-feeds') {
+      await sitemapFeedsHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/sitemap-feed-status') {
+      await sitemapFeedStatusHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/sitemap-page-status') {
+      await sitemapPageStatusHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/sitemap-pages') {
+      await sitemapPagesHandler(req, res);
       return;
     }
 

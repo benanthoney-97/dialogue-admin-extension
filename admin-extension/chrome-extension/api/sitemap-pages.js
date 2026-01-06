@@ -13,7 +13,7 @@ async function handler(req, res) {
     if (req.method === "GET") {
       const { data, error } = await supabase
         .from("sitemap_pages")
-        .select("id, feed_id, page_url, tracked, status, created_at")
+        .select("id, feed_id, page_url, tracked, processed, last_modified")
         .eq("feed_id", feedId)
         .order("page_url", { ascending: true })
 

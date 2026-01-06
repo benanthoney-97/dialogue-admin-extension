@@ -4,13 +4,11 @@ import { DecisionCard } from "./components/decision-card"
 import type { DecisionCardProps } from "./components/decision-card"
 import { ProviderDocumentsGrid } from "./components/provider-documents-grid"
 import type { ProviderDocument } from "./components/provider-documents-grid"
-import { TimestampPicker } from "./components/timestamp-picker"
-import { ThresholdSelector } from "./components/threshold-selector"
-import { ConfirmAction } from "./components/confirm-action"
+import { ThresholdControls } from "./components/threshold-controls"
 import { PageSummary } from "./components/page-summary"
 import { BottomNavigation } from "./components/bottom-navigation"
-import { SitemapFeedsTable } from "./components/sitemap-feeds-table"
-import { SitemapPagesTable } from "./components/sitemap-pages-table"
+import { SitemapView } from "./components/sitemap-view"
+import { TimestampView } from "./components/timestamp-view"
 
 const PROVIDER_ID = 12
 const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
@@ -43,11 +41,9 @@ function SidePanel() {
   const [selectedDoc, setSelectedDoc] = useState<ProviderDocument | null>(null)
   const [threshold, setThreshold] = useState<"high" | "medium" | "low">("medium")
   const [activeSection, setActiveSection] = useState<NavSection>("page")
-  const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
   const [decisionCardVisible, setDecisionCardVisible] = useState(false)
-  const [showThresholdConfirm, setShowThresholdConfirm] = useState(false)
   const [thresholdSaving, setThresholdSaving] = useState(false)
 
   useEffect(() => {
@@ -130,6 +126,33 @@ function SidePanel() {
 
   const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
 
+  const handleFeedToggle = async (feedId: number, tracked: boolean) => {
+    try {
+      await fetch(`${backendBase.replace(/\/+$/, "")}/api/sitemap-feed-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feed_id: feedId, tracked }),
+      })
+    } catch (error) {
+      console.error("[panel] sitemap feed toggle error", error)
+    }
+  }
+
+  const handlePageToggle = async (pageId: number, tracked: boolean) => {
+    try {
+      console.log("[panel] toggling page status", { page_id: pageId, tracked })
+      const response = await fetch(`${backendBase.replace(/\/+$/, "")}/api/sitemap-page-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page_id: pageId, tracked }),
+      })
+      const data = await response.json().catch(() => null)
+      console.log("[panel] page toggle response", response.status, data)
+    } catch (error) {
+      console.error("[panel] sitemap page toggle error", error)
+    }
+  }
+
   const saveThresholdMatches = async () => {
     setThresholdSaving(true)
     try {
@@ -177,19 +200,6 @@ function SidePanel() {
     }
   }
 
-  const handleThresholdSave = () => {
-    setShowThresholdConfirm(true)
-  }
-
-  const handleConfirmCancel = () => {
-    setShowThresholdConfirm(false)
-  }
-
-  const handleConfirmSave = () => {
-    setShowThresholdConfirm(false)
-    saveThresholdMatches()
-  }
-
   useEffect(() => {
     if (toastMessage) {
       if (toastTimerRef.current) {
@@ -205,14 +215,6 @@ function SidePanel() {
       }
     }
   }, [toastMessage])
-
-  const extractTimestamp = (url?: string) => {
-    if (!url) return 0
-    const match = url.match(/#t=(\d+)/)
-    if (!match) return 0
-    const value = Number(match[1])
-    return Number.isNaN(value) ? 0 : value
-  }
 
   const buildVideoUrl = (sourceUrl?: string, seconds?: number) => {
     if (!sourceUrl) return ""
@@ -283,35 +285,19 @@ function SidePanel() {
   }, [match, pageUrl])
 
   const renderContent = () => {
-    if (view === "documents") {
-      return <ProviderDocumentsGrid onDocumentSelect={handleDocumentSelect} />
-    }
-    if (view === "timestamp" && selectedDoc) {
-      return (
-        <div className="timestamp-view">
-          <div className="timestamp-view__header">
-            <button
-              type="button"
-              className="timestamp-view__back"
-              onClick={() => setView("documents")}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path
-                  fillRule="evenodd"
-                  d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
-                />
-              </svg>
-            </button>
-            <span>Select starting point for "{selectedDoc.title}"</span>
-          </div>
-          <TimestampPicker
-            videoUrl={selectedDoc.source_url || ""}
-            initialTimestamp={match ? extractTimestamp(match.video_url) : 0}
-            onConfirm={handleTimestampConfirm}
-          />
-        </div>
-      )
-    }
+  if (view === "documents") {
+    return <ProviderDocumentsGrid onDocumentSelect={handleDocumentSelect} />
+  }
+  if (view === "timestamp" && selectedDoc) {
+    return (
+      <TimestampView
+        document={selectedDoc}
+        videoUrl={match?.video_url}
+        onBack={() => setView("documents")}
+        onConfirm={handleTimestampConfirm}
+      />
+    )
+  }
 
     switch (activeSection) {
       case "page":
@@ -326,38 +312,20 @@ function SidePanel() {
         )
       case "threshold":
         return (
-          <>
-            <ThresholdSelector current={threshold} onChange={handleThresholdChange} />
-            <div className="threshold-save-footer">
-              <button
-                type="button"
-                className="threshold-save-footer__button"
-                onClick={handleThresholdSave}
-                disabled={thresholdSaving}
-              >
-                {thresholdSaving ? "Saving…" : "Save threshold"}
-              </button>
-            </div>
-            <ConfirmAction
-              visible={showThresholdConfirm}
-              title="Persist threshold"
-              message="This will mark every active match below the selected threshold as hidden. It will overwrite any previous manual changes."
-              confirmLabel="Save"
-              cancelLabel="Cancel"
-              onConfirm={handleConfirmSave}
-              onCancel={handleConfirmCancel}
-            />
-          </>
+          <ThresholdControls
+            current={threshold}
+            onChange={handleThresholdChange}
+            onSave={saveThresholdMatches}
+            saving={thresholdSaving}
+          />
         )
-      case "sitemap":
+        case "sitemap":
         return (
-          <>
-            <SitemapFeedsTable
-              providerId={PROVIDER_ID}
-              onFeedSelect={(feed) => setSelectedFeedId(feed.id)}
-            />
-            <SitemapPagesTable feedId={selectedFeedId ?? undefined} />
-          </>
+          <SitemapView
+            providerId={PROVIDER_ID}
+            onFeedToggle={handleFeedToggle}
+            onPageToggle={handlePageToggle}
+          />
         )
       case "platforms":
         return (
