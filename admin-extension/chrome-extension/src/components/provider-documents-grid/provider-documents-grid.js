@@ -67,7 +67,7 @@ template.innerHTML = `
     }
 
     .doc-title {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
       color: #0f172a;
       line-height: 1.3;
@@ -104,7 +104,7 @@ template.innerHTML = `
     }
   </style>
   <div class="grid-shell">
-    <div class="grid-header">Video library</div>
+    <div class="grid-header">Choose from library</div>
     <div class="grid-content">
       <div class="grid"></div>
     </div>

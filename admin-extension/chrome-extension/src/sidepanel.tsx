@@ -56,6 +56,9 @@ function SidePanel() {
   const [selectedNewMatchText, setSelectedNewMatchText] = useState<string | null>(null)
   const [manualStage, setManualStage] = useState<"prompt" | "documents" | "timestamp">("prompt")
   const [manualSelectedDoc, setManualSelectedDoc] = useState<ProviderDocument | null>(null)
+  const [autoMatchResults, setAutoMatchResults] = useState<any[]>([])
+  const [autoMatchLoading, setAutoMatchLoading] = useState(false)
+  const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
   const newMatchModeRef = useRef(false)
 
   useEffect(() => {
@@ -155,6 +158,106 @@ function SidePanel() {
     setManualSelectedDoc(null)
   }
 
+  const handleGetMatches = async () => {
+    if (!selectedNewMatchText) {
+      setToastMessage("Highlight text to look up matches")
+      return
+    }
+    setAutoMatchLoading(true)
+    setAutoMatchResults([])
+    try {
+      const response = await fetch(`${backendBase.replace(/\/+$/, "")}/api/match-suggestions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: selectedNewMatchText,
+          provider_id: PROVIDER_ID,
+          match_count: 6,
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.text()
+        throw new Error(`Failed to fetch matches (${response.status}): ${payload}`)
+      }
+      const payload = await response.json()
+      setAutoMatchResults(Array.isArray(payload.results) ? payload.results : [])
+    } catch (error) {
+      console.error("[panel] match suggestions error", error)
+      setToastMessage("Unable to load match suggestions")
+    } finally {
+      setAutoMatchLoading(false)
+    }
+  }
+
+  const handleSelectMatchSuggestion = async (result: any) => {
+    console.log("[panel] suggested match selected", result)
+    if (!selectedNewMatchText) {
+      setToastMessage("Highlight text to save a match")
+      return
+    }
+    const docId = Number(result.document_id || result.documentId || 0)
+    if (!docId) {
+      setToastMessage("Unable to determine document for this match")
+      return
+    }
+    const suggestedTimestamp =
+      Number.isFinite(Number(result.suggested_timestamp)) && Number(result.suggested_timestamp) >= 0
+        ? Number(result.suggested_timestamp)
+        : Number.isFinite(Number(result.timestamp_end))
+        ? Number(result.timestamp_end)
+        : Number.isFinite(Number(result.timestamp_start))
+        ? Number(result.timestamp_start)
+        : Number.isFinite(Number(result.timestamp))
+        ? Number(result.timestamp)
+        : 0
+    const normalizedUrl = buildVideoUrl(result.video_url || result.source_url || result.videoUrl, suggestedTimestamp)
+    const timestampValue = suggestedTimestamp
+    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/create-page-match`
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          document_id: docId,
+          provider_id: PROVIDER_ID,
+          phrase: selectedNewMatchText,
+          url: pageUrl,
+          video_url: normalizedUrl,
+          selected_timestamp: timestampValue,
+          status: "active",
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.text()
+        throw new Error(`Failed to create match (${response.status}): ${payload}`)
+      }
+      const createdMatch = await response.json()
+      console.log("[panel] auto match created", createdMatch)
+      setToastMessage("Match saved")
+      setAutoMatchResults([])
+      setSelectedNewMatchText(null)
+      chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
+      setActiveSection("page")
+      setMatch(createdMatch)
+      setDecisionCardVisible(true)
+      setAutoMatchLoading(false)
+      chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+      newMatchModeRef.current = false
+    } catch (error) {
+      console.error("[panel] auto match save error", error)
+      setToastMessage("Unable to save match")
+    }
+  }
+
+  useEffect(() => {
+    setAutoMatchResults([])
+  }, [selectedNewMatchText])
+
   const handleManualDocumentSelect = (doc: ProviderDocument) => {
     setManualSelectedDoc(doc)
     setManualStage("timestamp")
@@ -184,6 +287,7 @@ function SidePanel() {
           phrase: selectedNewMatchText,
           url: pageUrl,
           video_url: videoUrl,
+          selected_timestamp: seconds,
           status: "active",
         }),
       })
@@ -198,9 +302,8 @@ function SidePanel() {
       setManualSelectedDoc(null)
       setSelectedNewMatchText(null)
       chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
+      await handleMatchSelect(createdMatch.page_match_id)
       setActiveSection("page")
-      setMatch(createdMatch)
-      setDecisionCardVisible(true)
       chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
       newMatchModeRef.current = false
     } catch (error) {
@@ -269,8 +372,6 @@ function SidePanel() {
     setToastMessage(`Threshold set to ${value.charAt(0).toUpperCase() + value.slice(1)}`)
   }
 
-  const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
-
   const handleFeedToggle = async (feedId: number, tracked: boolean) => {
     try {
       await fetch(`${backendBase.replace(/\/+$/, "")}/api/sitemap-feed-status`, {
@@ -310,14 +411,6 @@ function SidePanel() {
     }
   }, [activeSection])
 
-  const handleGetMatches = () => {
-    if (!selectedNewMatchText) {
-      setToastMessage("Highlight text to fetch matches")
-      return
-    }
-    setToastMessage("Fetching match suggestions…")
-  }
-
   const handleChooseManually = () => {
     if (!selectedNewMatchText) {
       setToastMessage("Highlight text first to choose manually")
@@ -325,6 +418,19 @@ function SidePanel() {
     }
     setToastMessage("Opening clip picker…")
     startManualFlow()
+  }
+
+  const handleStartOver = () => {
+    setAutoMatchResults([])
+    setAutoMatchLoading(false)
+    setToastMessage("New match mode reset")
+    console.log("[panel] start over clicked, cleared matches")
+    setSelectedNewMatchText(null)
+    resetManualFlow()
+    chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+    window.setTimeout(() => {
+      chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
+    }, 0)
   }
 
   const handleMatchSelect = async (pageMatchId: number) => {
@@ -469,7 +575,6 @@ function SidePanel() {
     }
 
     const videoUrl = buildVideoUrl(selectedDoc.source_url, seconds)
-    const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
     const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match`
 
     try {
@@ -538,6 +643,36 @@ function SidePanel() {
               <div className="new-match-documents__phrase">{selectedNewMatchText}</div>
             )}
             <ProviderDocumentsGrid onDocumentSelect={handleManualDocumentSelect} />
+            <div className="new-match-documents__actions">
+              <button
+                type="button"
+                className="new-match-documents__button new-match-documents__button--primary"
+                onClick={handleStartOver}
+              >
+                <span aria-hidden="true" className="new-match-documents__start-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                  </svg>
+                </span>
+                Start over
+              </button>
+              <button
+                type="button"
+                className="new-match-documents__button new-match-documents__button--secondary"
+                onClick={() => {
+                  setManualStage("prompt")
+                  handleGetMatches()
+                }}
+              >
+                <span aria-hidden="true" className="new-match-documents__star-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+                  </svg>
+                </span>
+                Best matches
+              </button>
+            </div>
           </div>
         )
       case "timestamp":
@@ -551,11 +686,15 @@ function SidePanel() {
         ) : null
       default:
         return (
-          <NewMatchPrompt
-            selectedText={selectedNewMatchText}
-            onGetMatches={handleGetMatches}
-            onChooseManually={handleChooseManually}
-          />
+        <NewMatchPrompt
+          selectedText={selectedNewMatchText}
+          onGetMatches={handleGetMatches}
+          onChooseManually={handleChooseManually}
+          onReset={handleStartOver}
+          matchResults={autoMatchResults}
+          loadingMatches={autoMatchLoading}
+          onSelectMatch={handleSelectMatchSuggestion}
+        />
         )
     }
   }

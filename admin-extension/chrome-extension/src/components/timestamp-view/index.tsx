@@ -21,7 +21,7 @@ export function TimestampView({ document, videoUrl, onBack, onConfirm }: Timesta
 
   return (
     <div className="timestamp-view">
-      <div className="timestamp-view__header">
+      <div className="timestamp-view__back-row">
         <button type="button" className="timestamp-view__back" onClick={onBack}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path
@@ -30,7 +30,9 @@ export function TimestampView({ document, videoUrl, onBack, onConfirm }: Timesta
             />
           </svg>
         </button>
-        <span>Select starting point for "{document.title}"</span>
+      </div>
+      <div className="timestamp-view__section-heading">
+        Choose a starting point for this video
       </div>
       <TimestampPicker
         videoUrl={document.source_url || ""}

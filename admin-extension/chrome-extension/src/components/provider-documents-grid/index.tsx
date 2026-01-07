@@ -151,7 +151,6 @@ export function ProviderDocumentsGrid({
 
         .provider-documents__grid-shell {
           border-radius: 16px;
-          border: 1px solid #e2e8f0;
           background: #fff;
           height: 100%;
           display: flex;
@@ -159,18 +158,17 @@ export function ProviderDocumentsGrid({
         }
 
         .provider-documents__grid-header {
-          padding: 16px 20px 12px;
-          font-size: 13px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: #475467;
+          padding: 16px 0px 0px;
+          text-align: left;
+          color: #0f172a;
           font-weight: 600;
-          border-bottom: 1px solid #edf2f7;
+          font-size: 14px;
+          margin-bottom: 4px;
         }
 
         .provider-documents__grid-content {
           flex: 1;
-          padding: 12px 16px 16px;
+          padding: 12px 0px 16px;
           overflow-y: auto;
           display: flex;
           flex-direction: column;

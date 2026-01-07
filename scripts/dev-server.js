@@ -17,6 +17,7 @@ const sitemapPagesHandler = require('../admin-extension/chrome-extension/api/sit
 const sitemapPageStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-page-status');
 const pageMatchesHandler = require('../admin-extension/chrome-extension/api/page-matches');
 const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
+const matchSuggestionsHandler = require('../admin-extension/chrome-extension/api/match-suggestions');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
 const HTTP_PORT = 4173;
@@ -104,6 +105,11 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/provider-documents') {
       await providerDocumentsListHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/match-suggestions') {
+      await matchSuggestionsHandler(req, res);
       return;
     }
 
