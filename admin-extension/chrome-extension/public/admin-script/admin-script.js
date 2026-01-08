@@ -1,4 +1,3 @@
-console.log("[sl-admin-script] script loaded");
 (function () {
   const getApiOrigin = () => window.__SL_API_ORIGIN || "";
   const DEFAULT_MATCH_ENDPOINT = "/api/match-map";
@@ -121,7 +120,6 @@ console.log("[sl-admin-script] script loaded");
       range.setStart(startEntry.node, startEntry.offset);
       range.setEnd(endEntry.node, endEntry.offset + 1);
     } catch (error) {
-      console.warn("[highlightMatches] range setup failed", error);
       return null;
     }
     const fragment = range.extractContents();
@@ -145,17 +143,19 @@ console.log("[sl-admin-script] script loaded");
     style.id = HIGHLIGHT_STYLE_ID;
     style.textContent = `
       .sl-smart-link {
-        border-bottom: 2px solid #00bfa5;
+        border-bottom: 2px solid #5f61fb;
         cursor: pointer;
-        color: #00bfa5;
+        color: #5f61fb;
+        font-weight: 500;
         transition: border-color 0.2s ease, color 0.2s ease;
       }
       .sl-smart-link:hover {
-        border-color: #007a5f;
-        color: #007a5f;
+        border-color: #5f61fb;
+        color: #5f61fb;
       }
       .sl-smart-link.sl-smart-link--hover {
-        border-color: #007a5f;
+        border-color: #5f61fb;
+        color: #5f61fb;
       }
       .sl-smart-link::after {
         content: " ▶";
@@ -271,7 +271,6 @@ console.log("[sl-admin-script] script loaded");
   };
 
   const highlightMatches = (matches) => {
-    console.log("[highlightMatches] matches length", matches.length);
     if (!matches.length || !document.body) {
       return;
     }
@@ -281,7 +280,6 @@ console.log("[sl-admin-script] script loaded");
       const target = normalize(match.phrase);
       if (!target) return;
 
-      console.log("[highlightMatches] checking target", target);
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
       let node;
 
@@ -305,7 +303,6 @@ console.log("[sl-admin-script] script loaded");
         const highlight = highlightRange(normalizedMap, matchStart, matchStart + searchTarget.length, match, matchIndex);
         if (!highlight) continue;
 
-        console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
         block.classList.add("sl-smart-link-block");
         block.dataset.matchIndex = matchIndex;
         const matchId = getMatchIdentifier(match);
@@ -446,7 +443,6 @@ console.log("[sl-admin-script] script loaded");
       const origin = (apiOrigin || getApiOrigin()).replace(/\/$/, "");
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const pageUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-    console.log("[sl-admin-script] requesting matches for url", pageUrl);
     const params = new URLSearchParams({
       provider_id: String(providerId),
       limit: String(limit),
@@ -567,7 +563,6 @@ console.log("[sl-admin-script] script loaded");
     if (!matchId) return;
     const targetId = String(matchId);
     if (!match.phrase) {
-      console.warn("[sl-admin-script] addMatchHighlight missing phrase for", targetId);
       return;
     }
 
@@ -597,9 +592,7 @@ console.log("[sl-admin-script] script loaded");
     state.initialized = true;
 
     const { providerId, apiOrigin, endpoint = DEFAULT_MATCH_ENDPOINT, limit = 50 } = config;
-    console.log("[sl-admin-script] init config", { providerId, apiOrigin, endpoint, limit });
     if (!providerId) {
-      console.error("[sl-admin-script] providerId is required");
       return;
     }
 
@@ -607,7 +600,6 @@ console.log("[sl-admin-script] script loaded");
       const matches = await fetchMatchMap({ providerId, apiOrigin, endpoint, limit });
       applyMatches(matches);
     } catch (error) {
-      console.error("[sl-admin-script] failed to load matches", error);
     }
   };
 

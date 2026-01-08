@@ -189,12 +189,7 @@ async function handler(req, res) {
 
     let knowledgeChunk = null
     let manualConfidence = null
-    console.log("[create-page-match] request", {
-      docId,
-      providerId,
-      baseVideoUrl,
-      timestamp: timestampValue,
-    })
+
 
     if (baseVideoUrl) {
       const { data: chunkRows, error: chunkError } = await supabase
