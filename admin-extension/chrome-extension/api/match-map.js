@@ -1,7 +1,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
-const { getProviderDocument } = require('../../../web-embed/api/provider-documents');
+const { getProviderDocument } = require('./provider-documents-web-embed');
 
 dotenv.config({
   path: path.resolve(__dirname, '..', '..', '.env')
