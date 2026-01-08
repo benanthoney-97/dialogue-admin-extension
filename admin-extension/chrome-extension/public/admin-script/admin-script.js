@@ -176,10 +176,9 @@ console.log("[sl-admin-script] script loaded");
         if (disallowedTags.test(parent.tagName)) continue;
 
         const current = normalize(node.nodeValue);
-        if (current.includes(target)) {
-          console.log("[highlightMatches] current contains target:", current);
-        }
+        console.log("[highlightMatches] checking node:", current.slice(0, 80));
         if (!current.includes(target)) continue;
+        console.log("[highlightMatches] match found in node");
 
         const fragment = document.createDocumentFragment();
         const regex = new RegExp(`(${escapeRegex(target)})`, "gi");
