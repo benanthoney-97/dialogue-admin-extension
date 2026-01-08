@@ -167,7 +167,7 @@
         width: 1em;
         height: 1em;
         margin-left: 0.35em;
-        vertical-align: text-bottom;
+        vertical-align: middle;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
         background-size: contain;
         background-repeat: no-repeat;
