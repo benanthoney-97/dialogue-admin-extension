@@ -61,11 +61,11 @@ export function PageSummary({
             normalized.map((match) => match.page_match_id)
           )
         }
+        console.debug("[page-summary] matches detail", normalized)
         setMatches(normalized)
       })
       .catch((err) => {
         if (canceled) return
-        console.error("[page-summary] match fetch error", err)
         setError(err?.message ?? "Unable to load matches")
       })
       .finally(() => {
@@ -89,26 +89,16 @@ export function PageSummary({
   useEffect(() => {
     if (!matches.length) return
     const missingImages = matches.filter((match) => !match.cover_image_url)
-    console.debug("[page-summary] match images", {
-      totalMatches: matches.length,
-      matchesWithImages: matches.length - missingImages.length,
-      missingImages,
-    })
+
   }, [matches])
   if (matchesCount && documentIds.length === 0) {
-    console.warn("[page-summary] matches retrieved without document_id; cannot derive videos count", {
-      pageUrl,
-      matchesCount,
-    })
+
   } else {
-    console.debug("[page-summary] video count derivation details", {
-      matchesCount,
-      documentIdsCount: documentIds.length,
-      uniqueVideoDocuments: uniqueDocumentIds.size,
-    })
+
   }
 
   const pageTracked: boolean | null = matches.length ? matches[0].tracked ?? null : null
+  console.debug("[page-summary] resolved pageTracked", pageTracked)
 
   const previewPhrase = (phrase: string) => {
     const words = (phrase || "").trim().split(/\s+/)
@@ -199,7 +189,6 @@ const pillStyle = (label?: string, color?: string) => {
       page_match_id: match.page_match_id,
       hovered,
     }
-    console.debug("[page-summary] hover message", message)
     chrome.runtime.sendMessage(message)
   }
 

@@ -157,7 +157,9 @@
       }
       .sl-smart-link.sl-smart-link--hover {
         border-color: #5f61fb;
-        color: #5f61fb;
+        color: #ffffff;
+        background-color: rgba(95, 97, 251, 0.25);
+        box-shadow: 0 2px 10px rgba(95, 97, 251, 0.35);
       }
       .sl-smart-link::after {
         content: "";
