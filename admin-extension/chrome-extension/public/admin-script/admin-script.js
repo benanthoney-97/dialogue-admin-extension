@@ -148,10 +148,8 @@
         color: #5f61fb;
         font-weight: 500;
         transition: border-color 0.2s ease, color 0.2s ease;
-        padding-bottom: 0;
         line-height: 1.2;
-        display: inline-flex;
-        align-items: flex-end;
+        display: inline;
       }
       .sl-smart-link:hover {
         border-color: #5f61fb;
