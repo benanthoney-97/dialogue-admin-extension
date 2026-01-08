@@ -164,7 +164,8 @@
         display: inline-block;
         width: 1em;
         height: 1em;
-        margin-left: 0.35em;
+        margin-left: 0.15em;
+        margin-bottom: 0.15em;
         vertical-align: middle;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
         background-size: contain;
@@ -179,6 +180,7 @@
       }
       .sl-smart-link.sl-smart-link--inactive::after {
         color: rgba(148, 163, 184, 0.9);
+        display: none;
       }
       .sl-smart-link.sl-smart-link--removed {
         border-bottom: none !important;
@@ -395,7 +397,7 @@
           <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
         </svg>
       </button>
-      <div class="sl-visitor-player__header">We picked this video for you...</div>
+      <div class="sl-visitor-player__header">Picked just for you...</div>
       <div class="sl-visitor-player__frame">
         <iframe allow="autoplay; fullscreen"></iframe>
       </div>

@@ -16,6 +16,7 @@ interface PageMatchSummary {
   cover_image_url?: string
   confidence_label?: string
   confidence_color?: string
+  tracked?: boolean | null
 }
 
 export function PageSummary({
@@ -107,6 +108,8 @@ export function PageSummary({
     })
   }
 
+  const pageTracked: boolean | null = matches.length ? matches[0].tracked ?? null : null
+
   const previewPhrase = (phrase: string) => {
     const words = (phrase || "").trim().split(/\s+/)
     if (words.length <= 14) return phrase
@@ -116,6 +119,25 @@ export function PageSummary({
 const formatConfidence = (value?: number) => {
   if (typeof value !== "number") return "—"
   return `${Math.round(value * 100)}%`
+}
+
+const formatPagePath = (value: string) => {
+  if (!value) return ""
+  try {
+    const parsed = new URL(value)
+    let pathname = parsed.pathname || "/"
+    if (pathname !== "/" && pathname.endsWith("/")) {
+      pathname = pathname.replace(/\/+$/, "")
+    }
+    const segments = pathname.split("/").filter((segment) => segment.length > 0)
+    const search = parsed.search || ""
+    if (segments.length <= 1) {
+      return `${pathname}${search}`
+    }
+    return `${segments.join("/")}${search}`
+  } catch {
+    return value
+  }
 }
 
 const parseHexColor = (value?: string) => {
@@ -187,9 +209,18 @@ const pillStyle = (label?: string, color?: string) => {
         <div className="page-summary__header-row">
           <div className="page-summary__header">
             <strong>Page summary</strong>
+            {pageTracked !== null && (
+              <span
+                className={`page-summary__tracked-chip ${
+                  pageTracked ? "page-summary__tracked-chip--active" : "page-summary__tracked-chip--inactive"
+                }`}
+              >
+                {pageTracked ? "Tracked" : "Not tracked"}
+              </span>
+            )}
           </div>
           <div className="page-summary__url">
-            <div title={pageUrl}>{pageUrl}</div>
+            <div title={pageUrl}>{formatPagePath(pageUrl)}</div>
           </div>
         </div>
         <div className="page-summary__overview-row">
@@ -292,6 +323,27 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 12px;
           letter-spacing: 0.1em;
           color: #6b7280;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .page-summary__tracked-chip {
+          margin-left: 12px;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        .page-summary__tracked-chip--active {
+          background: rgba(34, 197, 94, 0.16);
+          color: #15803d;
+          border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        .page-summary__tracked-chip--inactive {
+          background: rgba(248, 113, 113, 0.16);
+          color: #b91c1c;
+          border: 1px solid rgba(248, 113, 113, 0.35);
         }
         .page-summary__url {
           font-size: 12px;
@@ -301,9 +353,12 @@ const pillStyle = (label?: string, color?: string) => {
         .page-summary__url div {
           font-size: 12px;
           color: #0f172a;
-          white-space: nowrap;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          word-break: break-word;
+          white-space: normal;
         }
         .page-summary__matches {
           padding-top: 0;

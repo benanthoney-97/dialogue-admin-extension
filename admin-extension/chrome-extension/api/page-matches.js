@@ -76,6 +76,11 @@ const findTierForScore = (score, tiers) => {
     })
 
     const tiers = await getConfidenceTiers(providerId)
+    const { data: pageRow } = await supabase
+      .from("sitemap_pages")
+      .select("tracked")
+      .eq("page_url", pageUrl)
+      .maybeSingle()
     const matches = (data || []).map((row) => {
       const tier = findTierForScore(row.confidence, tiers)
       if (!documents[row.document_id]?.cover_image_url) {
@@ -95,6 +100,7 @@ const findTierForScore = (score, tiers) => {
         confidence_label: tier?.display_label || "",
         confidence_color: tier?.color_theme || "",
         url: row.url,
+        tracked: pageRow?.tracked ?? null,
       }
     })
 
