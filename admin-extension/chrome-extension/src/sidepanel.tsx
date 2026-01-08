@@ -629,11 +629,38 @@ function SidePanel() {
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    chrome.tabs?.query?.({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs && tabs.length > 0 && tabs[0]?.url) {
-        setCurrentTabUrl(tabs[0].url)
+    let canceled = false
+
+    const resolveActiveTabUrl = () => {
+      chrome.tabs?.query?.({ active: true, currentWindow: true }, (tabs) => {
+        if (canceled) return
+        if (tabs && tabs.length > 0 && tabs[0]?.url) {
+          setCurrentTabUrl(tabs[0].url)
+        }
+      })
+    }
+
+    const handleTabActivated = () => {
+      resolveActiveTabUrl()
+    }
+
+    const handleTabUpdated = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
+      if (!tab || !tab.active) return
+      const maybeUrl = changeInfo.url || tab.url
+      if (maybeUrl) {
+        setCurrentTabUrl(maybeUrl)
       }
-    })
+    }
+
+    resolveActiveTabUrl()
+    chrome.tabs?.onActivated?.addListener(handleTabActivated)
+    chrome.tabs?.onUpdated?.addListener(handleTabUpdated)
+
+    return () => {
+      canceled = true
+      chrome.tabs?.onActivated?.removeListener(handleTabActivated)
+      chrome.tabs?.onUpdated?.removeListener(handleTabUpdated)
+    }
   }, [])
 
   const pageUrl =

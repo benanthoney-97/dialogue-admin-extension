@@ -199,26 +199,16 @@ async function handler(req, res) {
         .eq("provider_id", providerId)
         .limit(100)
       if (chunkError) {
-        console.log("[create-page-match] chunk lookup error", chunkError.message || chunkError)
       } else {
-        console.log("[create-page-match] chunk rows fetched", (chunkRows || []).length)
         for (const chunk of chunkRows || []) {
           const meta = parseMetadata(chunk.metadata)
           const norm = normalizeSourceUrl(meta.source || meta.source_url)
           const start = meta.timestampStart ?? meta.timestamp_start ?? null
           const end = meta.timestampEnd ?? meta.timestamp_end ?? null
-          console.log(
-            "[create-page-match] chunk candidate",
-            chunk.id,
-            { normalized: norm, start, end }
-          )
+
         }
         knowledgeChunk = findMatchingChunk(chunkRows, baseVideoUrl, timestampValue)
-        console.log(
-          "[create-page-match] chunk match",
-          knowledgeChunk ? knowledgeChunk.id : "none",
-          knowledgeChunk ? parseMetadata(knowledgeChunk.metadata) : null
-        )
+
       }
     }
 
@@ -227,12 +217,6 @@ async function handler(req, res) {
         const queryEmbedding = await fetchEmbedding(phraseText)
         if (queryEmbedding) {
           manualConfidence = computeCosineSimilarity(queryEmbedding, knowledgeChunk.embedding)
-          console.log(
-            "[create-page-match] similarity",
-            manualConfidence,
-            "chunkId",
-            knowledgeChunk.id
-          )
         }
       } catch (err) {
         console.warn("[create-page-match] embedding error", err.message || err)
@@ -267,7 +251,6 @@ async function handler(req, res) {
       return
     }
 
-    console.log("[create-page-match] created match", data)
     setCorsHeaders(res)
     const normalized = { ...data, page_match_id: data.id }
     res.end(JSON.stringify(normalized))

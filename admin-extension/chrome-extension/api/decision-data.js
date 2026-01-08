@@ -30,7 +30,6 @@ async function lookupKnowledge(knowledgeId) {
     metadata,
     content: data?.content || ''
   };
-  console.log(`[decision-data] fetched knowledge ${knowledgeId}`, payload);
   return payload;
 }
 
@@ -43,7 +42,6 @@ const { data, error } = await supabase
     .maybeSingle();
 
   if (error) throw error;
-  console.log("[decision-data] fetched page_match", data);
   return data;
 }
 

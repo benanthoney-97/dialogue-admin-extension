@@ -148,6 +148,10 @@
         color: #5f61fb;
         font-weight: 500;
         transition: border-color 0.2s ease, color 0.2s ease;
+        padding-bottom: 0;
+        line-height: 1.2;
+        display: inline-flex;
+        align-items: flex-end;
       }
       .sl-smart-link:hover {
         border-color: #5f61fb;
@@ -163,7 +167,7 @@
         width: 1em;
         height: 1em;
         margin-left: 0.35em;
-        vertical-align: middle;
+        vertical-align: text-bottom;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
         background-size: contain;
         background-repeat: no-repeat;
@@ -211,22 +215,22 @@
       }
       #sl-visitor-player .sl-visitor-player__close {
         position: absolute;
-        top: 0px;
+        top: 2px;
         right: 10px;
         width: 32px;
         height: 32px;
         border: none;
         border-radius: 50%;
+        background: #101a2f;
         color: rgba(255, 255, 255, 0.9);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: background 0.2s ease;
         padding: 0;
       }
       #sl-visitor-player .sl-visitor-player__close:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: #101a2f;
       }
       #sl-visitor-player.visible {
         opacity: 1;
