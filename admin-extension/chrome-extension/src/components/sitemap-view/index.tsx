@@ -43,15 +43,16 @@ export function SitemapView({
   const [selectedFeed, setSelectedFeed] = useState<SitemapFeed | null>(null)
 
   return (
-    <div className="sitemap-view__pane">
-      <div className="sitemap-view__threshold">
-        <ThresholdControls
-          current={threshold}
-          onChange={onThresholdChange}
-          onSave={onThresholdSave}
-          saving={thresholdSaving}
-        />
-      </div>
+    <>
+      <div className="sitemap-view__pane">
+        <div className="sitemap-view__threshold">
+          <ThresholdControls
+            current={threshold}
+            onChange={onThresholdChange}
+            onSave={onThresholdSave}
+            saving={thresholdSaving}
+          />
+        </div>
       <div className="sitemap-view__header">
         {selectedFeed ? (
           <div className="sitemap-view__header-detail">
@@ -104,8 +105,8 @@ export function SitemapView({
           />
         )}
       </div>
-    </div>
-    <style>{`
+      </div>
+      <style>{`
       .sitemap-view__title {
         text-align: left;
         font-weight: 600;
@@ -114,5 +115,6 @@ export function SitemapView({
         margin-bottom: 4px;
       }
     `}</style>
+    </>
   )
 }

@@ -98,7 +98,6 @@ export function PageSummary({
   }, [pageUrl, backendBase, providerId, refreshKey])
 
   const matchesCount = matches.length
-  const showingMatchesCount = matches.filter((match) => match.status !== "inactive").length
   const documentIds = matches
     .filter((match) => match.document_id != null)
     .map((match) => match.document_id)
@@ -238,10 +237,6 @@ const pillStyle = (label?: string, color?: string) => {
           <div className="page-summary__overview-card">
             <strong>{matchesCount}</strong>
             <span>Matches</span>
-          </div>
-          <div className="page-summary__overview-card">
-            <strong>{showingMatchesCount}</strong>
-            <span>Showing</span>
           </div>
           <div className="page-summary__overview-card">
             <strong>{videosCount}</strong>
