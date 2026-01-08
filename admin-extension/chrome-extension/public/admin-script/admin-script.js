@@ -147,11 +147,12 @@ console.log("[sl-admin-script] script loaded");
       .sl-smart-link {
         border-bottom: 2px solid #00bfa5;
         cursor: pointer;
-        color: inherit;
-        transition: border-color 0.2s ease;
+        color: #00bfa5;
+        transition: border-color 0.2s ease, color 0.2s ease;
       }
       .sl-smart-link:hover {
         border-color: #007a5f;
+        color: #007a5f;
       }
       .sl-smart-link.sl-smart-link--hover {
         border-color: #007a5f;
