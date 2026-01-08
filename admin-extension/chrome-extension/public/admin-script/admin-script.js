@@ -28,7 +28,104 @@ console.log("[sl-admin-script] script loaded");
     null;
 
   const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
-  const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const DISALLOWED_HIGHLIGHT_TAGS = /SCRIPT|STYLE|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
+
+  const createHighlightElement = (match, matchIndex) => {
+    const span = document.createElement("span");
+    span.classList.add("sl-smart-link");
+    span.dataset.matchIndex = String(matchIndex);
+    const matchId = getMatchIdentifier(match);
+    if (matchId) {
+      span.dataset.pageMatchId = String(matchId);
+    }
+    const confidence = Number(match.confidence);
+    if (!Number.isNaN(confidence)) {
+      span.dataset.confidence = String(confidence);
+    }
+    const status = (match.status || "active").toLowerCase();
+    span.dataset.matchStatus = status;
+    if (status === "inactive") {
+      span.classList.add("sl-smart-link--inactive");
+    }
+    return span;
+  };
+
+  const buildNormalizedTextMap = (root) => {
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          const parent = node.parentElement;
+          if (!parent || parent.closest(".sl-smart-link")) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (DISALLOWED_HIGHLIGHT_TAGS.test(parent.tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
+      false
+    );
+
+    const normalizedChars = [];
+    const mapping = [];
+    let pendingSpace = null;
+    let sawNonSpace = false;
+    let node;
+
+    const flushPendingSpace = () => {
+      if (pendingSpace && sawNonSpace) {
+        normalizedChars.push(" ");
+        mapping.push({ node: pendingSpace.node, offset: pendingSpace.offset });
+      }
+      pendingSpace = null;
+    };
+
+    while ((node = walker.nextNode())) {
+      const text = node.nodeValue || "";
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        if (/\s/.test(char)) {
+          if (!pendingSpace) {
+            pendingSpace = { node, offset: index };
+          }
+          continue;
+        }
+        flushPendingSpace();
+        normalizedChars.push(char);
+        mapping.push({ node, offset: index });
+        sawNonSpace = true;
+      }
+    }
+
+    return {
+      normalized: normalizedChars.join(""),
+      mapping
+    };
+  };
+
+  const highlightRange = (data, start, end, match, matchIndex) => {
+    const startEntry = data.mapping[start];
+    const endEntry = data.mapping[end - 1];
+    if (!startEntry || !endEntry) {
+      return null;
+    }
+    const range = document.createRange();
+    try {
+      range.setStart(startEntry.node, startEntry.offset);
+      range.setEnd(endEntry.node, endEntry.offset + 1);
+    } catch (error) {
+      console.warn("[highlightMatches] range setup failed", error);
+      return null;
+    }
+    const fragment = range.extractContents();
+    const highlight = createHighlightElement(match, matchIndex);
+    highlight.appendChild(fragment);
+    range.insertNode(highlight);
+    return highlight;
+  };
 
   const whenDOMReady = (cb) => {
     if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -159,78 +256,55 @@ console.log("[sl-admin-script] script loaded");
       return;
     }
 
-    const disallowedTags = /SCRIPT|STYLE|A|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
-
-    for (let matchIndex = 0; matchIndex < matches.length; matchIndex += 1) {
-      const match = matches[matchIndex];
-      if (!match || !match.phrase) continue;
+    matches.forEach((match, matchIndex) => {
+      if (!match || !match.phrase) return;
       const target = normalize(match.phrase);
-      if (!target) continue;
-
-      const words = target.split(" ").filter(Boolean);
-      if (!words.length) continue;
-      const pattern = words.map(escapeRegex).join("\\s+");
-      const regex = new RegExp(pattern, "i");
+      if (!target) return;
 
       console.log("[highlightMatches] checking target", target);
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+      let node;
 
-      let highlightFound;
-      do {
-        highlightFound = false;
-        let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-        let node;
-        while ((node = walker.nextNode())) {
-          const parent = node.parentElement;
-          if (!parent || parent.closest(".sl-smart-link")) continue;
-          if (disallowedTags.test(parent.tagName)) continue;
+      while ((node = walker.nextNode())) {
+        const parent = node.parentElement;
+        if (!parent || parent.closest(".sl-smart-link")) continue;
+        if (DISALLOWED_HIGHLIGHT_TAGS.test(parent.tagName)) continue;
 
-          const textContent = node.nodeValue || "";
-          if (!textContent.trim()) continue;
+        const block = parent.closest("p, div, li, section, article, h1, h2, h3, h4, h5, h6") || parent;
+        const blockText = normalize(block.textContent || "");
+        if (!blockText.includes(target)) continue;
 
-          const matchResult = regex.exec(textContent);
-          if (!matchResult) continue;
+        const normalizedMap = buildNormalizedTextMap(block);
+        if (!normalizedMap.normalized) continue;
 
-          const block = parent.closest("p, div, li, section, article, h1, h2, h3, h4, h5, h6") || parent;
-          const blockText = normalize(block.textContent || "");
-          console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
-          block.classList.add("sl-smart-link-block");
+        const normalizedLower = normalizedMap.normalized.toLowerCase();
+        const searchTarget = target.toLowerCase();
+        const matchStart = normalizedLower.indexOf(searchTarget);
+        if (matchStart === -1) continue;
 
-          const beforeText = textContent.slice(0, matchResult.index);
-          const matchedText = matchResult[0];
-          const afterText = textContent.slice(matchResult.index + matchedText.length);
-          const fragment = document.createDocumentFragment();
-          if (beforeText) {
-            fragment.appendChild(document.createTextNode(beforeText));
-          }
-          const highlight = document.createElement("span");
-          highlight.classList.add("sl-smart-link");
-          highlight.textContent = matchedText;
-          highlight.dataset.matchIndex = String(matchIndex);
-          const matchId = getMatchIdentifier(match);
-          if (matchId) {
-            highlight.dataset.pageMatchId = String(matchId);
-          }
-          const confidence = Number(match.confidence);
-          if (!Number.isNaN(confidence)) {
-            highlight.dataset.confidence = String(confidence);
-          }
-          const status = (match.status || "active").toLowerCase();
-          highlight.dataset.matchStatus = status;
-          if (status === "inactive") {
-            highlight.classList.add("sl-smart-link--inactive");
-          }
-          fragment.appendChild(highlight);
-          if (afterText) {
-            fragment.appendChild(document.createTextNode(afterText));
-          }
+        const highlight = highlightRange(normalizedMap, matchStart, matchStart + searchTarget.length, match, matchIndex);
+        if (!highlight) continue;
 
-          parent.replaceChild(fragment, node);
-
-          highlightFound = true;
-          break;
+        console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
+        block.classList.add("sl-smart-link-block");
+        block.dataset.matchIndex = matchIndex;
+        const matchId = getMatchIdentifier(match);
+        if (matchId) {
+          block.dataset.pageMatchId = String(matchId);
         }
-      } while (highlightFound);
-    }
+        const confidence = Number(match.confidence);
+        if (!Number.isNaN(confidence)) {
+          block.dataset.confidence = String(confidence);
+        }
+        const status = (match.status || "active").toLowerCase();
+        block.dataset.matchStatus = status;
+        if (status === "inactive") {
+          block.classList.add("sl-smart-link--inactive");
+        }
+
+        break;
+      }
+    });
   };
 
   const scheduleHighlight = () => {
