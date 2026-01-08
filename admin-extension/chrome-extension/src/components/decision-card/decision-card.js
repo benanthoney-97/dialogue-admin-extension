@@ -587,7 +587,11 @@ class DecisionCard extends HTMLElement {
     }
     console.log("[decision-card] markMatchStatus", status, "pageMatchId", this.pageMatchId);
     try {
-      const response = await fetch("http://localhost:4173/api/page-match-status", {
+      const API_ORIGIN =
+        window.__SL_API_ORIGIN ||
+        process.env.API_ORIGIN ||
+        `${window.location.protocol}//${window.location.host}`;
+      const response = await fetch(`${API_ORIGIN}/api/page-match-status`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

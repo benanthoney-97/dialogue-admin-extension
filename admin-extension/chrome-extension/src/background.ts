@@ -14,10 +14,31 @@ let globalThresholdLevel: "high" | "medium" | "low" = "medium"
 let globalThresholdValue = 0.6
 let newMatchModeActive = false
 
-const PAGE_MATCH_API = "http://localhost:4173/api/page-match"
-const PROVIDER_DOCUMENT_API = "http://localhost:4173/api/provider-document"
-const PROVIDER_KNOWLEDGE_API = "http://localhost:4173/api/provider-knowledge"
-const SITE_SETTINGS_API = "http://localhost:4173/api/provider-site-settings"
+declare global {
+  interface Window {
+    __SL_API_ORIGIN?: string
+  }
+}
+
+const getApiOrigin = () => {
+  if (typeof window !== "undefined" && window.__SL_API_ORIGIN) {
+    return window.__SL_API_ORIGIN.replace(/\/$/, "")
+  }
+  if (typeof process !== "undefined" && process.env.API_ORIGIN) {
+    return process.env.API_ORIGIN.replace(/\/$/, "")
+  }
+  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+    const match = chrome.runtime.getURL("").match(/(https?:\/\/[^/]+)/)
+    if (match) return match[1]
+  }
+  return "http://localhost:4173"
+}
+
+const API_ORIGIN = getApiOrigin()
+const PAGE_MATCH_API = `${API_ORIGIN}/api/page-match`
+const PROVIDER_DOCUMENT_API = `${API_ORIGIN}/api/provider-document`
+const PROVIDER_KNOWLEDGE_API = `${API_ORIGIN}/api/provider-knowledge`
+const SITE_SETTINGS_API = `${API_ORIGIN}/api/provider-site-settings`
 
 let currentProviderId: number | null = null
 

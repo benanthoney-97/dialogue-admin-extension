@@ -72,7 +72,10 @@ async function handler(req, res) {
       return;
     }
 
-    const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const forwardedProto = req.headers['x-forwarded-proto'] || 'https';
+    const hostHeader = req.headers.host;
+    const baseOrigin = hostHeader ? `${forwardedProto}://${hostHeader}` : 'http://localhost';
+    const requestUrl = new URL(req.url, baseOrigin);
     const providerId = Number(requestUrl.searchParams.get('provider_id') || '');
     const documentId = Number(requestUrl.searchParams.get('document_id') || '');
     const knowledgeId = Number(requestUrl.searchParams.get('knowledge_id') || '');
