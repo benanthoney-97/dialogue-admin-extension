@@ -158,9 +158,15 @@
         color: #5f61fb;
       }
       .sl-smart-link::after {
-        content: " ▶";
-        font-size: 0.8em;
-        color: #00bfa5;
+        content: "";
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        margin-left: 0.35em;
+        vertical-align: middle;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
+        background-size: contain;
+        background-repeat: no-repeat;
       }
       .sl-smart-link.sl-smart-link--inactive {
         border-color: rgba(148, 163, 184, 0.8);
@@ -205,13 +211,12 @@
       }
       #sl-visitor-player .sl-visitor-player__close {
         position: absolute;
-        top: 10px;
+        top: 0px;
         right: 10px;
         width: 32px;
         height: 32px;
         border: none;
         border-radius: 50%;
-        background: rgba(0, 0, 0, 0.2);
         color: rgba(255, 255, 255, 0.9);
         display: flex;
         align-items: center;
