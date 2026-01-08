@@ -1,3 +1,4 @@
+console.log("[sl-admin-script] script loaded");
 (function () {
   const DEFAULT_API_ORIGIN = "http://localhost:4173";
   const DEFAULT_MATCH_ENDPOINT = "/api/match-map";
