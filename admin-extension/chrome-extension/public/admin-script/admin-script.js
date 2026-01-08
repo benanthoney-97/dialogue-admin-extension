@@ -27,7 +27,11 @@ console.log("[sl-admin-script] script loaded");
     match?.pageMatch ??
     null;
 
-  const normalize = (value) => (value || "").replace(/\s+/g, " ").trim();
+  const normalize = (value) =>
+    (value || "")
+      .replace(/\s+/g, " ")
+      .replace(/\s+([.,!?;:])/g, "$1")
+      .trim();
   const DISALLOWED_HIGHLIGHT_TAGS = /SCRIPT|STYLE|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
 
   const createHighlightElement = (match, matchIndex) => {
@@ -142,20 +146,15 @@ console.log("[sl-admin-script] script loaded");
     style.textContent = `
       .sl-smart-link {
         border-bottom: 2px solid #00bfa5;
-        background-color: rgba(0, 191, 165, 0.15);
         cursor: pointer;
-        color: #000;
-        transition: all 0.2s ease;
+        color: inherit;
+        transition: border-color 0.2s ease;
       }
       .sl-smart-link:hover {
-        background-color: #00bfa5;
-        color: white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        border-color: #007a5f;
       }
       .sl-smart-link.sl-smart-link--hover {
-        background-color: #007a5f;
-        color: white;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        border-color: #007a5f;
       }
       .sl-smart-link::after {
         content: " ▶";
@@ -202,6 +201,26 @@ console.log("[sl-admin-script] script loaded");
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.28s ease, transform 0.28s ease;
+      }
+      #sl-visitor-player .sl-visitor-player__close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.2);
+        color: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        padding: 0;
+      }
+      #sl-visitor-player .sl-visitor-player__close:hover {
+        background: rgba(255, 255, 255, 0.1);
       }
       #sl-visitor-player.visible {
         opacity: 1;
@@ -353,11 +372,24 @@ console.log("[sl-admin-script] script loaded");
     return `https://player.vimeo.com/video/${videoId}?autoplay=1&title=0&byline=0${suffix}`;
   };
 
+  const hideVisitorPlayer = () => {
+    if (!playerState) return;
+    if (playerState.iframe) {
+      playerState.iframe.src = "";
+    }
+    playerState.container.classList.remove("visible");
+  };
+
   const ensureVisitorPlayer = () => {
     if (playerState) return playerState;
     const container = document.createElement("div");
     container.id = "sl-visitor-player";
     container.innerHTML = `
+      <button class="sl-visitor-player__close" type="button" aria-label="Close video player">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
+        </svg>
+      </button>
       <div class="sl-visitor-player__header">We picked this video for you...</div>
       <div class="sl-visitor-player__frame">
         <iframe allow="autoplay; fullscreen"></iframe>
@@ -365,6 +397,10 @@ console.log("[sl-admin-script] script loaded");
     `;
     document.body.appendChild(container);
     const iframe = container.querySelector("iframe");
+    const closeButton = container.querySelector(".sl-visitor-player__close");
+    if (closeButton) {
+      closeButton.addEventListener("click", hideVisitorPlayer);
+    }
     playerState = { container, iframe };
     return playerState;
   };
@@ -377,14 +413,6 @@ console.log("[sl-admin-script] script loaded");
       iframe.src = toVimeoPlayerUrl(match.video_url);
     }
     player.container.classList.add("visible");
-  };
-
-  const hideVisitorPlayer = () => {
-    if (!playerState) return;
-    if (playerState.iframe) {
-      playerState.iframe.src = "";
-    }
-    playerState.container.classList.remove("visible");
   };
 
     const handleVisitorClick = (event) => {
@@ -416,9 +444,16 @@ console.log("[sl-admin-script] script loaded");
   const fetchMatchMap = async ({ providerId, apiOrigin, endpoint, limit }) => {
       const origin = (apiOrigin || getApiOrigin()).replace(/\/$/, "");
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const url = `${origin}${cleanEndpoint}?provider_id=${encodeURIComponent(providerId)}&limit=${encodeURIComponent(
-      limit
-    )}`;
+    const pageUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+    console.log("[sl-admin-script] requesting matches for url", pageUrl);
+    const params = new URLSearchParams({
+      provider_id: String(providerId),
+      limit: String(limit),
+    });
+    if (pageUrl) {
+      params.set("url", pageUrl);
+    }
+    const url = `${origin}${cleanEndpoint}?${params.toString()}`;
     const response = await fetch(url, { method: "GET" });
     if (!response.ok) {
       throw new Error(`match-map fetch failed (${response.status})`);

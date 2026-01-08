@@ -35,13 +35,18 @@ const vimeoEmbedUrl = (originalUrl = '', timestamp = 0) => {
   return `https://player.vimeo.com/video/${videoId}?autoplay=1&title=0&byline=0${suffix}`;
 };
 
-const fetchMatches = async (providerId, limit = 50) => {
-    const { data, error } = await supabase
+const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
+    const effectiveLimit = Number(limit) > 0 ? Number(limit) : 50;
+    let query = supabase
       .from('page_matches')
       .select('id, phrase, video_url, confidence, document_id, status')
       .eq('provider_id', providerId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      .order('created_at', { ascending: false });
+    if (pageUrl) {
+      query = query.eq('url', pageUrl);
+    }
+    query = query.limit(effectiveLimit);
+    const { data, error } = await query;
 
   if (error) {
     throw error;
@@ -95,12 +100,16 @@ async function handler(req, res) {
     const hostname = req.headers.host || 'localhost:4173';
     const requestUrl = new URL(req.url, `${forwardedProto}://${hostname}`);
     const providerId = Number(requestUrl.searchParams.get('provider_id') || '');
+    const requestedUrl = requestUrl.searchParams.get('url') || '';
+    const limitParam = Number(requestUrl.searchParams.get('limit') || '');
+    const limit = limitParam > 0 ? limitParam : undefined;
     if (!providerId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Missing provider_id' }));
     }
 
-    const matches = await fetchMatches(providerId);
+    console.log("[match-map] requested url", requestedUrl);
+    const matches = await fetchMatches(providerId, limit, requestedUrl);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.end(JSON.stringify(matches));
