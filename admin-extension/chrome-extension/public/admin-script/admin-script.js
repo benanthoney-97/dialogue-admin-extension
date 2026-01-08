@@ -161,41 +161,76 @@ console.log("[sl-admin-script] script loaded");
 
     const disallowedTags = /SCRIPT|STYLE|A|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
 
-    matches.forEach((match, matchIndex) => {
-      if (!match || !match.phrase) return;
+    for (let matchIndex = 0; matchIndex < matches.length; matchIndex += 1) {
+      const match = matches[matchIndex];
+      if (!match || !match.phrase) continue;
       const target = normalize(match.phrase);
-      if (!target) return;
+      if (!target) continue;
 
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-        console.log("[highlightMatches] checking target", target);
+      const words = target.split(" ").filter(Boolean);
+      if (!words.length) continue;
+      const pattern = words.map(escapeRegex).join("\\s+");
+      const regex = new RegExp(pattern, "i");
+
+      console.log("[highlightMatches] checking target", target);
+
+      let highlightFound;
+      do {
+        highlightFound = false;
+        let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
         let node;
+        while ((node = walker.nextNode())) {
+          const parent = node.parentElement;
+          if (!parent || parent.closest(".sl-smart-link")) continue;
+          if (disallowedTags.test(parent.tagName)) continue;
 
-      while ((node = walker.nextNode())) {
-        const parent = node.parentElement;
-        if (!parent || parent.closest(".sl-smart-link")) continue;
-        if (disallowedTags.test(parent.tagName)) continue;
+          const textContent = node.nodeValue || "";
+          if (!textContent.trim()) continue;
 
-        const block = parent.closest("p, div, li, section, article, h1, h2, h3, h4, h5, h6") || parent;
-        const blockText = normalize(block.textContent || "");
-        if (!blockText.includes(target)) continue;
-        console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
-        block.classList.add("sl-smart-link-block");
-        block.dataset.matchIndex = matchIndex;
-        const matchId = getMatchIdentifier(match);
-        if (matchId) {
-          block.dataset.pageMatchId = String(matchId);
+          const matchResult = regex.exec(textContent);
+          if (!matchResult) continue;
+
+          const block = parent.closest("p, div, li, section, article, h1, h2, h3, h4, h5, h6") || parent;
+          const blockText = normalize(block.textContent || "");
+          console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
+          block.classList.add("sl-smart-link-block");
+
+          const beforeText = textContent.slice(0, matchResult.index);
+          const matchedText = matchResult[0];
+          const afterText = textContent.slice(matchResult.index + matchedText.length);
+          const fragment = document.createDocumentFragment();
+          if (beforeText) {
+            fragment.appendChild(document.createTextNode(beforeText));
+          }
+          const highlight = document.createElement("span");
+          highlight.classList.add("sl-smart-link");
+          highlight.textContent = matchedText;
+          highlight.dataset.matchIndex = String(matchIndex);
+          const matchId = getMatchIdentifier(match);
+          if (matchId) {
+            highlight.dataset.pageMatchId = String(matchId);
+          }
+          const confidence = Number(match.confidence);
+          if (!Number.isNaN(confidence)) {
+            highlight.dataset.confidence = String(confidence);
+          }
+          const status = (match.status || "active").toLowerCase();
+          highlight.dataset.matchStatus = status;
+          if (status === "inactive") {
+            highlight.classList.add("sl-smart-link--inactive");
+          }
+          fragment.appendChild(highlight);
+          if (afterText) {
+            fragment.appendChild(document.createTextNode(afterText));
+          }
+
+          parent.replaceChild(fragment, node);
+
+          highlightFound = true;
+          break;
         }
-        const confidence = Number(match.confidence);
-        if (!Number.isNaN(confidence)) {
-          block.dataset.confidence = String(confidence);
-        }
-        const status = (match.status || "active").toLowerCase();
-        block.dataset.matchStatus = status;
-        if (status === "inactive") {
-          block.classList.add("sl-smart-link--inactive");
-        }
-      }
-    });
+      } while (highlightFound);
+    }
   };
 
   const scheduleHighlight = () => {
