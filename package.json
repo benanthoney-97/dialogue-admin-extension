@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "generate-config": "node scripts/generate-config.js",
-    "dev": "node scripts/dev-server.js"
+    "sync-admin-script": "cp web-embed/admin-script/admin-script.js admin-extension/chrome-extension/public/admin-script/admin-script.js",
+    "dev": "npm run sync-admin-script && node scripts/dev-server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.41.0",
