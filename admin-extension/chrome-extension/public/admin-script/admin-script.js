@@ -166,7 +166,8 @@ console.log("[sl-admin-script] script loaded");
       const target = normalize(match.phrase);
       if (!target) return;
 
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    console.log("[highlightMatches] checking target", target);
       let node;
 
       while ((node = walker.nextNode())) {
@@ -175,6 +176,9 @@ console.log("[sl-admin-script] script loaded");
         if (disallowedTags.test(parent.tagName)) continue;
 
         const current = normalize(node.nodeValue);
+        if (current.includes(target)) {
+          console.log("[highlightMatches] current contains target:", current);
+        }
         if (!current.includes(target)) continue;
 
         const fragment = document.createDocumentFragment();
