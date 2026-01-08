@@ -154,6 +154,7 @@ console.log("[sl-admin-script] script loaded");
   };
 
   const highlightMatches = (matches) => {
+    console.log("[highlightMatches] matches length", matches.length);
     if (!matches.length || !document.body) {
       return;
     }
