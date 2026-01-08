@@ -10,7 +10,6 @@ chrome.sidePanel
 type MatchPayload = Record<string, unknown>
 let latestMatch: MatchPayload | null = null
 let lastMatchTabId: number | null = null
-const PROVIDER_ID = 12
 let globalThresholdLevel: "high" | "medium" | "low" = "medium"
 let globalThresholdValue = 0.6
 let newMatchModeActive = false
@@ -19,6 +18,31 @@ const PAGE_MATCH_API = "http://localhost:4173/api/page-match"
 const PROVIDER_DOCUMENT_API = "http://localhost:4173/api/provider-document"
 const PROVIDER_KNOWLEDGE_API = "http://localhost:4173/api/provider-knowledge"
 const SITE_SETTINGS_API = "http://localhost:4173/api/provider-site-settings"
+
+let currentProviderId: number | null = null
+
+const safeProviderId = () => {
+  if (!currentProviderId) {
+    console.warn("[background] provider id missing, defaulting to 12")
+    return 12
+  }
+  return currentProviderId
+}
+
+chrome.storage?.local?.get?.({ providerId: null }, (result) => {
+  const stored = toNumber(result?.providerId)
+  if (stored) {
+    currentProviderId = stored
+  }
+})
+
+chrome.storage?.onChanged?.addListener((changes, area) => {
+  if (area === "local" && changes.providerId) {
+    currentProviderId = toNumber(changes.providerId.newValue) ?? null
+    console.log("[background] updated provider id", currentProviderId)
+    fetchSiteSettings(safeProviderId())
+  }
+})
 
 const sendMessageToActiveTab = (message: Record<string, unknown>) => {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
@@ -245,7 +269,7 @@ const notifyMatchData = (payload: MatchPayload) => {
   })
 }
 
-fetchSiteSettings(PROVIDER_ID)
+fetchSiteSettings(safeProviderId())
 
 const executePageHighlightRemoval = async (tabId: number, matchId: number) => {
   console.log("[background] executePageHighlightRemoval start", { tabId, matchId })
@@ -400,7 +424,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const threshold = message.threshold
     if (threshold && ["high", "medium", "low"].includes(threshold)) {
       updateGlobalThreshold(threshold)
-      persistSiteThreshold(PROVIDER_ID, threshold)
+      persistSiteThreshold(safeProviderId(), threshold)
     }
     return false
   }

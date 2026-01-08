@@ -19,6 +19,8 @@ const pageMatchesHandler = require('../admin-extension/chrome-extension/api/page
 const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
 const matchSuggestionsHandler = require('../admin-extension/chrome-extension/api/match-suggestions');
 const siteContentSeedHandler = require('../admin-extension/chrome-extension/api/site-content-seed');
+const authRequestOtpHandler = require('../admin-extension/chrome-extension/api/auth/request-otp');
+const authVerifyOtpHandler = require('../admin-extension/chrome-extension/api/auth/verify-otp');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
 const HTTP_PORT = 4173;
@@ -151,6 +153,16 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/site-content-seed') {
       await siteContentSeedHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/auth/request-otp') {
+      await authRequestOtpHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/auth/verify-otp') {
+      await authVerifyOtpHandler(req, res);
       return;
     }
 

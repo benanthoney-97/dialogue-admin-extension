@@ -4,7 +4,7 @@ import { SitemapFeedsTable } from "../sitemap-feeds-table"
 import { SitemapFeedDetail } from "./sitemap-feed-detail"
 
 export interface SitemapViewProps {
-  providerId?: number
+  providerId: number
   onFeedToggle?: (feedId: number, tracked: boolean) => void
   onPageToggle?: (pageId: number, tracked: boolean) => void
 }

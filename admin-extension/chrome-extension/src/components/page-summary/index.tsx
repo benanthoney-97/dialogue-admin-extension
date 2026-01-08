@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 
 export interface PageSummaryProps {
   pageUrl: string
+  providerId: number
   onMatchSelect?: (matchId: number) => void
 }
 
@@ -17,10 +18,9 @@ interface PageMatchSummary {
   confidence_color?: string
 }
 
-const PROVIDER_ID = 12
-
 export function PageSummary({
   pageUrl,
+  providerId,
   onMatchSelect,
 }: PageSummaryProps) {
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
@@ -39,7 +39,7 @@ export function PageSummary({
     setLoading(true)
     setError(null)
 
-    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-matches?provider_id=${PROVIDER_ID}&page_url=${encodeURIComponent(
+    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-matches?provider_id=${providerId}&page_url=${encodeURIComponent(
       pageUrl
     )}`
 
@@ -76,7 +76,7 @@ export function PageSummary({
     return () => {
       canceled = true
     }
-  }, [pageUrl, backendBase])
+  }, [pageUrl, backendBase, providerId])
 
   const matchesCount = matches.length
   const showingMatchesCount = matches.filter((match) => match.status !== "inactive").length

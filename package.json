@@ -9,6 +9,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.41.0",
     "dotenv": "^16.4.7",
+    "jsonwebtoken": "^9.0.2",
     "serve-handler": "^6.1.0"
   }
 }

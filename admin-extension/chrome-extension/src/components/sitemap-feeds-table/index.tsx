@@ -14,20 +14,19 @@ export interface SitemapFeed {
 }
 
 export interface SitemapFeedsTableProps {
-  providerId?: number
+  providerId: number
   onFeedSelect?: (feed: SitemapFeed) => void
   filter?: string
   onFeedToggle?: (feedId: number, tracked: boolean) => void
 }
 
-const DEFAULT_PROVIDER_ID = 12
-
 export function SitemapFeedsTable({
-  providerId = DEFAULT_PROVIDER_ID,
+  providerId,
   onFeedSelect,
   filter = "",
   onFeedToggle,
 }: SitemapFeedsTableProps) {
+  const resolvedProviderId = providerId
   const [feeds, setFeeds] = useState<SitemapFeed[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,9 +53,9 @@ export function SitemapFeedsTable({
     setLoading(true)
     setError(null)
     const API_BASE = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
-    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-feeds?provider_id=${providerId}`
+    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-feeds?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feeds-table] fetching feeds from", endpoint)
+      console.log("[sitemap-feeds-table] fetching feeds from", endpoint, { providerId: resolvedProviderId })
     }
     fetch(endpoint)
       .then((res) => {
@@ -206,9 +205,13 @@ export function SitemapFeedsTable({
                         })()}
                       </span>
                       <div className="sitemap-feed-card__status-group">
-                        {process.env.NODE_ENV !== "production" && feed.tracked === null && (
-                          console.log(`[sitemap-feed-card] feed ${feed.id} rendered in mixed state`, feed)
-                        )}
+                        {process.env.NODE_ENV !== "production" &&
+                          feed.tracked === null &&
+                          (console.log(
+                            `[sitemap-feed-card] feed ${feed.id} rendered in mixed state`,
+                            feed
+                          ),
+                          null)}
                         <span
                           className={`status-chip ${
                             feed.tracked === null

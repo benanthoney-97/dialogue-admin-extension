@@ -10,16 +10,15 @@ export interface ProviderDocument {
 }
 
 export interface ProviderDocumentsGridProps {
-  providerId?: number
+  providerId: number
   onDocumentSelect?: (doc: ProviderDocument) => void
 }
 
-const DEFAULT_PROVIDER_ID = 12
-
 export function ProviderDocumentsGrid({
-  providerId = DEFAULT_PROVIDER_ID,
+  providerId,
   onDocumentSelect,
 }: ProviderDocumentsGridProps) {
+  const resolvedProviderId = providerId
   const [documents, setDocuments] = useState<ProviderDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +30,7 @@ export function ProviderDocumentsGrid({
     setError(null)
     const API_BASE =
       (window as any).__SL_BACKEND_URL || "http://localhost:4173"
-    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${providerId}`
+    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
       console.log("[provider-documents-grid] fetching documents from", endpoint)
     }

@@ -464,6 +464,7 @@
     state.initialized = true;
 
     const { providerId, apiOrigin, endpoint = DEFAULT_MATCH_ENDPOINT, limit = 50 } = config;
+    console.log("[sl-admin-script] init config", { providerId, apiOrigin, endpoint, limit });
     if (!providerId) {
       console.error("[sl-admin-script] providerId is required");
       return;

@@ -11,12 +11,23 @@ import { SitemapView } from "./components/sitemap-view"
 import { TimestampView } from "./components/timestamp-view"
 import { NewMatchPrompt } from "./components/new-match-prompt"
 import { ConfirmAction } from "./components/confirm-action"
+import { LoginForm } from "./components/login-form/login-form"
 
-const PROVIDER_ID = 12
 const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
   high: 0.75,
   medium: 0.6,
   low: 0.4,
+}
+
+const toNumber = (value: unknown) => {
+  if (typeof value === "number" && !Number.isNaN(value)) {
+    return value
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? undefined : parsed
+  }
+  return undefined
 }
 
 type MatchPayload = {
@@ -60,6 +71,17 @@ function SidePanel() {
   const [autoMatchLoading, setAutoMatchLoading] = useState(false)
   const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
   const newMatchModeRef = useRef(false)
+  const [authToken, setAuthToken] = useState<string | null>(null)
+  const [authEmail, setAuthEmail] = useState<string | null>(null)
+  const [providerId, setProviderId] = useState<number | null>(null)
+
+  const resolveProviderId = () => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[panel] resolving providerId", providerId)
+    }
+    return providerId
+  }
+  const [authLoading, setAuthLoading] = useState(false)
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
@@ -173,7 +195,7 @@ function SidePanel() {
         },
         body: JSON.stringify({
           text: selectedNewMatchText,
-          provider_id: PROVIDER_ID,
+          provider_id: resolveProviderId(),
           match_count: 6,
         }),
       })
@@ -202,18 +224,15 @@ function SidePanel() {
       setToastMessage("Unable to determine document for this match")
       return
     }
-    const suggestedTimestamp =
-      Number.isFinite(Number(result.suggested_timestamp)) && Number(result.suggested_timestamp) >= 0
-        ? Number(result.suggested_timestamp)
-        : Number.isFinite(Number(result.timestamp_end))
-        ? Number(result.timestamp_end)
-        : Number.isFinite(Number(result.timestamp_start))
-        ? Number(result.timestamp_start)
-        : Number.isFinite(Number(result.timestamp))
-        ? Number(result.timestamp)
-        : 0
-    const normalizedUrl = buildVideoUrl(result.video_url || result.source_url || result.videoUrl, suggestedTimestamp)
-    const timestampValue = suggestedTimestamp
+    const normalizedUrl = buildVideoUrl(result.video_url || result.source_url || result.videoUrl, result.timestamp_start ?? result.timestampStart ?? 0)
+    const timestampValue =
+      typeof result.timestamp_start === "number"
+        ? result.timestamp_start
+        : typeof result.timestampStart === "number"
+        ? result.timestampStart
+        : typeof result.timestamp === "number"
+        ? result.timestamp
+        : null
     const endpoint = `${backendBase.replace(/\/+$/, "")}/api/create-page-match`
 
     try {
@@ -224,7 +243,7 @@ function SidePanel() {
         },
         body: JSON.stringify({
           document_id: docId,
-          provider_id: PROVIDER_ID,
+          provider_id: resolveProviderId(),
           phrase: selectedNewMatchText,
           url: pageUrl,
           video_url: normalizedUrl,
@@ -283,7 +302,7 @@ function SidePanel() {
         },
         body: JSON.stringify({
           document_id: manualSelectedDoc.id,
-          provider_id: PROVIDER_ID,
+          provider_id: resolveProviderId(),
           phrase: selectedNewMatchText,
           url: pageUrl,
           video_url: videoUrl,
@@ -302,8 +321,9 @@ function SidePanel() {
       setManualSelectedDoc(null)
       setSelectedNewMatchText(null)
       chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
-      await handleMatchSelect(createdMatch.page_match_id)
       setActiveSection("page")
+      setMatch(createdMatch)
+      setDecisionCardVisible(true)
       chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
       newMatchModeRef.current = false
     } catch (error) {
@@ -428,9 +448,6 @@ function SidePanel() {
     setSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
-    window.setTimeout(() => {
-      chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
-    }, 0)
   }
 
   const handleMatchSelect = async (pageMatchId: number) => {
@@ -449,7 +466,7 @@ function SidePanel() {
 
       const knowledgeId = pageMatch?.knowledge_id ?? ""
       const documentId = pageMatch?.document_id ?? ""
-      const decisionEndpoint = `${backendBase.replace(/\/+$/, "")}/api/decision-data?provider_id=${PROVIDER_ID}&page_match_id=${pageMatchId}${
+      const decisionEndpoint = `${backendBase.replace(/\/+$/, "")}/api/decision-data?provider_id=${resolveProviderId()}&page_match_id=${pageMatchId}${
         documentId ? `&document_id=${documentId}` : ""
       }${knowledgeId ? `&knowledge_id=${knowledgeId}` : ""}`
       console.log("[panel] fetching decision data", decisionEndpoint)
@@ -494,7 +511,7 @@ function SidePanel() {
   const saveThresholdMatches = async () => {
     setThresholdSaving(true)
     try {
-      const response = await fetch(`${backendBase}/api/match-map?provider_id=${PROVIDER_ID}`)
+      const response = await fetch(`${backendBase}/api/match-map?provider_id=${resolveProviderId()}`)
       if (!response.ok) {
         const errText = await response.text()
         throw new Error(`Fetch matches failed (${response.status}): ${errText}`)
@@ -638,11 +655,14 @@ function SidePanel() {
       case "documents":
         return (
           <div className="new-match-documents">
-            <div className="new-match-documents__header">Choose a clip</div>
+            <div className="new-match-documents__header">Selected text</div>
             {selectedNewMatchText && (
               <div className="new-match-documents__phrase">{selectedNewMatchText}</div>
             )}
-            <ProviderDocumentsGrid onDocumentSelect={handleManualDocumentSelect} />
+            <ProviderDocumentsGrid
+              providerId={resolveProviderId()}
+              onDocumentSelect={handleManualDocumentSelect}
+            />
             <div className="new-match-documents__actions">
               <button
                 type="button"
@@ -662,14 +682,9 @@ function SidePanel() {
                 className="new-match-documents__button new-match-documents__button--secondary"
                 onClick={() => {
                   setManualStage("prompt")
-                  handleGetMatches()
+                  chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
                 }}
               >
-                <span aria-hidden="true" className="new-match-documents__star-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
-                  </svg>
-                </span>
                 Best matches
               </button>
             </div>
@@ -699,20 +714,25 @@ function SidePanel() {
     }
   }
 
-  const renderContent = () => {
-  if (view === "documents") {
-    return <ProviderDocumentsGrid onDocumentSelect={handleDocumentSelect} />
-  }
-  if (view === "timestamp" && selectedDoc) {
-    return (
-      <TimestampView
+  const renderAuthenticatedContent = () => {
+    if (view === "documents") {
+      return (
+        <ProviderDocumentsGrid
+          providerId={resolveProviderId()}
+          onDocumentSelect={handleDocumentSelect}
+        />
+      )
+    }
+    if (view === "timestamp" && selectedDoc) {
+      return (
+        <TimestampView
         document={selectedDoc}
         videoUrl={match?.video_url}
         onBack={() => setView("documents")}
         onConfirm={handleTimestampConfirm}
       />
     )
-  }
+    }
 
     switch (activeSection) {
       case "page": {
@@ -725,7 +745,11 @@ function SidePanel() {
             />
           </div>
         ) : (
-          <PageSummary pageUrl={pageUrl} onMatchSelect={handleMatchSelect} />
+          <PageSummary
+            pageUrl={pageUrl}
+            providerId={resolveProviderId()}
+            onMatchSelect={handleMatchSelect}
+          />
         )
       }
       case "threshold": {
@@ -741,7 +765,7 @@ function SidePanel() {
       case "sitemap": {
         return (
           <SitemapView
-            providerId={PROVIDER_ID}
+            providerId={resolveProviderId()}
             onFeedToggle={handleFeedToggle}
             onPageToggle={handlePageToggle}
           />
@@ -756,34 +780,109 @@ function SidePanel() {
     }
   }
 
-  return (
-    <div className="flex h-screen w-full flex-col bg-transparent font-sans text-slate-900">
-      {toastMessage && <div className="panel-toast">{toastMessage}</div>}
-      <div className="sidepanel__body">
-        <div className="sidepanel__content-scroll">{renderContent()}</div>
-      </div>
-      <BottomNavigation
-        active={activeSection}
-        onSelect={(selection) => {
-          setView(null)
-          setActiveSection(selection)
-          if (selection !== "page") {
-            setDecisionCardVisible(false)
-          }
-        }}
-      />
-      <ConfirmAction
-        visible={removeConfirmVisible}
-        title="Delete match?"
-        message="Deleting this match is permanent and cannot be reversed."
-        confirmLabel="Delete"
-        confirmLoadingLabel="Deleting..."
-        confirmDisabled={removeConfirmLoading}
-        onConfirm={handleConfirmRemoval}
-        onCancel={closeRemoveConfirm}
-      />
-    </div>
-  )
-}
+  useEffect(() => {
+    chrome.storage?.local?.get?.({ authToken: null, authEmail: null, providerId: null }, (result) => {
+      console.log("[panel] stored auth token", result?.authToken)
+      setAuthToken(result.authToken || null)
+      setAuthEmail(result.authEmail || null)
+      if (result?.providerId) {
+        const num = toNumber(result.providerId)
+        console.log("[panel] stored providerId", num)
+        setProviderId(num ?? null)
+      }
+    })
+  }, [])
 
+  const saveAuth = (token: string, email: string, providerId: number | null) => {
+    setAuthToken(token)
+    setAuthEmail(email)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[panel] saving auth", { email, providerId })
+    }
+    chrome.storage?.local?.set?.({ authToken: token, authEmail: email, providerId }, () => {
+      setProviderId(providerId)
+    })
+  }
+
+  const renderContent = () => {
+    if (!authToken) {
+      console.log("[panel] rendering login form")
+      return (
+        <div className="login-panel">
+          <LoginForm
+          onRequestOtp={async (email) => {
+            setAuthLoading(true)
+            try {
+              await fetch(`${backendBase}/api/auth/request-otp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+              })
+            } finally {
+              setAuthLoading(false)
+            }
+          }}
+          onVerifyOtp={async (email, otp) => {
+            setAuthLoading(true)
+            try {
+              const response = await fetch(`${backendBase}/api/auth/verify-otp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp }),
+              })
+              if (!response.ok) throw new Error("Invalid OTP")
+              const data = await response.json()
+              if (process.env.NODE_ENV !== "production") {
+                console.log("[panel] verify-otp response", data)
+              }
+              saveAuth(data.token, data.email, toNumber(data.provider_id))
+            } finally {
+              setAuthLoading(false)
+            }
+          }}
+          />
+        </div>
+      )
+    }
+
+    console.log("[panel] authenticated, rendering main content")
+    if (!providerId) {
+      return (
+        <div className="panel__loading">
+          <span>Loading provider data…</span>
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-screen w-full flex-col bg-transparent font-sans text-slate-900">
+        {toastMessage && <div className="panel-toast">{toastMessage}</div>}
+        <div className="sidepanel__body">
+          <div className="sidepanel__content-scroll">{renderAuthenticatedContent()}</div>
+        </div>
+        <BottomNavigation
+          active={activeSection}
+          onSelect={(selection) => {
+            setView(null)
+            setActiveSection(selection)
+            if (selection !== "page") {
+              setDecisionCardVisible(false)
+            }
+          }}
+        />
+        <ConfirmAction
+          visible={removeConfirmVisible}
+          title="Delete match?"
+          message="Deleting this match is permanent and cannot be reversed."
+          confirmLabel="Delete"
+          confirmLoadingLabel="Deleting..."
+          confirmDisabled={removeConfirmLoading}
+          onConfirm={handleConfirmRemoval}
+          onCancel={closeRemoveConfirm}
+        />
+      </div>
+    )
+  }
+
+  return renderContent()
+}
 export default SidePanel
