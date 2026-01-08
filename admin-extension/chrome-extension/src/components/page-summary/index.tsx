@@ -27,6 +27,9 @@ export function PageSummary({
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pageSupported, setPageSupported] = useState(true)
+  const [pageTracked, setPageTracked] = useState<boolean | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
 
   useEffect(() => {
@@ -53,7 +56,20 @@ export function PageSummary({
       })
       .then((data) => {
         if (canceled) return
-        const normalized = Array.isArray(data) ? data : []
+        const payload =
+          Array.isArray(data) || !data
+            ? {
+                matches: Array.isArray(data) ? data : [],
+                page_supported: typeof data?.page_supported === "boolean" ? data.page_supported : true,
+                tracked:
+                  typeof data?.tracked === "boolean"
+                    ? data.tracked
+                    : Array.isArray(data) && data.length
+                    ? data[0]?.tracked ?? null
+                    : null,
+              }
+            : data
+        const normalized = Array.isArray(payload.matches) ? payload.matches : []
         normalized.sort((a, b) => a.page_match_id - b.page_match_id)
         if (process.env.NODE_ENV !== "production") {
           console.log(
@@ -62,6 +78,8 @@ export function PageSummary({
           )
         }
         console.debug("[page-summary] matches detail", normalized)
+        setPageSupported(Boolean(payload.page_supported))
+        setPageTracked(payload.tracked ?? null)
         setMatches(normalized)
       })
       .catch((err) => {
@@ -77,7 +95,7 @@ export function PageSummary({
     return () => {
       canceled = true
     }
-  }, [pageUrl, backendBase, providerId])
+  }, [pageUrl, backendBase, providerId, refreshKey])
 
   const matchesCount = matches.length
   const showingMatchesCount = matches.filter((match) => match.status !== "inactive").length
@@ -97,7 +115,6 @@ export function PageSummary({
 
   }
 
-  const pageTracked: boolean | null = matches.length ? matches[0].tracked ?? null : null
   console.debug("[page-summary] resolved pageTracked", pageTracked)
 
   const previewPhrase = (phrase: string) => {
@@ -196,18 +213,23 @@ const pillStyle = (label?: string, color?: string) => {
     <div className="page-summary">
       <div className="page-summary__summary">
         <div className="page-summary__header-row">
-          <div className="page-summary__header">
-            <strong>Page summary</strong>
-            {pageTracked !== null && (
-              <span
-                className={`page-summary__tracked-chip ${
-                  pageTracked ? "page-summary__tracked-chip--active" : "page-summary__tracked-chip--inactive"
-                }`}
-              >
-                {pageTracked ? "Tracked" : "Not tracked"}
-              </span>
-            )}
-          </div>
+        <div className="page-summary__header">
+          <strong>Page summary</strong>
+          {pageTracked !== null && (
+            <span
+              className={`page-summary__tracked-chip ${
+                pageTracked ? "page-summary__tracked-chip--active" : "page-summary__tracked-chip--inactive"
+              }`}
+            >
+              {pageTracked ? "Tracked" : "Not tracked"}
+            </span>
+          )}
+          {!pageSupported && (
+            <span className="page-summary__unsupported-chip">
+              Unsupported page
+            </span>
+          )}
+        </div>
           <div className="page-summary__url">
             <div title={pageUrl}>{formatPagePath(pageUrl)}</div>
           </div>
@@ -232,8 +254,23 @@ const pillStyle = (label?: string, color?: string) => {
         </div>
       </div>
         {loading && <div className="page-summary__matches-state">Loading matches…</div>}
-        {!loading && !matches.length && !error && (
+        {!loading && !matches.length && !error && pageSupported && (
           <div className="page-summary__matches-state">No matches for this page yet.</div>
+        )}
+        {!pageSupported && (
+          <div className="page-summary__unsupported-state">
+            <p>
+              This page is outside your registered site. The summary will update once you return
+              to a supported URL.
+            </p>
+            <button
+              type="button"
+              className="page-summary__button"
+              onClick={() => setRefreshKey((prev) => prev + 1)}
+            >
+              Check again
+            </button>
+          </div>
         )}
         <div className="page-summary__match-list">
           {matches.map((match) => (
@@ -334,6 +371,17 @@ const pillStyle = (label?: string, color?: string) => {
           color: #b91c1c;
           border: 1px solid rgba(248, 113, 113, 0.35);
         }
+        .page-summary__unsupported-chip {
+          background: rgba(148, 163, 184, 0.16);
+          color: #475467;
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          margin-left: 4px;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
         .page-summary__url {
           font-size: 12px;
           color: #475467;
@@ -369,6 +417,28 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 12px;
           color: #475467;
           margin-bottom: 8px;
+        }
+        .page-summary__unsupported-state {
+          padding: 12px;
+          border-radius: 12px;
+          background: #fef3c7;
+          color: #92400e;
+          font-size: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          border: 1px solid rgba(113, 63, 18, 0.35);
+        }
+        .page-summary__button {
+          align-self: flex-start;
+          padding: 6px 12px;
+          border: none;
+          border-radius: 8px;
+          background: #6366f1;
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
         }
         .page-summary__match-list {
           display: flex;

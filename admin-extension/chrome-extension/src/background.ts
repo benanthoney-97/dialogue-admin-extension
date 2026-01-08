@@ -54,6 +54,8 @@ chrome.storage?.local?.get?.({ providerId: null }, (result) => {
   const stored = toNumber(result?.providerId)
   if (stored) {
     currentProviderId = stored
+    fetchSiteSettings(stored)
+    registerDynamicContentScriptForProvider(stored)
   }
 })
 
@@ -62,6 +64,7 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
     currentProviderId = toNumber(changes.providerId.newValue) ?? null
     console.log("[background] updated provider id", currentProviderId)
     fetchSiteSettings(safeProviderId())
+    registerDynamicContentScriptForProvider(currentProviderId)
   }
 })
 
@@ -193,6 +196,105 @@ const fetchJson = async (url: string) => {
     throw new Error(`Fetch failed (${response.status}) for ${url}`)
   }
   return response.json()
+}
+
+const dynamicContentScriptId = "sl-dynamic-content-script"
+let lastRegisteredMatchesKey = ""
+
+const getContentScriptDefinition = () => {
+  const manifest = chrome.runtime.getManifest()
+  return manifest.content_scripts?.[0] ?? null
+}
+
+const buildTrackMatches = (pageUrls: string[]) => {
+  const origins = new Set<string>()
+  for (const pageUrl of pageUrls) {
+    try {
+      const parsed = new URL(pageUrl)
+      origins.add(`${parsed.origin}/*`)
+    } catch {
+      continue
+    }
+  }
+  return Array.from(origins)
+}
+
+const fetchTrackedPageOrigins = async (providerId: number) => {
+  const feedEndpoint = `${API_ORIGIN}/api/sitemap-feeds?provider_id=${encodeURIComponent(providerId)}`
+  const feeds = await fetchJson(feedEndpoint)
+  if (!Array.isArray(feeds) || feeds.length === 0) {
+    return []
+  }
+  const trackedPages: string[] = []
+  for (const feed of feeds) {
+    const feedId = feed?.id
+    if (!feedId) continue
+    try {
+      const pageEndpoint = `${API_ORIGIN}/api/sitemap-pages?feed_id=${encodeURIComponent(feedId)}`
+      const pages = await fetchJson(pageEndpoint)
+      if (!Array.isArray(pages)) continue
+      for (const page of pages) {
+        if (page?.tracked && page.page_url) {
+          trackedPages.push(page.page_url)
+        }
+      }
+    } catch (error) {
+      console.error("[background] fetch tracked pages error", { feedId, error })
+    }
+  }
+  return trackedPages
+}
+
+const unregisterDynamicContentScript = async () => {
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [dynamicContentScriptId] })
+  } catch (error) {
+    console.warn("[background] unregister content script error", error)
+  }
+  lastRegisteredMatchesKey = ""
+}
+
+const registerDynamicContentScriptForProvider = async (providerId: number | null) => {
+  if (!chrome.scripting?.registerContentScripts || !chrome.scripting.unregisterContentScripts) {
+    return
+  }
+  if (!providerId) {
+    await unregisterDynamicContentScript()
+    return
+  }
+  const manifestEntry = getContentScriptDefinition()
+  if (!manifestEntry || !manifestEntry.js?.length) {
+    console.warn("[background] content script definition missing")
+    return
+  }
+  try {
+    const trackedUrls = await fetchTrackedPageOrigins(providerId)
+    const matches = buildTrackMatches(trackedUrls)
+    const cacheKey = matches.join("|")
+    if (!matches.length) {
+      await unregisterDynamicContentScript()
+      console.log("[background] no tracked matches, skipping content script registration")
+      return
+    }
+    if (cacheKey === lastRegisteredMatchesKey) {
+      return
+    }
+    await unregisterDynamicContentScript()
+    await chrome.scripting.registerContentScripts([
+      {
+        id: dynamicContentScriptId,
+        matches,
+        js: manifestEntry.js,
+        css: manifestEntry.css ?? [],
+        runAt: (manifestEntry as any).run_at || "document_idle",
+        world: (manifestEntry as any).world ?? "ISOLATED",
+      },
+    ])
+    lastRegisteredMatchesKey = cacheKey
+    console.log("[background] registered content script for matches", matches)
+  } catch (error) {
+    console.error("[background] register content script error", error)
+  }
 }
 
 const fetchPageMatch = async (pageMatchId: number | undefined | null) => {

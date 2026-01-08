@@ -157,9 +157,9 @@
       }
       .sl-smart-link.sl-smart-link--hover {
         border-color: #5f61fb;
-        color: #ffffff;
-        background-color: rgba(95, 97, 251, 0.25);
-        box-shadow: 0 2px 10px rgba(95, 97, 251, 0.35);
+        color: #ede9fe;
+        background-color: rgba(76, 29, 149, 0.9);
+        box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4);
       }
       .sl-smart-link::after {
         content: "";
@@ -167,7 +167,7 @@
         width: 1em;
         height: 1em;
         margin-left: 0.15em;
-        margin-bottom: 0.15em;
+        margin-bottom: 0.25em;
         vertical-align: middle;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
         background-size: contain;

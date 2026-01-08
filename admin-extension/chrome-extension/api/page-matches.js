@@ -81,6 +81,7 @@ const findTierForScore = (score, tiers) => {
       .select("tracked")
       .eq("page_url", pageUrl)
       .maybeSingle()
+    console.debug("[page-matches] resolved sitemap page row", { pageUrl, pageRow })
     const matches = (data || []).map((row) => {
       const tier = findTierForScore(row.confidence, tiers)
       if (!documents[row.document_id]?.cover_image_url) {
@@ -104,9 +105,15 @@ const findTierForScore = (score, tiers) => {
       }
     })
 
+    const payload = {
+      matches,
+      page_supported: Boolean(pageRow),
+      tracked: pageRow?.tracked ?? null,
+    }
+
     res.setHeader("Content-Type", "application/json")
     res.setHeader("Access-Control-Allow-Origin", "*")
-    res.end(JSON.stringify(matches))
+    res.end(JSON.stringify(payload))
   } catch (error) {
     console.error("[page-matches] handler error", error)
     res.writeHead(500, { "Content-Type": "application/json" })
