@@ -120,6 +120,14 @@ def parse_metadata(metadata):
     except Exception:
         return {}
 
+def summarize_text(text: str, max_sentences: int = 2) -> str:
+    if not text:
+        return ""
+    pieces = re.split(r"(?<=[.!?])\s+", text.strip())
+    clean = [piece.strip() for piece in pieces if piece.strip()]
+    selected = clean[:max_sentences]
+    return " ".join(selected)
+
 
 def to_vimeo_player_url(value: str) -> str:
     match = re.search(r"vimeo\.com/(?:video/)?(\d+)", value or "")
@@ -164,7 +172,7 @@ def insert_page_match(
         "provider_id": provider_id,
         "document_id": match.get("document_id"),
         "url": site_row.get("page_url"),
-        "phrase": site_row.get("chunk_text") or "",
+        "phrase": summarize_text(site_row.get("chunk_text") or ""),
         "video_url": match.get("video_url") or build_video_url(parse_metadata(knowledge_meta.get("metadata"))),
         "confidence": match.get("confidence") or match.get("similarity") or 0,
         "status": "active",
