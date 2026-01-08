@@ -194,6 +194,7 @@
       }
       .sl-smart-link.sl-smart-link--removed::after {
         content: '';
+        display: none;
       }
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
         display: none;
@@ -425,17 +426,41 @@
   };
 
     const handleVisitorClick = (event) => {
-      if (state.mode !== MODE_VISITOR) return;
-      const target = (event.target || event.srcElement);
-      if (!(target instanceof Element)) return;
-      const matchEl = target.closest(".sl-smart-link");
-      if (!matchEl) return;
-      const idxAttr = matchEl.getAttribute("data-match-index");
-      if (!idxAttr) return;
-      const index = Number(idxAttr);
-      if (Number.isNaN(index)) return;
-      const match = state.matches[index];
-      if (!match || match.status === "inactive") return;
+    if (state.mode !== MODE_VISITOR) return;
+    const target = (event.target || event.srcElement);
+    if (!(target instanceof Element)) return;
+    const matchEl = target.closest(".sl-smart-link");
+    console.log("[sl-admin-script] handleVisitorClick start", {
+      mode: state.mode,
+      target,
+      matchElement: matchEl
+    });
+    if (!matchEl) return;
+    const idxAttr = matchEl.getAttribute("data-match-index");
+    console.log("[sl-admin-script] match element attrs", {
+      idxAttr,
+      status: matchEl.dataset.matchStatus,
+      confidence: matchEl.dataset.confidence
+    });
+    if (!idxAttr) return;
+    const index = Number(idxAttr);
+    console.log("[sl-admin-script] parsed match index", { index });
+    if (Number.isNaN(index)) {
+      console.log("[sl-admin-script] invalid match index", { idxAttr });
+      return;
+    }
+    const match = state.matches[index];
+    if (!match) {
+      console.log("[sl-admin-script] no match found for index", { index });
+      return;
+    }
+    if (match.status === "inactive") {
+      console.log("[sl-admin-script] match inactive, suppressing player", {
+        matchId: getMatchIdentifier(match),
+        status: match.status
+      });
+      return;
+    }
     if (event.cancelable) {
       event.preventDefault();
     }

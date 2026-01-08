@@ -291,9 +291,7 @@ const registerDynamicContentScriptForProvider = async (providerId: number | null
       },
     ])
     lastRegisteredMatchesKey = cacheKey
-    console.log("[background] registered content script for matches", matches)
   } catch (error) {
-    console.error("[background] register content script error", error)
   }
 }
 

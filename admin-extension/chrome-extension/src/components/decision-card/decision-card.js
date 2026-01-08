@@ -438,13 +438,11 @@ class DecisionCard extends HTMLElement {
 
   updateConfidence(value) {
     this.rawConfidenceValue = value;
-    console.debug("[decision-card] updateConfidence raw value", value);
     this.renderConfidence();
   }
 
   updateConfidenceLabel(value) {
     this.confidenceLabelValue = (value || "").trim();
-    console.debug("[decision-card] updateConfidenceLabel", this.confidenceLabelValue);
     this.renderConfidence();
   }
 
@@ -453,7 +451,6 @@ class DecisionCard extends HTMLElement {
     if (this.confidenceLabelValue) {
       this.confidenceEl.textContent = this.confidenceLabelValue;
     } else {
-      console.debug("[decision-card] rendering fallback percentage", this.rawConfidenceValue);
       const formatted = this.formatConfidence(this.rawConfidenceValue);
       this.confidenceEl.textContent = formatted;
     }
@@ -514,7 +511,6 @@ class DecisionCard extends HTMLElement {
 
   updatePhrase(value) {
     if (!this.phraseEl) return;
-    console.debug("[decision-card] updatePhrase", { value });
     this.phraseEl.textContent = value || "";
   }
 
@@ -582,10 +578,8 @@ class DecisionCard extends HTMLElement {
 
   async markMatchStatus(status) {
     if (!this.pageMatchId) {
-      console.log("[decision-card] cannot update status without pageMatchId");
       return;
     }
-    console.log("[decision-card] markMatchStatus", status, "pageMatchId", this.pageMatchId);
     try {
       const API_ORIGIN =
         window.__SL_API_ORIGIN ||
@@ -605,9 +599,7 @@ class DecisionCard extends HTMLElement {
         const payload = await response.text();
         throw new Error(`Failed to update match status (${response.status}): ${payload}`);
       }
-      console.log("[decision-card] match status updated", status, this.pageMatchId);
     } catch (err) {
-      console.error("[decision-card] mark status error", err);
     }
   }
 
@@ -629,10 +621,8 @@ class DecisionCard extends HTMLElement {
   restoreMatchHighlight() {
     const payload = this.getMatchPayload();
     if (!payload) {
-      console.warn("[decision-card] cannot restore highlight without payload");
       return;
     }
-    console.log("[decision-card] restoring highlight", payload.page_match_id, payload);
     chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: payload });
   }
 }
