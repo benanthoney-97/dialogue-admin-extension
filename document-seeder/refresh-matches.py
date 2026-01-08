@@ -120,7 +120,7 @@ def parse_metadata(metadata):
     except Exception:
         return {}
 
-def summarize_text(text: str, max_sentences: int = 2) -> str:
+def summarize_text(text: str, max_sentences: int = 1) -> str:
     if not text:
         return ""
     pieces = re.split(r"(?<=[.!?])\s+", text.strip())
@@ -129,19 +129,30 @@ def summarize_text(text: str, max_sentences: int = 2) -> str:
     return " ".join(selected)
 
 
-def to_vimeo_player_url(value: str) -> str:
+def to_vimeo_player_url(value: str, start_time: Optional[int] = None) -> str:
     match = re.search(r"vimeo\.com/(?:video/)?(\d+)", value or "")
     if not match:
         return value or ""
     embed = f"https://player.vimeo.com/video/{match.group(1)}"
-    return f"{embed}?autoplay=0&title=0&byline=0&portrait=0"
+    suffix = f"#t={start_time}s" if start_time is not None else ""
+    return f"{embed}?autoplay=0&title=0&byline=0&portrait=0{suffix}"
 
 
 def build_video_url(metadata: Dict[str, Any]) -> str:
+    timestamp_start = metadata.get("timestampStart")
+    if timestamp_start is None:
+        timestamp_start = metadata.get("timestamp_start")
+    start_time = None
+    if timestamp_start is not None:
+        try:
+            start_time = int(float(timestamp_start))
+        except (TypeError, ValueError):
+            start_time = None
+
     for key in ("source", "source_url", "video_url"):
         value = metadata.get(key) or ""
         if value:
-            return to_vimeo_player_url(value)
+            return to_vimeo_player_url(value, start_time)
     return ""
 
 

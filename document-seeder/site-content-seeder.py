@@ -22,9 +22,10 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 }
 
-SITE_CHUNK_SIZE = int(os.getenv("SITE_CHUNK_SIZE", "650"))
-SITE_CHUNK_OVERLAP = int(os.getenv("SITE_CHUNK_OVERLAP", "100"))
 SITEMAP_FETCH_TIMEOUT = int(os.getenv("SITEMAP_FETCH_TIMEOUT", "15"))
+CHUNK_MIN_LENGTH = int(os.getenv("SITE_CHUNK_MIN_LENGTH", "30"))
+CHUNK_MAX_LENGTH = int(os.getenv("SITE_CHUNK_MAX_LENGTH", "150"))
+CHUNK_LIMIT = int(os.getenv("SITE_CHUNK_LIMIT", "50"))
 
 
 def fetch_sitemap_urls(sitemap_url: str) -> list[str]:
@@ -52,20 +53,27 @@ def extract_page_text(page_url: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+def chunk_sentences(
+    text: str, min_length: int, max_length: int, limit: int
+) -> list[str]:
     if not text:
         return []
-    words = text.split()
-    chunks = []
-    idx = 0
-    while idx < len(words):
-        chunk_words = words[idx : idx + chunk_size]
-        chunk = " ".join(chunk_words).strip()
-        if chunk:
-            chunks.append(chunk)
-        step = max(1, chunk_size - overlap)
-        idx += step
-    return chunks
+    potential_sentences = re.split(r"(?<=[.!?])\s+", text)
+    seen = set()
+    sentences = []
+    for sentence in potential_sentences:
+        clean = sentence.strip()
+        if not clean:
+            continue
+        if len(clean) < min_length or len(clean) > max_length:
+            continue
+        if clean in seen:
+            continue
+        seen.add(clean)
+        sentences.append(clean)
+        if len(sentences) >= limit:
+            break
+    return sentences
 
 
 def embed_chunks(chunks: list[str]) -> list[list[float]]:
@@ -169,7 +177,7 @@ def process_provider(provider_id: int, feed_ids: list[int], force: bool) -> None
                 continue
             print(f"🌐 Chunking {page_url}")
             text = extract_page_text(page_url)
-            chunks = chunk_text(text, SITE_CHUNK_SIZE, SITE_CHUNK_OVERLAP)
+            chunks = chunk_sentences(text, CHUNK_MIN_LENGTH, CHUNK_MAX_LENGTH, CHUNK_LIMIT)
             if not chunks:
                 print(f"⚠️ No chunkable text for {page_url}")
                 continue
