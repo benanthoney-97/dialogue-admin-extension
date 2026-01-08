@@ -1,7 +1,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
-const { getProviderDocument } = require('./provider-documents');
+const { getProviderDocument } = require('../../../web-embed/api/provider-documents');
 
 dotenv.config({
   path: path.resolve(__dirname, '..', '..', '.env')
@@ -91,7 +91,9 @@ const fetchMatches = async (providerId, limit = 50) => {
 
 async function handler(req, res) {
   try {
-    const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const forwardedProto = req.headers['x-forwarded-proto'] || 'https';
+    const hostname = req.headers.host || 'localhost:4173';
+    const requestUrl = new URL(req.url, `${forwardedProto}://${hostname}`);
     const providerId = Number(requestUrl.searchParams.get('provider_id') || '');
     if (!providerId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
