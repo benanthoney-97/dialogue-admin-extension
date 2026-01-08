@@ -1,6 +1,6 @@
 console.log("[sl-admin-script] script loaded");
 (function () {
-  const DEFAULT_API_ORIGIN = window.__SL_API_ORIGIN || "";
+  const getApiOrigin = () => window.__SL_API_ORIGIN || "";
   const DEFAULT_MATCH_ENDPOINT = "/api/match-map";
   const MATCH_DATA_SCRIPT_ID = "sl-match-map-data";
   const HIGHLIGHT_STYLE_ID = "sl-smart-link-style";
@@ -318,7 +318,7 @@ console.log("[sl-admin-script] script loaded");
   };
 
   const fetchMatchMap = async ({ providerId, apiOrigin, endpoint, limit }) => {
-    const origin = (apiOrigin || DEFAULT_API_ORIGIN).replace(/\/$/, "");
+      const origin = (apiOrigin || getApiOrigin()).replace(/\/$/, "");
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${origin}${cleanEndpoint}?provider_id=${encodeURIComponent(providerId)}&limit=${encodeURIComponent(
       limit
