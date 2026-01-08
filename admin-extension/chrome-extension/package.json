@@ -6,7 +6,8 @@
   "author": "Dialogue",
   "scripts": {
     "dev": "PLASMO_PORT=4175 plasmo dev",
-    "build": "plasmo build",
+    "build": "npm run sync-admin-script && plasmo build",
+    "sync-admin-script": "cp ../../web-embed/admin-script/admin-script.js public/admin-script/admin-script.js",
     "package": "plasmo package"
   },
   "dependencies": {
