@@ -166,9 +166,9 @@ console.log("[sl-admin-script] script loaded");
       const target = normalize(match.phrase);
       if (!target) return;
 
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-    console.log("[highlightMatches] checking target", target);
-      let node;
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+        console.log("[highlightMatches] checking target", target);
+        let node;
 
       while ((node = walker.nextNode())) {
         const parent = node.parentElement;
@@ -184,6 +184,7 @@ console.log("[sl-admin-script] script loaded");
         const fragment = document.createDocumentFragment();
         const regex = new RegExp(`(${escapeRegex(target)})`, "gi");
         const parts = current.split(regex);
+        let replaced = 0;
 
         parts.forEach((part) => {
           if (!part) return;
@@ -206,12 +207,16 @@ console.log("[sl-admin-script] script loaded");
             }
             span.textContent = part;
             fragment.appendChild(span);
+            replaced += 1;
           } else {
             fragment.appendChild(document.createTextNode(part));
           }
         });
 
-        parent.replaceChild(fragment, node);
+        if (replaced > 0) {
+          console.log("[highlightMatches] replacing node with", replaced, "highlights");
+          parent.replaceChild(fragment, node);
+        }
       }
     });
   };
