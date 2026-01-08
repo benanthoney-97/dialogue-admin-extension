@@ -4,7 +4,6 @@ import { DecisionCard } from "./components/decision-card"
 import type { DecisionCardProps } from "./components/decision-card"
 import { ProviderDocumentsGrid } from "./components/provider-documents-grid"
 import type { ProviderDocument } from "./components/provider-documents-grid"
-import { ThresholdControls } from "./components/threshold-controls"
 import { PageSummary } from "./components/page-summary"
 import { BottomNavigation } from "./components/bottom-navigation"
 import { SitemapView } from "./components/sitemap-view"
@@ -49,7 +48,7 @@ type MatchPayload = {
   source_url?: string
 }
 
-type NavSection = "page" | "threshold" | "sitemap" | "new-match"
+type NavSection = "page" | "sitemap" | "new-match" | "library"
 
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
@@ -779,23 +778,27 @@ function SidePanel() {
           />
         )
       }
-      case "threshold": {
-        return (
-          <ThresholdControls
-            current={threshold}
-            onChange={handleThresholdChange}
-            onSave={saveThresholdMatches}
-            saving={thresholdSaving}
-          />
-        )
-      }
       case "sitemap": {
         return (
           <SitemapView
             providerId={resolveProviderId()}
             onFeedToggle={handleFeedToggle}
             onPageToggle={handlePageToggle}
+            threshold={threshold}
+            onThresholdChange={handleThresholdChange}
+            onThresholdSave={saveThresholdMatches}
+            thresholdSaving={thresholdSaving}
           />
+        )
+      }
+      case "library": {
+        return (
+          <div className="library-view">
+            <div className="library-view__title">Library</div>
+            <p className="library-view__message">
+              Library content is coming soon. Check back later for templates and reference materials.
+            </p>
+          </div>
         )
       }
       case "new-match": {

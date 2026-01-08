@@ -2,11 +2,16 @@ import { useState } from "react"
 import type { SitemapFeed } from "../sitemap-feeds-table"
 import { SitemapFeedsTable } from "../sitemap-feeds-table"
 import { SitemapFeedDetail } from "./sitemap-feed-detail"
+import { ThresholdControls } from "../threshold-controls"
 
 export interface SitemapViewProps {
   providerId: number
   onFeedToggle?: (feedId: number, tracked: boolean) => void
   onPageToggle?: (pageId: number, tracked: boolean) => void
+  threshold: "high" | "medium" | "low"
+  onThresholdChange: (value: "high" | "medium" | "low") => void
+  onThresholdSave: () => void
+  thresholdSaving?: boolean
 }
 
 const formatFeedUrl = (url: string) => {
@@ -25,12 +30,28 @@ const formatFeedUrl = (url: string) => {
   }
 }
 
-export function SitemapView({ providerId, onFeedToggle, onPageToggle }: SitemapViewProps) {
+export function SitemapView({
+  providerId,
+  onFeedToggle,
+  onPageToggle,
+  threshold,
+  onThresholdChange,
+  onThresholdSave,
+  thresholdSaving
+}: SitemapViewProps) {
   const [pageFilter, setPageFilter] = useState("")
   const [selectedFeed, setSelectedFeed] = useState<SitemapFeed | null>(null)
 
   return (
     <div className="sitemap-view__pane">
+      <div className="sitemap-view__threshold">
+        <ThresholdControls
+          current={threshold}
+          onChange={onThresholdChange}
+          onSave={onThresholdSave}
+          saving={thresholdSaving}
+        />
+      </div>
       <div className="sitemap-view__header">
         {selectedFeed ? (
           <div className="sitemap-view__header-detail">
@@ -84,5 +105,14 @@ export function SitemapView({ providerId, onFeedToggle, onPageToggle }: SitemapV
         )}
       </div>
     </div>
+    <style>{`
+      .sitemap-view__title {
+        text-align: left;
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+    `}</style>
   )
 }

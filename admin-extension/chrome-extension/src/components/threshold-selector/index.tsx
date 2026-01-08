@@ -11,31 +11,53 @@ const LABELS: Record<ThresholdSelectorProps["current"], { title: string; descrip
   low: { title: "Low", description: "Surface more matches across the site" },
 }
 
+const ORDERED_LEVELS: ThresholdSelectorProps["current"][] = ["low", "medium", "high"]
+const VALUE_MAP: Record<ThresholdSelectorProps["current"], number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+}
+const LEVEL_FROM_VALUE = (value: number) => {
+  if (value <= 0) return "low"
+  if (value === 1) return "medium"
+  return "high"
+}
+
 export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps) {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = Number(event.target.value)
+    if (!Number.isNaN(parsed)) {
+      onChange?.(LEVEL_FROM_VALUE(parsed))
+    }
+  }
+
   return (
     <div className="threshold-selector">
       <div className="threshold-selector__label">
         <strong>Match threshold</strong>
         <p>{LABELS[current].description}</p>
       </div>
-      <div className="threshold-selector__options">
-        {(["high", "medium", "low"] as ThresholdSelectorProps["current"][]).map((value) => (
-          <button
-            type="button"
-            key={value}
-            className={`threshold-selector__option ${current === value ? "is-active" : ""}`}
-            onClick={() => onChange?.(value)}
-          >
-            {LABELS[value].title}
-          </button>
-        ))}
+      <div className="threshold-selector__slider">
+        <input
+          type="range"
+          min={0}
+          max={2}
+          step={1}
+          value={VALUE_MAP[current]}
+          onChange={handleChange}
+        />
+        <div className="threshold-selector__levels">
+          {ORDERED_LEVELS.map((level) => (
+            <span key={level} className={level === current ? "is-active" : ""}>
+              {LABELS[level].title}
+            </span>
+          ))}
+        </div>
       </div>
       <style>{`
         .threshold-selector {
           padding: 12px 16px;
           border-radius: 12px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
           display: flex;
           flex-direction: column;
           gap: 8px;
@@ -48,28 +70,51 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
           display: block;
           color: #0f172a;
           font-size: 14px;
+          text-align: left;
+          font-weight: 600;
+          margin-bottom: 4px;
         }
-        .threshold-selector__options {
-          display: flex;
-          gap: 6px;
-        }
-        .threshold-selector__option {
-          flex: 1;
-          border: 1px solid #cbd5f5;
+        .threshold-selector__slider input[type="range"] {
+          width: 100%;
+          height: 4px;
+          appearance: none;
           border-radius: 999px;
-          padding: 6px 12px;
+          background: linear-gradient(90deg, #c4b5fd 0%, #a855f7 100%);
+          outline: none;
+        }
+        .threshold-selector__slider input[type="range"]::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
           background: #fff;
-          color: #0f172a;
+          border: 2px solid #5f61fb;
+          box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
           cursor: pointer;
-          transition: background 0.2s ease, border 0.2s ease;
         }
-        .threshold-selector__option.is-active {
-          background: #eef2ff;
-          border-color: #7c5afe;
-          color: #3b20a8;
+        .threshold-selector__slider input[type="range"]::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #fff;
+          border: 2px solid #5f61fb;
+          box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+          cursor: pointer;
         }
-        .threshold-selector__option:hover {
-          border-color: #7c5afe;
+        .threshold-selector__levels {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: #475467;
+          margin-top: 6px;
+        }
+        .threshold-selector__levels span {
+          flex: 1;
+          text-align: center;
+          font-weight: 600;
+        }
+        .threshold-selector__levels span.is-active {
+          color: #5f61fb;
         }
       `}</style>
     </div>
