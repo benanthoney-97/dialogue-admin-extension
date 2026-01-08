@@ -63,6 +63,7 @@ def chunk_sentences(
     sentences = []
     for sentence in potential_sentences:
         clean = sentence.strip()
+        clean = re.sub(r"\s+([.,!?;:])", r"\1", clean)
         if not clean:
             continue
         if len(clean) < min_length or len(clean) > max_length:

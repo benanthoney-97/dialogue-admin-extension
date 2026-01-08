@@ -17,7 +17,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise SystemExit("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY must be set")
 
-MATCH_THRESHOLD = float(os.getenv("MATCH_REFRESH_THRESHOLD", "0.3"))
+MATCH_THRESHOLD = float(os.getenv("MATCH_REFRESH_THRESHOLD", "0.5"))
 MATCH_COUNT = int(os.getenv("MATCH_REFRESH_COUNT", "5"))
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
