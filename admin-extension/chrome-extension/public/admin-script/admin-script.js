@@ -175,46 +175,24 @@ console.log("[sl-admin-script] script loaded");
         if (!parent || parent.closest(".sl-smart-link")) continue;
         if (disallowedTags.test(parent.tagName)) continue;
 
-        const current = normalize(node.nodeValue);
-        console.log("[highlightMatches] checking node:", current.slice(0, 80));
-        if (!current.includes(target)) continue;
-        console.log("[highlightMatches] match found in node");
-
-        const fragment = document.createDocumentFragment();
-        const regex = new RegExp(`(${escapeRegex(target)})`, "gi");
-        const parts = current.split(regex);
-        let replaced = 0;
-
-        parts.forEach((part) => {
-          if (!part) return;
-          if (part.toLowerCase() === target.toLowerCase()) {
-            const span = document.createElement("span");
-            span.className = "sl-smart-link";
-            span.dataset.matchIndex = matchIndex;
-            const matchId = getMatchIdentifier(match);
-            if (matchId) {
-              span.dataset.pageMatchId = String(matchId);
-            }
-            const confidence = Number(match.confidence);
-            if (!Number.isNaN(confidence)) {
-              span.dataset.confidence = String(confidence);
-            }
-            const status = (match.status || "active").toLowerCase()
-            span.dataset.matchStatus = status;
-            if (status === "inactive") {
-              span.classList.add("sl-smart-link--inactive");
-            }
-            span.textContent = part;
-            fragment.appendChild(span);
-            replaced += 1;
-          } else {
-            fragment.appendChild(document.createTextNode(part));
-          }
-        });
-
-        if (replaced > 0) {
-          console.log("[highlightMatches] replacing node with", replaced, "highlights");
-          parent.replaceChild(fragment, node);
+        const block = parent.closest("p, div, li, section, article, h1, h2, h3, h4, h5, h6") || parent;
+        const blockText = normalize(block.textContent || "");
+        if (!blockText.includes(target)) continue;
+        console.log("[highlightMatches] highlighting block:", blockText.slice(0, 120));
+        block.classList.add("sl-smart-link-block");
+        block.dataset.matchIndex = matchIndex;
+        const matchId = getMatchIdentifier(match);
+        if (matchId) {
+          block.dataset.pageMatchId = String(matchId);
+        }
+        const confidence = Number(match.confidence);
+        if (!Number.isNaN(confidence)) {
+          block.dataset.confidence = String(confidence);
+        }
+        const status = (match.status || "active").toLowerCase();
+        block.dataset.matchStatus = status;
+        if (status === "inactive") {
+          block.classList.add("sl-smart-link--inactive");
         }
       }
     });
