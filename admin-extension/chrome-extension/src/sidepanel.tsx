@@ -455,6 +455,13 @@ function SidePanel() {
 
   const [lastViewedFeed, setLastViewedFeed] = useState<SitemapFeed | null>(null)
 
+  const handlePageSummaryRefresh = () => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[panel] manual refresh, clearing override if needed")
+    }
+    setPageSummaryUrl(null)
+  }
+
   const triggerPageSummarySlide = (pageUrl: string, feed: SitemapFeed) => {
     setActiveSection("page")
     setDecisionCardVisible(false)
@@ -726,7 +733,6 @@ function SidePanel() {
       const maybeUrl = changeInfo.url || tab.url
       if (maybeUrl) {
         if (process.env.NODE_ENV !== "production") {
-          console.log("[panel] tab updated", { tabId: _tabId, url: maybeUrl })
         }
         setCurrentTabUrl(maybeUrl)
       }
@@ -761,14 +767,10 @@ function SidePanel() {
     }
   }, [currentTabUrl, pageSummaryUrl])
 
-  const pageUrl =
-    (match?.url ||
-      match?.source_url ||
-      match?.document_title ||
-      currentTabUrl ||
-      "Current page") as string
-
-  const resolvedPageUrl = pageSummaryUrl ?? pageUrl
+  const fallbackMatchUrl =
+    match?.url || match?.source_url || match?.document_title || null
+  const pageUrl = (fallbackMatchUrl || currentTabUrl || "Current page") as string
+  const resolvedPageUrl = pageSummaryUrl ?? currentTabUrl ?? pageUrl
 
   useEffect(() => {
     if (match) {
@@ -879,6 +881,7 @@ function SidePanel() {
               onMatchSelect={handleMatchSelect}
               showBackToList={sitemapBreadcrumbVisible}
               onReturnToSitemap={handleReturnToSitemap}
+              onRefresh={handlePageSummaryRefresh}
             />
           </div>
         )

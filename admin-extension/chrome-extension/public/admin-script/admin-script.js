@@ -33,6 +33,47 @@
       .trim();
   const DISALLOWED_HIGHLIGHT_TAGS = /SCRIPT|STYLE|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
 
+  const setActiveInlineStyles = (span) => {
+    span.style.setProperty("border-bottom", "2px solid #5f61fb", "important");
+    span.style.setProperty("cursor", "pointer", "important");
+    span.style.setProperty("color", "#5f61fb", "important");
+    span.style.setProperty("font-weight", "500", "important");
+    span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
+    span.style.setProperty("line-height", "1.2", "important");
+    span.style.setProperty("display", "inline", "important");
+  };
+
+  const setInactiveInlineStyles = (span) => {
+    span.style.setProperty("border-color", "rgba(148, 163, 184, 0.8)", "important");
+    span.style.setProperty("background-color", "rgba(239, 241, 245, 0.85)", "important");
+    span.style.setProperty("color", "rgba(55, 65, 81, 0.9)", "important");
+    span.style.setProperty("box-shadow", "none", "important");
+    span.style.setProperty("cursor", "pointer", "important");
+  };
+
+  const setRemovedInlineStyles = (span) => {
+    span.style.setProperty("border-bottom", "none", "important");
+    span.style.setProperty("background-color", "transparent", "important");
+    span.style.setProperty("color", "rgba(55, 65, 81, 0.85)", "important");
+    span.style.setProperty("box-shadow", "none", "important");
+    span.style.setProperty("cursor", "default", "important");
+    span.style.setProperty("pointer-events", "none", "important");
+  };
+
+  const refreshSpanStyles = (span) => {
+    if (!span) return;
+    const status = span.dataset.matchStatus || "active";
+    if (span.classList.contains("sl-smart-link--removed")) {
+      setRemovedInlineStyles(span);
+      return;
+    }
+    if (status === "inactive") {
+      setInactiveInlineStyles(span);
+      return;
+    }
+    setActiveInlineStyles(span);
+  };
+
   const createHighlightElement = (match, matchIndex) => {
     const span = document.createElement("span");
     span.classList.add("sl-smart-link");
@@ -50,6 +91,7 @@
     if (status === "inactive") {
       span.classList.add("sl-smart-link--inactive");
     }
+    refreshSpanStyles(span);
     return span;
   };
 
@@ -138,30 +180,43 @@
   };
 
   const ensureHighlightStyle = () => {
-    if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = HIGHLIGHT_STYLE_ID;
+    console.log("[sl-admin-script] ensureHighlightStyle invoked");
+    let style = document.getElementById(HIGHLIGHT_STYLE_ID);
+    const existed = Boolean(style);
+    if (!style) {
+      style = document.createElement("style");
+      style.id = HIGHLIGHT_STYLE_ID;
+      document.head.appendChild(style);
+    }
     style.textContent = `
-      .sl-admin-mode .sl-smart-link {
-        border-bottom: 2px solid #5f61fb;
-        cursor: pointer;
-        color: #5f61fb;
-        font-weight: 500;
-        transition: border-color 0.2s ease, color 0.2s ease;
-        line-height: 1.2;
-        display: inline;
+      .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed),
+      .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed),
+      body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed) {
+        border-bottom: 2px solid #5f61fb !important;
+        cursor: pointer !important;
+        color: #5f61fb !important;
+        font-weight: 500 !important;
+        transition: border-color 0.2s ease, color 0.2s ease !important;
+        line-height: 1.2 !important;
+        display: inline !important;
       }
-      .sl-admin-mode .sl-smart-link:hover {
-        border-color: #5f61fb;
-        color: #5f61fb;
+      .sl-smart-link:hover,
+      .sl-admin-mode .sl-smart-link:hover,
+      body.sl-visitor-mode .sl-smart-link:hover {
+        border-color: #5f61fb !important;
+        color: #5f61fb !important;
       }
-      .sl-admin-mode .sl-smart-link.sl-smart-link--hover {
-        border-color: #5f61fb;
-        color: #ede9fe;
-        background-color: rgba(76, 29, 149, 0.9);
-        box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4);
+      .sl-smart-link.sl-smart-link--hover,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
+        border-color: #5f61fb !important;
+        color: #ede9fe !important;
+        background-color: rgba(76, 29, 149, 0.9) !important;
+        box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4) !important;
       }
-      .sl-admin-mode .sl-smart-link::after {
+      .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
+      .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
+      body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after {
         content: "";
         display: inline-block;
         width: 1em;
@@ -173,18 +228,24 @@
         background-size: contain;
         background-repeat: no-repeat;
       }
-      .sl-admin-mode .sl-smart-link.sl-smart-link--inactive {
-        border-color: rgba(148, 163, 184, 0.8);
-        background-color: rgba(239, 241, 245, 0.85);
-        color: rgba(55, 65, 81, 0.9);
-        box-shadow: none;
-        cursor: pointer;
+      .sl-smart-link.sl-smart-link--inactive,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--inactive,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
+        border-color: rgba(148, 163, 184, 0.8) !important;
+        background-color: rgba(239, 241, 245, 0.85) !important;
+        color: rgba(55, 65, 81, 0.9) !important;
+        box-shadow: none !important;
+        cursor: pointer !important;
       }
-      .sl-admin-mode .sl-smart-link.sl-smart-link--inactive::after {
-        color: rgba(148, 163, 184, 0.9);
-        display: none;
+      .sl-smart-link.sl-smart-link--inactive::after,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--inactive::after,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive::after {
+        color: rgba(148, 163, 184, 0.9) !important;
+        display: none !important;
       }
-      .sl-smart-link.sl-smart-link--removed {
+      .sl-smart-link.sl-smart-link--removed,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--removed,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--removed {
         border-bottom: none !important;
         background-color: transparent !important;
         color: rgba(55, 65, 81, 0.85) !important;
@@ -192,16 +253,11 @@
         cursor: default !important;
         pointer-events: none !important;
       }
-      .sl-smart-link.sl-smart-link--removed::after {
+      .sl-smart-link.sl-smart-link--removed::after,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--removed::after,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--removed::after {
         content: '';
         display: none;
-      }
-      body.sl-visitor-mode .sl-smart-link,
-      body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
-        border-bottom: none !important;
-        background: transparent !important;
-        color: inherit !important;
-        box-shadow: none !important;
       }
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
         display: none;
@@ -267,7 +323,7 @@
         border: none;
       }
     `;
-    document.head.appendChild(style);
+    console.log("[sl-admin-script] ensured highlight stylesheet", { existed });
   };
 
   const persistMatches = (matches) => {
@@ -289,15 +345,30 @@
     }
   };
 
+  const decodeHtmlEntities = (value) => {
+    if (!value) return ""
+    const textarea = document.createElement("textarea")
+    textarea.innerHTML = value
+    return textarea.value
+  }
+
   const highlightMatches = (matches) => {
+    console.log("[sl-admin-script] highlightMatches invoked", {
+      matches: matches.length,
+      body: Boolean(document.body),
+    });
     if (!matches.length || !document.body) {
       return;
     }
 
     matches.forEach((match, matchIndex) => {
       if (!match || !match.phrase) return;
-      const target = normalize(match.phrase);
+      const target = normalize(decodeHtmlEntities(match.phrase));
       if (!target) return;
+      console.log("[sl-admin-script] searching for match phrase", {
+        matchIndex,
+        target: target.slice(0, 120),
+      });
 
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
       let node;
@@ -317,10 +388,22 @@
         const normalizedLower = normalizedMap.normalized.toLowerCase();
         const searchTarget = target.toLowerCase();
         const matchStart = normalizedLower.indexOf(searchTarget);
-        if (matchStart === -1) continue;
+        if (matchStart === -1) {
+          console.log("[sl-admin-script] phrase missing block", {
+            matchIndex,
+            blockText: normalize(block.textContent || "").slice(0, 180),
+            target,
+          });
+          continue;
+        }
 
         const highlight = highlightRange(normalizedMap, matchStart, matchStart + searchTarget.length, match, matchIndex);
         if (!highlight) continue;
+        console.log("[sl-admin-script] inserted highlight", {
+          matchIndex,
+          matchStart,
+          blockSnapshot: normalize(block.textContent || "").slice(0, 200),
+        });
 
         block.classList.add("sl-smart-link-block");
         block.dataset.matchIndex = matchIndex;
@@ -407,7 +490,7 @@
           <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
         </svg>
       </button>
-      <div class="sl-visitor-player__header">Picked just for you...</div>
+      <div class="sl-visitor-player__header">Picked for you...</div>
       <div class="sl-visitor-player__frame">
         <iframe allow="autoplay; fullscreen"></iframe>
       </div>
@@ -437,35 +520,21 @@
     const target = (event.target || event.srcElement);
     if (!(target instanceof Element)) return;
     const matchEl = target.closest(".sl-smart-link");
-    console.log("[sl-admin-script] handleVisitorClick start", {
-      mode: state.mode,
-      target,
-      matchElement: matchEl
-    });
+
     if (!matchEl) return;
     const idxAttr = matchEl.getAttribute("data-match-index");
-    console.log("[sl-admin-script] match element attrs", {
-      idxAttr,
-      status: matchEl.dataset.matchStatus,
-      confidence: matchEl.dataset.confidence
-    });
+
     if (!idxAttr) return;
     const index = Number(idxAttr);
-    console.log("[sl-admin-script] parsed match index", { index });
     if (Number.isNaN(index)) {
-      console.log("[sl-admin-script] invalid match index", { idxAttr });
       return;
     }
     const match = state.matches[index];
     if (!match) {
-      console.log("[sl-admin-script] no match found for index", { index });
       return;
     }
     if (match.status === "inactive") {
-      console.log("[sl-admin-script] match inactive, suppressing player", {
-        matchId: getMatchIdentifier(match),
-        status: match.status
-      });
+
       return;
     }
     if (event.cancelable) {
@@ -498,13 +567,23 @@
     if (!response.ok) {
       throw new Error(`match-map fetch failed (${response.status})`);
     }
-    return response.json();
+    const data = await response.json();
+    console.log("[sl-admin-script] fetchMatchMap response", {
+      url,
+      count: Array.isArray(data) ? data.length : 0,
+      sample: Array.isArray(data) && data.length ? data[0] : null,
+    });
+    return data;
   };
 
   const applyMatches = (matches) => {
     state.matches = Array.isArray(matches) ? matches.slice() : [];
     persistMatches(state.matches);
     whenDOMReady(() => {
+      console.log("[sl-admin-script] applyMatches running", {
+        matchesLoaded: state.matches.length,
+        threshold: state.thresholdValue,
+      });
       ensureHighlightStyle();
       highlightMatches(state.matches);
       applyThresholdToSpans(state.thresholdValue);
@@ -525,6 +604,7 @@
       span.style.opacity = "1";
       span.dataset.matchStatus = "inactive";
       span.style.pointerEvents = "none";
+      refreshSpanStyles(span);
     });
   };
 
@@ -548,13 +628,19 @@
       }
       if (confidence === null) {
         span.classList.remove("sl-smart-link--inactive");
+        span.dataset.matchStatus = "active";
+        refreshSpanStyles(span);
         return;
       }
       if (confidence < value) {
         span.classList.add("sl-smart-link--inactive");
+        span.dataset.matchStatus = "inactive";
         span.style.opacity = "1";
+        refreshSpanStyles(span);
       } else {
         span.classList.remove("sl-smart-link--inactive");
+        span.dataset.matchStatus = "active";
+        refreshSpanStyles(span);
       }
     });
   };
@@ -583,6 +669,8 @@
     spans.forEach((span) => {
       span.classList.remove("sl-smart-link--inactive");
       span.style.pointerEvents = "";
+      span.dataset.matchStatus = "active";
+      refreshSpanStyles(span);
     });
   };
 
@@ -629,6 +717,10 @@
   };
 
   const init = async (config = {}) => {
+    console.log("[sl-admin-script] init called", {
+      providerId: config.providerId,
+      endpoint: config.endpoint,
+    });
     if (state.initialized) {
       return;
     }
@@ -643,6 +735,7 @@
       const matches = await fetchMatchMap({ providerId, apiOrigin, endpoint, limit });
       applyMatches(matches);
     } catch (error) {
+      console.error("[sl-admin-script] match map init failed", error);
     }
   };
 
@@ -661,5 +754,7 @@
     }
   };
 
-  applyMode(state.mode);
+  whenDOMReady(() => {
+    applyMode(state.mode);
+  });
 })();

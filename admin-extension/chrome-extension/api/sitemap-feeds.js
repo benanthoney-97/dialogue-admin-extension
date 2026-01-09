@@ -20,7 +20,6 @@ async function handler(req, res) {
         .order("feed_url", { ascending: true })
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("[sitemap-feeds] raw summary rows", data)
       }
 
       const normalized = (data || []).map((row) => ({
@@ -44,7 +43,6 @@ async function handler(req, res) {
     res.writeHead(405, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: "Method not allowed" }))
   } catch (error) {
-    console.error("[sitemap-feeds] handler error", error)
     res.writeHead(500, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: error.message }))
   }

@@ -104,7 +104,6 @@ async function handler(req, res) {
 
     if (documentId && providerId) {
       documentRow = await getProviderDocument(documentId, providerId);
-      console.log("[decision-data] provider_documents row", documentRow);
       applyDocumentInfo(documentRow);
     }
 
@@ -124,7 +123,6 @@ async function handler(req, res) {
     const pageMatchId = Number(requestUrl.searchParams.get('page_match_id') || '');
     let pageMatch = await getPageMatchById(pageMatchId);
     if (!pageMatch) {
-      console.warn("[decision-data] no page_match found for", pageMatchId);
     }
 
     payload.confidence = pageMatch?.confidence ?? null;
@@ -141,7 +139,6 @@ async function handler(req, res) {
           payload.confidence_color = tier.color_theme || '';
         }
       } catch (err) {
-        console.warn('[decision-data] failed to resolve confidence tier', err);
       }
     }
 
@@ -149,7 +146,6 @@ async function handler(req, res) {
     if (matchDocumentId && providerId) {
       if (!documentRow || documentRow.id !== matchDocumentId) {
         documentRow = await getProviderDocument(matchDocumentId, providerId);
-        console.log("[decision-data] provider_documents row (page match)", documentRow);
       }
       applyDocumentInfo(documentRow);
     } else if (matchDocumentId) {
@@ -164,9 +160,7 @@ async function handler(req, res) {
         payload.video_url;
     }
 
-    console.log(
-      `[decision-data] provider_id=${providerId} document_id=${documentId} page_match_id=${payload.page_match_id} knowledge_id=${knowledgeId} -> title='${payload.title}' video='${payload.video_url}' confidence='${payload.confidence}' label='${payload.confidence_label}' color='${payload.confidence_color}' phrase='${payload.phrase}' content='${payload.content}'`
-    );
+;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(payload));
   } catch (err) {

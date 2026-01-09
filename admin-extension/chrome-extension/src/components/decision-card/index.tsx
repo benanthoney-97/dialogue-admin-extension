@@ -77,7 +77,6 @@ export function DecisionCard({
     } else {
       element.removeAttribute("data-back-aria-label")
     }
-    console.log("[DecisionCard] setting attribute data-phrase", phrase)
     if (knowledgeId !== undefined && knowledgeId !== null) {
       element.setAttribute("data-knowledge-id", String(knowledgeId))
     }

@@ -7,6 +7,7 @@ export interface PageSummaryProps {
   onMatchSelect?: (matchId: number) => void
   showBackToList?: boolean
   onReturnToSitemap?: () => void
+  onRefresh?: () => void
 }
 
 interface PageMatchSummary {
@@ -28,6 +29,7 @@ export function PageSummary({
   onMatchSelect,
   showBackToList,
   onReturnToSitemap,
+  onRefresh,
 }: PageSummaryProps) { 
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -265,23 +267,42 @@ const pillStyle = (label?: string, color?: string) => {
           </button>
         )}
         {pageSupported && (
-          <div className="page-summary__header-row">
-            <div className="page-summary__header">
-              <div className="page-summary__header-title">
-                {formatTitleFromPath(formatPagePath(pageUrl))}
+          <>
+            <div className="page-summary__header-row">
+              <div className="page-summary__header">
+                <div className="page-summary__header-title">
+                  {formatTitleFromPath(formatPagePath(pageUrl))}
+                </div>
+                <div className="page-summary__header-chips">
+                  {!pageSupported && (
+                    <span className="page-summary__unsupported-chip">
+                      Unsupported page
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="page-summary__header-chips">
-                {!pageSupported && (
-                  <span className="page-summary__unsupported-chip">
-                    Unsupported page
-                  </span>
-                )}
-              </div>
+          <button
+            type="button"
+            className="page-summary__refresh"
+            aria-label="Refresh matches"
+            onClick={() => {
+              onRefresh?.()
+              setRefreshKey((prev) => prev + 1)
+            }}
+          >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    fillRule="evenodd"
+                    d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
+                  />
+                  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+                </svg>
+              </button>
             </div>
             <div className="page-summary__full-url" title={pageUrl}>
               {formatPagePath(pageUrl)}
             </div>
-          </div>
+          </>
         )}
         {pageTracked && (
           <div className="page-summary__overview-row">
@@ -432,8 +453,9 @@ const pillStyle = (label?: string, color?: string) => {
         }
         .page-summary__header-row {
           display: flex;
-          flex-direction: column;
-          gap: 2px;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
         }
         .page-summary__header {
           display: flex;
@@ -478,6 +500,21 @@ const pillStyle = (label?: string, color?: string) => {
           text-overflow: ellipsis;
           hyphens: none;
           overflow-wrap: normal;
+          margin-top: -8px;
+        }
+        .page-summary__refresh {
+          background: transparent;
+          border: none;
+          color: #0f172a;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          cursor: pointer;
+        }
+        .page-summary__refresh svg {
+          width: 18px;
+          height: 18px;
         }
         .page-summary__matches {
           padding-top: 0;

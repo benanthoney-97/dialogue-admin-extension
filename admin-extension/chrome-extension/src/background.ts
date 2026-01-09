@@ -44,7 +44,6 @@ let currentProviderId: number | null = null
 
 const safeProviderId = () => {
   if (!currentProviderId) {
-    console.warn("[background] provider id missing, defaulting to 12")
     return 12
   }
   return currentProviderId
@@ -62,7 +61,6 @@ chrome.storage?.local?.get?.({ providerId: null }, (result) => {
 chrome.storage?.onChanged?.addListener((changes, area) => {
   if (area === "local" && changes.providerId) {
     currentProviderId = toNumber(changes.providerId.newValue) ?? null
-    console.log("[background] updated provider id", currentProviderId)
     fetchSiteSettings(safeProviderId())
     registerDynamicContentScriptForProvider(currentProviderId)
   }
@@ -74,7 +72,6 @@ const sendMessageToActiveTab = (message: Record<string, unknown>) => {
     if (!active?.id) return
     chrome.tabs.sendMessage(active.id, message, () => {
       if (chrome.runtime.lastError) {
-        console.warn("[background] sendMessageToActiveTab error", chrome.runtime.lastError.message)
       }
     })
   })
@@ -142,7 +139,6 @@ const determineThresholdLevel = (value: number) => {
 const notifyThresholdData = (level: "high" | "medium" | "low") => {
   chrome.runtime.sendMessage({ action: "thresholdData", threshold: level }, () => {
     if (chrome.runtime.lastError) {
-      console.warn("[background] notify threshold error", chrome.runtime.lastError.message)
     }
   })
 }
@@ -150,7 +146,6 @@ const notifyThresholdData = (level: "high" | "medium" | "low") => {
 const updateGlobalThreshold = (level: "high" | "medium" | "low") => {
   globalThresholdLevel = level
   globalThresholdValue = THRESHOLD_VALUES[level]
-  console.log("[background] global threshold set", globalThresholdLevel, globalThresholdValue)
   notifyThresholdData(level)
   propagateThresholdToTab()
 }
@@ -163,7 +158,6 @@ const fetchSiteSettings = async (providerId: number) => {
       updateGlobalThreshold(determineThresholdLevel(data.match_threshold))
     }
   } catch (error) {
-    console.error("[background] fetch site settings error", error)
   }
 }
 
@@ -186,7 +180,6 @@ const persistSiteThreshold = async (providerId: number, level: "high" | "medium"
 
       await fetchSiteSettings(providerId)
   } catch (error) {
-    console.error("[background] persist threshold error", error)
   }
 }
 
@@ -239,7 +232,6 @@ const fetchTrackedPageOrigins = async (providerId: number) => {
         }
       }
     } catch (error) {
-      console.error("[background] fetch tracked pages error", { feedId, error })
     }
   }
   return trackedPages
@@ -249,7 +241,6 @@ const unregisterDynamicContentScript = async () => {
   try {
     await chrome.scripting.unregisterContentScripts({ ids: [dynamicContentScriptId] })
   } catch (error) {
-    console.warn("[background] unregister content script error", error)
   }
   lastRegisteredMatchesKey = ""
 }
@@ -264,7 +255,6 @@ const registerDynamicContentScriptForProvider = async (providerId: number | null
   }
   const manifestEntry = getContentScriptDefinition()
   if (!manifestEntry || !manifestEntry.js?.length) {
-    console.warn("[background] content script definition missing")
     return
   }
   try {
@@ -273,7 +263,6 @@ const registerDynamicContentScriptForProvider = async (providerId: number | null
     const cacheKey = matches.join("|")
     if (!matches.length) {
       await unregisterDynamicContentScript()
-      console.log("[background] no tracked matches, skipping content script registration")
       return
     }
     if (cacheKey === lastRegisteredMatchesKey) {
@@ -299,10 +288,8 @@ const fetchPageMatch = async (pageMatchId: number | undefined | null) => {
   if (!pageMatchId) return null
   const url = `${PAGE_MATCH_API}?page_match_id=${encodeURIComponent(pageMatchId)}`
   try {
-    console.log("[background] fetching page match", url)
     return await fetchJson(url)
   } catch (error) {
-    console.error("[background] page match fetch error", error)
     return null
   }
 }
@@ -311,10 +298,8 @@ const fetchProviderDocument = async (documentId: number | undefined | null, prov
   if (!documentId || !providerId) return null
   const url = `${PROVIDER_DOCUMENT_API}?document_id=${encodeURIComponent(documentId)}&provider_id=${encodeURIComponent(providerId)}`
   try {
-    console.log("[background] fetching provider document", url)
     return await fetchJson(url)
   } catch (error) {
-    console.error("[background] provider document fetch error", error)
     return null
   }
 }
@@ -323,10 +308,8 @@ const fetchProviderKnowledge = async (knowledgeId: number | undefined | null) =>
   if (!knowledgeId) return null
   const url = `${PROVIDER_KNOWLEDGE_API}?knowledge_id=${encodeURIComponent(knowledgeId)}`
   try {
-    console.log("[background] fetching provider knowledge", url)
     return await fetchJson(url)
   } catch (error) {
-    console.error("[background] provider knowledge fetch error", error)
     return null
   }
 }
@@ -385,7 +368,6 @@ const MODE_VISITOR = "visitor"
 const notifyMatchData = (payload: MatchPayload) => {
   chrome.runtime.sendMessage({ action: "matchData", match: payload }, () => {
     if (chrome.runtime.lastError) {
-      console.warn("[background] notifyMatchData error", chrome.runtime.lastError.message)
     }
   })
 }
@@ -393,13 +375,11 @@ const notifyMatchData = (payload: MatchPayload) => {
 fetchSiteSettings(safeProviderId())
 
 const executePageHighlightRemoval = async (tabId: number, matchId: number) => {
-  console.log("[background] executePageHighlightRemoval start", { tabId, matchId })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
       func: (id: number) => {
-        console.log("[background] invoke helper from page", id, (window as any).__SL_removeMatchHighlight)
         const remover = (window as any).__SL_removeMatchHighlight
         if (typeof remover === "function") {
           remover(id)
@@ -407,37 +387,29 @@ const executePageHighlightRemoval = async (tabId: number, matchId: number) => {
       },
       args: [matchId]
     })
-    console.log("[background] executePageHighlightRemoval success", { tabId, matchId })
   } catch (error) {
-    console.error("[background] scripting removal error", error)
   }
 }
 
 const executePageHighlightAddition = async (tabId: number, match: MatchPayload) => {
-  console.log("[background] executePageHighlightAddition start", { tabId, match })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
       func: (matchData: MatchPayload) => {
-        console.log("[background] invoke add helper from page", matchData?.page_match_id, matchData?.phrase, matchData)
         const adder = (window as any).__SL_addMatchHighlight
         if (typeof adder === "function") {
           adder(matchData)
         } else {
-          console.warn("[background] add helper missing on page", matchData?.page_match_id)
         }
       },
       args: [match]
     })
-    console.log("[background] executePageHighlightAddition success", { tabId, match })
   } catch (error) {
-    console.error("[background] scripting addition error", error)
   }
 }
 
 const executePageSetHover = async (tabId: number, matchId: number, hovered: boolean) => {
-  console.log("[background] executePageSetHover start", { tabId, matchId, hovered })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -455,37 +427,29 @@ const executePageSetHover = async (tabId: number, matchId: number, hovered: bool
       },
       args: [matchId, hovered],
     })
-    console.log("[background] executePageSetHover success", { tabId, matchId, hovered })
   } catch (error) {
-    console.error("[background] scripting hover error", error)
   }
 }
 
 const executePageMode = async (tabId: number, mode: string) => {
-  console.log("[background] executePageMode start", { tabId, mode })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
       func: (modeValue: string) => {
-        console.log("[background] invoke setMode from page", modeValue)
         const setter = (window as any).__SL_setMode
         if (typeof setter === "function") {
           setter(modeValue)
         } else {
-          console.warn("[background] mode setter missing on page")
         }
       },
       args: [mode]
     })
-    console.log("[background] executePageMode success", { tabId, mode })
   } catch (error) {
-    console.error("[background] scripting mode error", error)
   }
 }
 
 async function executeThresholdUpdate(tabId: number, value: number) {
-  console.log("[background] executeThresholdUpdate start", { tabId, value })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -498,9 +462,7 @@ async function executeThresholdUpdate(tabId: number, value: number) {
       },
       args: [value],
     })
-    console.log("[background] executeThresholdUpdate success", { tabId, value })
   } catch (error) {
-    console.error("[background] scripting threshold error", error)
   }
 }
 
@@ -521,7 +483,6 @@ function propagateThresholdToTab(preferredTabId?: number) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("[background] received message", message)
   if (message.action === "deliverNewMatchSelection") {
     return false
   }
@@ -557,7 +518,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
   if (message.action === "matchClicked") {
-    console.log("[background] matchClicked", message.match)
     lastMatchTabId = sender.tab?.id ?? lastMatchTabId
     const tabId = sender.tab?.id
     const windowId = sender.tab?.windowId
@@ -576,7 +536,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "removeMatchHighlight") {
     const matchId = toNumber(message.page_match_id ?? message.match?.page_match_id ?? message.match?.id)
-    console.log("[background] removeMatchHighlight received", matchId, "lastTabId", lastMatchTabId)
     const targetTabId = lastMatchTabId ?? sender.tab?.id
     if (matchId && targetTabId) {
       executePageHighlightRemoval(targetTabId, matchId)
@@ -598,7 +557,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!matchData) {
       return false
     }
-    console.log("[background] restoreMatchHighlight received", matchData)
     const targetTabId = lastMatchTabId ?? sender.tab?.id
     if (targetTabId) {
       executePageHighlightAddition(targetTabId, matchData)
@@ -618,7 +576,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "setMatchHover") {
     const matchId = toNumber(message.page_match_id ?? message.match?.page_match_id ?? message.match?.id)
     const hovered = Boolean(message.hovered)
-    console.log("[background] setMatchHover received", { matchId, hovered })
     const targetTabId = lastMatchTabId ?? sender.tab?.id
     if (matchId && targetTabId) {
       executePageSetHover(targetTabId, matchId, hovered)
@@ -628,7 +585,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "setPageMode") {
     const mode = message.mode === MODE_ADMIN ? MODE_ADMIN : MODE_VISITOR
-    console.log("[background] setPageMode received", mode)
     const targetTabId = lastMatchTabId ?? sender.tab?.id
     if (targetTabId) {
       executePageMode(targetTabId, mode)
@@ -656,7 +612,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         notifyMatchData(data)
       })
       .catch((error) => {
-        console.error("[background] refreshMatch error", error)
       })
     return false
   }
@@ -680,7 +635,6 @@ const getActiveTabId = () =>
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "admin-mode") return
   getActiveTabId().then((tabId) => {
-    console.log("[background] admin port connected", { tabId })
     if (tabId) {
       lastMatchTabId = tabId
       executePageMode(tabId, MODE_ADMIN)
@@ -688,7 +642,6 @@ chrome.runtime.onConnect.addListener((port) => {
   })
   port.onDisconnect.addListener(() => {
     getActiveTabId().then((tabId) => {
-      console.log("[background] admin port disconnected", { tabId })
       if (tabId) {
         lastMatchTabId = tabId
         executePageMode(tabId, MODE_VISITOR)
