@@ -1,5 +1,5 @@
 const supabase = require("./supabase-client")
-const { getProviderDocument } = require("./provider-documents")
+const { getProviderDocument } = require("./provider-documents-web-embed")
 
 async function handler(req, res) {
   if (req.method !== "GET") {
@@ -68,11 +68,6 @@ const findTierForScore = (score, tiers) => {
     )
 
     documentIds.forEach((documentId) => {
-      console.debug("[page-matches] document cover image", {
-        documentId,
-        url: documents[documentId]?.source_url,
-        cover_image_url: documents[documentId]?.cover_image_url,
-      })
     })
 
     const tiers = await getConfidenceTiers(providerId)
@@ -81,14 +76,9 @@ const findTierForScore = (score, tiers) => {
       .select("tracked")
       .eq("page_url", pageUrl)
       .maybeSingle()
-    console.debug("[page-matches] resolved sitemap page row", { pageUrl, pageRow })
     const matches = (data || []).map((row) => {
       const tier = findTierForScore(row.confidence, tiers)
       if (!documents[row.document_id]?.cover_image_url) {
-        console.debug("[page-matches] missing cover image for match", {
-          page_match_id: row.id,
-          document_id: row.document_id,
-        })
       }
       return {
         page_match_id: row.id,
@@ -115,7 +105,6 @@ const findTierForScore = (score, tiers) => {
     res.setHeader("Access-Control-Allow-Origin", "*")
     res.end(JSON.stringify(payload))
   } catch (error) {
-    console.error("[page-matches] handler error", error)
     res.writeHead(500, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: error.message }))
   }

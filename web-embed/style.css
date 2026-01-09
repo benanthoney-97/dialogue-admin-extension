@@ -94,6 +94,8 @@ section,
 .actions {
   text-align: right;
   margin-top: 20px;
+      background: #f6f7fb;
+
 }
 
 button {

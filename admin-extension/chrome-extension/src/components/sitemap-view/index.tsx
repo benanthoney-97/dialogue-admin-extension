@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { SitemapFeed } from "../sitemap-feeds-table"
 import { SitemapFeedsTable } from "../sitemap-feeds-table"
 import { SitemapFeedDetail } from "./sitemap-feed-detail"
@@ -8,25 +8,22 @@ export interface SitemapViewProps {
   providerId: number
   onFeedToggle?: (feedId: number, tracked: boolean) => void
   onPageToggle?: (pageId: number, tracked: boolean) => void
+  onViewPage?: (pageUrl: string, feed: SitemapFeed) => void
+  initialSelectedFeed?: SitemapFeed | null
   threshold: "high" | "medium" | "low"
   onThresholdChange: (value: "high" | "medium" | "low") => void
   onThresholdSave: () => void
   thresholdSaving?: boolean
+  hasPendingThresholdChanges: boolean
 }
 
 const formatFeedUrl = (url: string) => {
   try {
     const parsed = new URL(url)
-    const prefixString = `${parsed.origin}/`
-    const suffix = parsed.pathname.replace(/^\/+/, "") || "/"
-    return (
-      <>
-        <span className="sitemap-feed-card__url-prefix">{prefixString}</span>
-        <span className="sitemap-feed-card__url-suffix">{suffix}</span>
-      </>
-    )
+    const suffix = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`
+    return suffix.replace(/^\/+/, "") || "/"
   } catch {
-    return <span className="sitemap-feed-card__url-prefix">{url}</span>
+    return url
   }
 }
 
@@ -34,46 +31,65 @@ export function SitemapView({
   providerId,
   onFeedToggle,
   onPageToggle,
+  onViewPage,
+  initialSelectedFeed,
   threshold,
   onThresholdChange,
   onThresholdSave,
-  thresholdSaving
+  thresholdSaving,
+  hasPendingThresholdChanges
 }: SitemapViewProps) {
   const [pageFilter, setPageFilter] = useState("")
-  const [selectedFeed, setSelectedFeed] = useState<SitemapFeed | null>(null)
+  const [selectedFeed, setSelectedFeed] = useState<SitemapFeed | null>(initialSelectedFeed ?? null)
+  const isDetailView = Boolean(selectedFeed)
+
+  useEffect(() => {
+    if (initialSelectedFeed) {
+      setSelectedFeed(initialSelectedFeed)
+    }
+  }, [initialSelectedFeed])
 
   return (
     <>
       <div className="sitemap-view__pane">
-        <div className="sitemap-view__threshold">
+        <div
+          className={`sitemap-view__threshold${isDetailView ? " sitemap-view__threshold--hidden" : ""}`}
+          aria-hidden={isDetailView}
+        >
           <ThresholdControls
             current={threshold}
             onChange={onThresholdChange}
             onSave={onThresholdSave}
             saving={thresholdSaving}
+            hasPendingChanges={hasPendingThresholdChanges}
           />
         </div>
       <div className="sitemap-view__header">
         {selectedFeed ? (
-          <div className="sitemap-view__header-detail">
-            <button
-              type="button"
-              className="sitemap-view__header-back"
-              onClick={() => setSelectedFeed(null)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path
-                  fillRule="evenodd"
-                  d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
-                />
-              </svg>
-            </button>
+          <div className="sitemap-view__header-detail sitemap-view__header-detail--stack">
+            <div className="sitemap-view__header-row">
+              <button
+                type="button"
+                className="sitemap-view__header-back"
+                onClick={() => setSelectedFeed(null)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    fillRule="evenodd"
+                    d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
+                  />
+                </svg>
+                <span>Back</span>
+              </button>
+            </div>
             <div className="sitemap-feed-detail__info">
-              <div className="sitemap-feed-detail__url">{formatFeedUrl(selectedFeed.feed_url)}</div>
+              <div className="sitemap-feed-detail__url">
+                {formatFeedUrl(selectedFeed.feed_url)}
+              </div>
             </div>
           </div>
         ) : (
-          <div className="sitemap-view__title">Site Sections</div>
+          <div className="sitemap-view__title">Manage pages</div>
         )}
       </div>
       <div className="sitemap-feeds-search">
@@ -95,6 +111,7 @@ export function SitemapView({
             feed={selectedFeed}
             filter={pageFilter}
             onPageToggle={onPageToggle}
+            onViewPage={(pageUrl) => onViewPage?.(pageUrl, selectedFeed)}
           />
         ) : (
           <SitemapFeedsTable
@@ -110,9 +127,9 @@ export function SitemapView({
       .sitemap-view__title {
         text-align: left;
         font-weight: 600;
-        color: #0f172a;
+        color: #1f2937;
         font-size: 14px;
-        margin-bottom: 4px;
+        margin-bottom: 0px;
       }
     `}</style>
     </>

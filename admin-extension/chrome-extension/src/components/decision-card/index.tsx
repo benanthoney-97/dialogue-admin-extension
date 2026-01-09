@@ -21,6 +21,8 @@ export interface DecisionCardProps {
   pageMatchId?: number | null
   onDecisionSelect?: (action: string) => void
   onBack?: () => void
+  backLabel?: string
+  backAriaLabel?: string
 }
 
 export function DecisionCard({
@@ -35,6 +37,8 @@ export function DecisionCard({
   pageMatchId,
   onDecisionSelect,
   onBack,
+  backLabel,
+  backAriaLabel,
 }: DecisionCardProps) {
   const ref = useRef<HTMLElement | null>(null)
 
@@ -63,6 +67,16 @@ export function DecisionCard({
     if (phrase !== undefined) element.setAttribute("data-phrase", phrase)
     if (confidenceLabel !== undefined) element.setAttribute("data-confidence-label", confidenceLabel)
     if (confidenceColor !== undefined) element.setAttribute("data-confidence-color", confidenceColor)
+    if (backLabel !== undefined) {
+      element.setAttribute("data-back-label", backLabel)
+    } else {
+      element.removeAttribute("data-back-label")
+    }
+    if (backAriaLabel !== undefined) {
+      element.setAttribute("data-back-aria-label", backAriaLabel)
+    } else {
+      element.removeAttribute("data-back-aria-label")
+    }
     console.log("[DecisionCard] setting attribute data-phrase", phrase)
     if (knowledgeId !== undefined && knowledgeId !== null) {
       element.setAttribute("data-knowledge-id", String(knowledgeId))
@@ -80,6 +94,8 @@ export function DecisionCard({
     videoUrl,
     knowledgeId,
     pageMatchId,
+    backLabel,
+    backAriaLabel,
   ])
 
   useEffect(() => {

@@ -1,8 +1,4 @@
-const tierBackgrounds = {
-  "Perfect Match": "#D1FAE5",
-  "Good Match": "#ECFDF5",
-  "Potential Match": "#F1F5F9",
-};
+import { computeConfidenceChipStyle } from "../confidence-chip/metadata.js"
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -16,7 +12,7 @@ template.innerHTML = `
       width: 100%;
       height: 100%;
       border-radius: 12px 12px 0 0;
-      background: #ffffff;
+      background: #f6f7fb;
       padding: 20px 24px 24px;
       border: 1px solid rgba(15, 23, 42, 0.08);
       gap: 14px;
@@ -214,6 +210,27 @@ template.innerHTML = `
       display: flex;
       flex-direction: row;
       gap: 10px;
+          background: #f6f7fb;
+
+    }
+    .decision-card-footer {
+      position: sticky;
+      bottom: 0;
+      padding-top: 12px;
+      padding-bottom: 12px;
+      background: #fff;
+      border-top: 1px solid #e5e7f0;
+      margin-top: auto;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      left: 0;
+      right: 0;
+      padding-left: 0;
+      padding-right: 0;
+      box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.06);
+      background: #f6f7fb;
+      overflow: hidden;
     }
 
     .decision-card-back {
@@ -295,9 +312,9 @@ template.innerHTML = `
     }
 
     </style>
-    <button class="decision-card-back" type="button" aria-label="Back to page summary">
+    <button class="decision-card-back" type="button" aria-label="Back">
       <span aria-hidden="true">←</span>
-      <span>Back</span>
+      <span class="decision-card-back-label">Back</span>
     </button>
     <div class="decision-card-video-wrapper">
       <div class="decision-card-video">
@@ -320,15 +337,15 @@ template.innerHTML = `
     <div class="decision-card-divider-arrow" aria-hidden="true">
       <span>▼</span>
     </div>
-    <div class="decision-card-content-wrapper">
       <div class="decision-card-chip-row" aria-hidden="true">
         <span class="decision-card-chip decision-card-chip--content">Video match</span>
       </div>
-      <div class="decision-card-content" aria-live="polite"></div>
+    <div class="decision-card-content" aria-live="polite"></div>
     </div>
   </div>
-  <div class="actions">
-    <button type="button" class="action remove" data-action="remove" aria-label="Hide">
+  <div class="decision-card-footer">
+    <div class="actions">
+      <button type="button" class="action remove" data-action="remove" aria-label="Hide">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
       </svg>
@@ -347,6 +364,7 @@ template.innerHTML = `
       </svg>
       <span class="action-label">Approve</span>
     </button>
+    </div>
   </div>
 `;
 
@@ -361,7 +379,9 @@ class DecisionCard extends HTMLElement {
       "data-phrase",
       "data-confidence-label",
       "data-confidence-color",
-      "data-page-match-id"
+      "data-page-match-id",
+      "data-back-label",
+      "data-back-aria-label"
     ];
   }
 
@@ -376,6 +396,7 @@ class DecisionCard extends HTMLElement {
     this.contentEl = null;
     this.phraseEl = null;
     this.backButton = null;
+    this.backLabelEl = null;
     this.handleBackClick = this.handleBackClick.bind(this);
     this.knowledgeId = null;
     this.pageMatchId = null;
@@ -393,7 +414,10 @@ class DecisionCard extends HTMLElement {
     this.iframeContainer = this.shadowRoot.querySelector(".sl-iframe-container");
     this.phraseEl = this.shadowRoot.querySelector(".decision-card-phrase");
     this.backButton = this.shadowRoot.querySelector(".decision-card-back");
+    this.backLabelEl = this.shadowRoot.querySelector(".decision-card-back-label");
     this.syncAttributes();
+    this.updateBackLabel(this.getAttribute("data-back-label"));
+    this.updateBackAriaLabel(this.getAttribute("data-back-aria-label"));
     if (this.backButton) {
       this.backButton.addEventListener("click", this.handleBackClick);
     }
@@ -417,11 +441,27 @@ class DecisionCard extends HTMLElement {
     if (name === "data-confidence-label") this.updateConfidenceLabel(newValue);
     if (name === "data-confidence-color") this.updateConfidenceColor(newValue);
     if (name === "data-page-match-id") this.updatePageMatchId(newValue);
+    if (name === "data-back-label") this.updateBackLabel(newValue);
+    if (name === "data-back-aria-label") this.updateBackAriaLabel(newValue);
   }
 
   updatePageMatchId(value) {
     const id = Number(value);
     this.pageMatchId = Number.isNaN(id) ? null : id;
+  }
+
+  updateBackLabel(value) {
+    if (!this.backLabelEl) return;
+    this.backLabelEl.textContent = value || "Back";
+  }
+
+  updateBackAriaLabel(value) {
+    if (!this.backButton) return;
+    if (value) {
+      this.backButton.setAttribute("aria-label", value);
+    } else {
+      this.backButton.setAttribute("aria-label", "Back");
+    }
   }
 
   syncAttributes() {
@@ -464,49 +504,13 @@ class DecisionCard extends HTMLElement {
 
   applyConfidenceStyling() {
     if (!this.confidenceEl) return;
-    const background = this.getConfidenceBackground();
-    const borderColor = this.getConfidenceBorderColor();
-    const textColor = this.confidenceColorValue || "#047857";
+    const { background, borderColor, color } = computeConfidenceChipStyle(
+      this.confidenceLabelValue,
+      this.confidenceColorValue
+    );
     this.confidenceEl.style.background = background;
     this.confidenceEl.style.borderColor = borderColor;
-    this.confidenceEl.style.color = textColor;
-  }
-
-  getConfidenceBackground() {
-    if (this.confidenceLabelValue && tierBackgrounds[this.confidenceLabelValue]) {
-      return tierBackgrounds[this.confidenceLabelValue];
-    }
-    return this.getRgbaFromColor(this.confidenceColorValue, 0.12) || "rgba(4, 120, 87, 0.08)";
-  }
-
-  getConfidenceBorderColor() {
-    return this.getRgbaFromColor(this.confidenceColorValue, 0.35) || "rgba(4, 120, 87, 0.35)";
-  }
-
-  getRgbaFromColor(value, alpha) {
-    const rgb = this.parseHexColor(value);
-    if (!rgb) return null;
-    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-  }
-
-  parseHexColor(value) {
-    if (typeof value !== "string") return null;
-    let hex = value.trim();
-    if (hex.startsWith("#")) {
-      hex = hex.slice(1);
-    }
-    if (hex.length === 3) {
-      hex = hex
-        .split("")
-        .map((char) => char + char)
-        .join("");
-    }
-    if (hex.length !== 6) return null;
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    if ([r, g, b].some((value) => Number.isNaN(value))) return null;
-    return { r, g, b };
+    this.confidenceEl.style.color = color;
   }
 
   updatePhrase(value) {

@@ -33,10 +33,6 @@ template.innerHTML = `
       font-size: 14px;
     }
 
-    .actions {
-      text-align: right;
-    }
-
     button {
       border-radius: 10px;
       border: 1px solid transparent;

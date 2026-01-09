@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
+import type { SitemapFeed } from "../sitemap-feeds-table"
 import { formatHumanReadableDate } from "../../utils/format-date"
 
 export interface SitemapPage {
@@ -8,31 +9,29 @@ export interface SitemapPage {
   tracked?: boolean
   status?: string
   last_modified?: string
+  processed?: string | null
 }
 
 export interface SitemapPagesTableProps {
   feedId?: number
+  feed?: SitemapFeed
   filter?: string
   onPageToggle?: (pageId: number, tracked: boolean) => void
+  onViewPage?: (pageUrl: string, feed: SitemapFeed) => void
 }
 
 const renderPageUrl = (url: string) => {
   try {
     const parsed = new URL(url)
-    const prefixString = `${parsed.origin}/`
-    const suffix = parsed.pathname.replace(/^\/+/, "") || "/"
-    return (
-      <>
-        <span className="sitemap-feed-card__url-prefix">{prefixString}</span>
-        <span className="sitemap-feed-card__url-suffix">{suffix}</span>
-      </>
-    )
+    const suffix = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`
+    const trimmed = suffix.replace(/^\/+/, "") || "/"
+    return <span className="sitemap-feed-card__url-unique">{trimmed}</span>
   } catch {
-    return <span className="sitemap-feed-card__url-prefix">{url}</span>
+    return <span className="sitemap-feed-card__url-unique">{url}</span>
   }
 }
 
-export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: SitemapPagesTableProps) {
+export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onViewPage }: SitemapPagesTableProps) {
   const [pages, setPages] = useState<SitemapPage[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +45,23 @@ export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: Sitemap
         item.id === page.id ? { ...item, tracked: !item.tracked } : item
       )
     )
+  }
+
+  const openPageInTab = (url: string) => {
+    chrome.tabs?.query?.({ active: true, lastFocusedWindow: true }, (tabs) => {
+      const target = tabs?.[0]
+      if (target?.id) {
+        chrome.tabs?.update?.(target.id, { url })
+      }
+    })
+  }
+
+  const handleViewPageClick = (event: React.MouseEvent, page: SitemapPage) => {
+    event.stopPropagation()
+    openPageInTab(page.page_url)
+    if (feed) {
+      onViewPage?.(page.page_url, feed)
+    }
   }
 
   useEffect(() => {
@@ -123,22 +139,37 @@ export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: Sitemap
               {filteredPages.map((page) => {
                 const formattedLastModified = formatHumanReadableDate(page.last_modified)
                 return (
-                  <article key={page.id} className="sitemap-feed-card">
-                    <div className="sitemap-feed-card__url">{renderPageUrl(page.page_url)}</div>
-                    <div className="sitemap-feed-card__summary">
-                      <span>{formattedLastModified ?? "No date available"}</span>
+              <article key={page.id} className="sitemap-feed-card">
+                <div
+                  className="sitemap-feed-card__url-row"
+                  onClick={(event) => handleViewPageClick(event, page)}
+                >
+                  <div className="sitemap-feed-card__url">{renderPageUrl(page.page_url)}</div>
+                  <button
+                    type="button"
+                    className="sitemap-feed-card__open-page sitemap-feed-card__open-page--after"
+                    aria-label="View page"
+                    onClick={(event) => handleViewPageClick(event, page)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                      <path fillRule="evenodd" d="M7.364 3.5a.5.5 0 0 1 .5-.5H14.5A1.5 1.5 0 0 1 16 4.5v10a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 3 14.5V7.864a.5.5 0 1 1 1 0V14.5a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5H7.864a.5.5 0 0 1-.5-.5"/>
+                      <path fillRule="evenodd" d="M0 .5A.5.5 0 0 1 .5 0h5a.5.5 0 0 1 0 1H1.707l8.147 8.146a.5.5 0 0 1-.708.708L1 1.707V5.5a.5.5 0 0 1-1 0z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="sitemap-feed-card__summary">
+                  <span>
+                    {formattedLastModified ? `Updated ${formattedLastModified}` : "No date available"}
+                  </span>
                     </div>
                     <div className="sitemap-feed-card__meta sitemap-feed-card__meta--page">
-                      <span className="sitemap-feed-card__processed-label">
-                        {page.processed ? page.processed : "not processed"}
-                      </span>
                       <div className="sitemap-feed-card__status-group sitemap-feed-card__status-group--page">
                         <span
                           className={`status-chip ${
                             page.tracked ? "status-chip--active" : "status-chip--inactive"
                           }`}
                         >
-                          {page.tracked ? "Tracked" : "Hidden"}
+                          {page.tracked ? "Live" : "Inactive"}
                         </span>
                         <button
                           type="button"
@@ -161,6 +192,19 @@ export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: Sitemap
         </div>
       </div>
       <style>{`
+        .sitemap-pages-table {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .sitemap-pages-table__shell {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+        }
+
         .sitemap-pages-table__content {
           padding: 12px 16px 16px;
           flex: 1;
@@ -179,6 +223,128 @@ export function SitemapPagesTable({ feedId, filter = "", onPageToggle }: Sitemap
         .sitemap-pages-table__empty {
           font-size: 13px;
           color: #475467;
+        }
+        .sitemap-feed-card {
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          padding: 12px;
+          background: #fff;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sitemap-feed-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        }
+
+        .sitemap-feed-card__url-unique {
+          font-size: 14px;
+          color: #0f172a;
+          font-weight: 600;
+          word-break: break-word;
+        }
+        .sitemap-feed-card__url-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .sitemap-feed-card__url {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .sitemap-feed-card__open-page {
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          border: none;
+          background: transparent;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          transition: none;
+          line-height: 0;
+        }
+        .sitemap-feed-card__open-page svg {
+          width: 12px;
+          height: 12px;
+          display: block;
+        }
+        .sitemap-feed-card__open-page:hover,
+        .sitemap-feed-card__open-page:focus-visible {
+          background: transparent;
+        }
+
+        .sitemap-feed-card__meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sitemap-feed-card__status-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .status-chip {
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .status-chip--active {
+          color: #15803d;
+        }
+
+        .status-chip--inactive {
+          color: #dc2626;
+        }
+
+        .sitemap-feed-card__track-toggle {
+          width: 36px;
+          height: 24px;
+          border-radius: 999px;
+          border: none;
+          background: #e5e7eb;
+          cursor: pointer;
+          position: relative;
+        }
+
+        .sitemap-feed-card__track-toggle::after {
+          content: "";
+          position: absolute;
+          top: 50%;
+          left: 4px;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #fff;
+          transition: transform 0.2s ease;
+          box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+          transform: translate(0, -50%);
+        }
+
+        .sitemap-feed-card__track-toggle.is-indeterminate {
+          background: #f59e0b;
+          border-color: transparent;
+        }
+
+        .sitemap-feed-card__open-page:hover {
+          transform: translateY(-1px);
+          opacity: 0.75;
+        }
+
+        .sitemap-feed-card__track-toggle.is-tracked::after {
+          transform: translate(12px, -50%);
         }
       `}</style>
     </div>

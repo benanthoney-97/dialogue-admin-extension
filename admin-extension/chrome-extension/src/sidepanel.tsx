@@ -11,6 +11,10 @@ import { TimestampView } from "./components/timestamp-view"
 import { NewMatchPrompt } from "./components/new-match-prompt"
 import { ConfirmAction } from "./components/confirm-action"
 import { LoginForm } from "./components/login-form/login-form"
+import { LibraryDocumentsGrid } from "./components/library-documents-grid"
+import type { LibraryDocument } from "./components/library-documents-grid"
+import { SingleViewVideo } from "./components/single-view-video"
+import type { SitemapFeed } from "./components/sitemap-feeds-table"
 
 const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
   high: 0.75,
@@ -48,6 +52,8 @@ type MatchPayload = {
   source_url?: string
 }
 
+type DecisionContext = "page" | "video"
+
 type NavSection = "page" | "sitemap" | "new-match" | "library"
 
 function SidePanel() {
@@ -55,10 +61,14 @@ function SidePanel() {
   const [view, setView] = useState<"documents" | "timestamp" | null>(null)
   const [selectedDoc, setSelectedDoc] = useState<ProviderDocument | null>(null)
   const [threshold, setThreshold] = useState<"high" | "medium" | "low">("medium")
+  const [savedThreshold, setSavedThreshold] = useState<"high" | "medium" | "low">("medium")
   const [activeSection, setActiveSection] = useState<NavSection>("page")
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
   const [decisionCardVisible, setDecisionCardVisible] = useState(false)
+  const [decisionCardBackLabel, setDecisionCardBackLabel] = useState("Back")
+  const [decisionCardBackAriaLabel, setDecisionCardBackAriaLabel] =
+    useState("Back to page summary")
   const [thresholdSaving, setThresholdSaving] = useState(false)
   const [removeConfirmVisible, setRemoveConfirmVisible] = useState(false)
   const [removeConfirmLoading, setRemoveConfirmLoading] = useState(false)
@@ -68,15 +78,24 @@ function SidePanel() {
   const [manualSelectedDoc, setManualSelectedDoc] = useState<ProviderDocument | null>(null)
   const [autoMatchResults, setAutoMatchResults] = useState<any[]>([])
   const [autoMatchLoading, setAutoMatchLoading] = useState(false)
+  const [libraryDocument, setLibraryDocument] = useState<LibraryDocument | null>(null)
+  const [thresholdDirty, setThresholdDirty] = useState(false)
+  const thresholdDirtyRef = useRef(false)
+  const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
+  const pageSummarySlideTimerRef = useRef<number | null>(null)
+  const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
   const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
   const newMatchModeRef = useRef(false)
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
 
+  useEffect(() => {
+    thresholdDirtyRef.current = thresholdDirty
+  }, [thresholdDirty])
+
   const resolveProviderId = () => {
     if (process.env.NODE_ENV !== "production") {
-      console.log("[panel] resolving providerId", providerId)
     }
     return providerId
   }
@@ -84,17 +103,22 @@ function SidePanel() {
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
-    console.log("[panel] admin port connected")
     return () => {
-      console.log("[panel] disconnecting admin port")
       port.disconnect()
     }
   }, [])
 
   useEffect(() => {
-    console.log("[panel] mounted, requesting latest match")
+    return () => {
+      if (pageSummarySlideTimerRef.current) {
+        window.clearTimeout(pageSummarySlideTimerRef.current)
+        pageSummarySlideTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     const listener = (message: any) => {
-      console.log("[panel] received message", message)
       if (message.action === "matchClicked") {
         setMatch(message.match)
         setDecisionCardVisible(true)
@@ -105,11 +129,14 @@ function SidePanel() {
         if (value && ["high", "medium", "low"].includes(value)) {
           setThreshold(value)
           chrome.storage?.local?.set({ threshold: value })
+          if (!thresholdDirtyRef.current) {
+            setSavedThreshold(value)
+          }
         }
       } else if (message.action === "deliverNewMatchSelection") {
         if (message.text) {
           setSelectedNewMatchText(message.text)
-          setToastMessage("Text captured for new match")
+          setToastMessage("Text captured")
         }
       }
     }
@@ -117,7 +144,6 @@ function SidePanel() {
     chrome.runtime.onMessage.addListener(listener)
 
     chrome.runtime.sendMessage({ action: "getLatestMatch" }, (response) => {
-      console.log("[panel] latest match response", response)
       if (response?.match) {
         setMatch(response.match)
       }
@@ -132,6 +158,9 @@ function SidePanel() {
     chrome.storage?.local?.get?.({ threshold: "medium" }, (result) => {
       if (result?.threshold && ["high", "medium", "low"].includes(result.threshold)) {
         setThreshold(result.threshold)
+        setSavedThreshold(result.threshold)
+        setThresholdDirty(false)
+        thresholdDirtyRef.current = false
       }
     })
   }, [])
@@ -205,7 +234,6 @@ function SidePanel() {
       const payload = await response.json()
       setAutoMatchResults(Array.isArray(payload.results) ? payload.results : [])
     } catch (error) {
-      console.error("[panel] match suggestions error", error)
       setToastMessage("Unable to load match suggestions")
     } finally {
       setAutoMatchLoading(false)
@@ -213,7 +241,6 @@ function SidePanel() {
   }
 
   const handleSelectMatchSuggestion = async (result: any) => {
-    console.log("[panel] suggested match selected", result)
     if (!selectedNewMatchText) {
       setToastMessage("Highlight text to save a match")
       return
@@ -255,7 +282,6 @@ function SidePanel() {
         throw new Error(`Failed to create match (${response.status}): ${payload}`)
       }
       const createdMatch = await response.json()
-      console.log("[panel] auto match created", createdMatch)
       setToastMessage("Match saved")
       setAutoMatchResults([])
       setSelectedNewMatchText(null)
@@ -267,7 +293,6 @@ function SidePanel() {
       chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
       newMatchModeRef.current = false
     } catch (error) {
-      console.error("[panel] auto match save error", error)
       setToastMessage("Unable to save match")
     }
   }
@@ -275,6 +300,12 @@ function SidePanel() {
   useEffect(() => {
     setAutoMatchResults([])
   }, [selectedNewMatchText])
+
+  useEffect(() => {
+    if (activeSection !== "library") {
+      setLibraryDocument(null)
+    }
+  }, [activeSection])
 
   const handleManualDocumentSelect = (doc: ProviderDocument) => {
     setManualSelectedDoc(doc)
@@ -314,7 +345,6 @@ function SidePanel() {
         throw new Error(`Failed to create match (${response.status}): ${payload}`)
       }
       const createdMatch = await response.json()
-      console.log("[panel] manual match created", createdMatch)
       setToastMessage("Match saved")
       setManualStage("prompt")
       setManualSelectedDoc(null)
@@ -326,7 +356,6 @@ function SidePanel() {
       chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
       newMatchModeRef.current = false
     } catch (error) {
-      console.error("[panel] manual match error", error)
       setToastMessage("Unable to save match")
     }
   }
@@ -353,7 +382,6 @@ function SidePanel() {
   }
 
   const deleteMatch = async (matchRowId: number) => {
-    console.log("[panel] deleteMatch triggered", { matchRowId })
     try {
       const response = await fetch(
         `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${matchRowId}`,
@@ -361,19 +389,15 @@ function SidePanel() {
           method: "DELETE",
         }
       )
-      console.log("[panel] delete-page-match response status", response.status)
       if (!response.ok) {
         const payload = await response.text()
-        console.log("[panel] delete-page-match body", payload)
         throw new Error(`Failed to delete match (${response.status}): ${payload}`)
       }
-      console.log("[panel] match deleted", matchRowId)
       chrome.runtime.sendMessage({ action: "removeMatchHighlight", page_match_id: matchRowId })
       setDecisionCardVisible(false)
       setMatch(null)
       return true
     } catch (error) {
-      console.error("[panel] delete match error", error)
       setToastMessage("Unable to delete match")
       return false
     }
@@ -384,11 +408,26 @@ function SidePanel() {
     setView("timestamp")
   }
 
+  const handleLibraryDocumentSelect = (doc: LibraryDocument) => {
+    setLibraryDocument(doc)
+  }
+
+  const thresholdLabelMap: Record<"high" | "medium" | "low", string> = {
+    high: "strict",
+    medium: "balanced",
+    low: "relaxed",
+  }
+
   const handleThresholdChange = (value: "high" | "medium" | "low") => {
     setThreshold(value)
     chrome.storage?.local?.set?.({ threshold: value })
     chrome.runtime.sendMessage({ action: "setThreshold", threshold: value })
-    setToastMessage(`Threshold set to ${value.charAt(0).toUpperCase() + value.slice(1)}`)
+    setToastMessage(
+      `Previewing ${thresholdLabelMap[value].charAt(0).toUpperCase() + thresholdLabelMap[value].slice(1)}`
+    )
+    const dirty = value !== savedThreshold
+    setThresholdDirty(dirty)
+    thresholdDirtyRef.current = dirty
   }
 
   const handleFeedToggle = async (feedId: number, tracked: boolean) => {
@@ -399,23 +438,58 @@ function SidePanel() {
         body: JSON.stringify({ feed_id: feedId, tracked }),
       })
     } catch (error) {
-      console.error("[panel] sitemap feed toggle error", error)
     }
   }
 
   const handlePageToggle = async (pageId: number, tracked: boolean) => {
     try {
-      console.log("[panel] toggling page status", { page_id: pageId, tracked })
       const response = await fetch(`${backendBase.replace(/\/+$/, "")}/api/sitemap-page-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ page_id: pageId, tracked }),
       })
       const data = await response.json().catch(() => null)
-      console.log("[panel] page toggle response", response.status, data)
     } catch (error) {
-      console.error("[panel] sitemap page toggle error", error)
     }
+  }
+
+  const [lastViewedFeed, setLastViewedFeed] = useState<SitemapFeed | null>(null)
+
+  const triggerPageSummarySlide = (pageUrl: string, feed: SitemapFeed) => {
+    setActiveSection("page")
+    setDecisionCardVisible(false)
+    setView(null)
+    setPageSummaryUrl(pageUrl)
+    const scheduleAnimation = () => {
+      if (pageSummarySlideTimerRef.current) {
+        window.clearTimeout(pageSummarySlideTimerRef.current)
+        pageSummarySlideTimerRef.current = null
+      }
+      setPageSummarySlideActive(false)
+      const start = () => {
+        setPageSummarySlideActive(true)
+        pageSummarySlideTimerRef.current = window.setTimeout(() => {
+          setPageSummarySlideActive(false)
+          pageSummarySlideTimerRef.current = null
+        }, 600)
+      }
+      setSitemapBreadcrumbVisible(true)
+      if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(start)
+      } else {
+        start()
+      }
+    }
+    setLastViewedFeed(feed)
+    scheduleAnimation()
+  }
+
+  const handleReturnToSitemap = () => {
+    setActiveSection("sitemap")
+    setDecisionCardVisible(false)
+    setView(null)
+    setSitemapBreadcrumbVisible(false)
+    setPageSummaryUrl(null)
   }
 
   useEffect(() => {
@@ -443,36 +517,33 @@ function SidePanel() {
     setAutoMatchResults([])
     setAutoMatchLoading(false)
     setToastMessage("New match mode reset")
-    console.log("[panel] start over clicked, cleared matches")
     setSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
   }
 
-  const handleMatchSelect = async (pageMatchId: number) => {
+  const handleMatchSelect = async (pageMatchId: number, context: DecisionContext = "page") => {
     if (!pageMatchId) return
+    const backLabel = context === "video" ? "Back to video" : "Back"
+    const backAriaLabel = context === "video" ? "Back to video" : "Back to page summary"
+    setDecisionCardBackLabel(backLabel)
+    setDecisionCardBackAriaLabel(backAriaLabel)
     try {
-      console.log("[panel] handleMatchSelect start", { pageMatchId })
       const matchEndpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match?page_match_id=${pageMatchId}`
-      console.log("[panel] fetching page match", matchEndpoint)
       const pageMatchResponse = await fetch(matchEndpoint)
       if (!pageMatchResponse.ok) {
         const text = await pageMatchResponse.text()
         throw new Error(`Failed to load match (${pageMatchResponse.status}): ${text}`)
       }
       const pageMatch = await pageMatchResponse.json()
-      console.log("[panel] page match response", pageMatch)
 
       const knowledgeId = pageMatch?.knowledge_id ?? ""
       const documentId = pageMatch?.document_id ?? ""
       const decisionEndpoint = `${backendBase.replace(/\/+$/, "")}/api/decision-data?provider_id=${resolveProviderId()}&page_match_id=${pageMatchId}${
         documentId ? `&document_id=${documentId}` : ""
       }${knowledgeId ? `&knowledge_id=${knowledgeId}` : ""}`
-      console.log("[panel] fetching decision data", decisionEndpoint)
       const decisionResponse = await fetch(decisionEndpoint)
-      console.log("[panel] decision response status", decisionResponse.status)
       const decisionData = decisionResponse.ok ? await decisionResponse.json() : {}
-      console.log("[panel] decision data body", decisionData)
 
       const merged = {
         ...decisionData,
@@ -488,14 +559,19 @@ function SidePanel() {
         merged.content = decisionData.content
       }
 
-      console.debug("[panel] decision payload", merged)
       setMatch(merged)
       setDecisionCardVisible(true)
       setView(null)
     } catch (error) {
-      console.error("[panel] fetch match error", error)
     }
   }
+
+  useEffect(() => {
+    if (activeSection !== "page") {
+      setPageSummarySlideActive(false)
+      setSitemapBreadcrumbVisible(false)
+    }
+  }, [activeSection])
 
   useEffect(() => {
     return () => {
@@ -545,9 +621,11 @@ function SidePanel() {
         )
       )
       setToastMessage(`Saved threshold: ${toUpdate.length} match${toUpdate.length !== 1 ? "es" : ""} hidden`)
+      setSavedThreshold(threshold)
+      setThresholdDirty(false)
+      thresholdDirtyRef.current = false
       chrome.runtime.sendMessage({ action: "thresholdData", threshold })
     } catch (error) {
-      console.error("[panel] threshold save error", error)
       setToastMessage("Failed to persist threshold changes")
     } finally {
       setThresholdSaving(false)
@@ -578,14 +656,11 @@ function SidePanel() {
   }
 
   const handleTimestampConfirm = async (seconds: number) => {
-    console.log("[panel] timestamp confirmed", seconds, selectedDoc)
     if (!selectedDoc) {
-      console.warn("[panel] no document selected")
       setView(null)
       return
     }
     if (!match?.page_match_id) {
-      console.warn("[panel] missing page_match_id")
       setView(null)
       return
     }
@@ -619,13 +694,13 @@ function SidePanel() {
 
       chrome.runtime.sendMessage({ action: "refreshMatch", match: refreshedMatch })
     } catch (error) {
-      console.error("[panel] timestamp update error", error)
     } finally {
       setView(null)
     }
   }
 
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null)
+  const [pageSummaryUrl, setPageSummaryUrl] = useState<string | null>(null)
 
   useEffect(() => {
     let canceled = false
@@ -641,12 +716,18 @@ function SidePanel() {
 
     const handleTabActivated = () => {
       resolveActiveTabUrl()
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[panel] tab activated")
+      }
     }
 
     const handleTabUpdated = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
       if (!tab || !tab.active) return
       const maybeUrl = changeInfo.url || tab.url
       if (maybeUrl) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[panel] tab updated", { tabId: _tabId, url: maybeUrl })
+        }
         setCurrentTabUrl(maybeUrl)
       }
     }
@@ -662,6 +743,24 @@ function SidePanel() {
     }
   }, [])
 
+  useEffect(() => {
+    if (currentTabUrl && pageSummaryUrl && currentTabUrl !== pageSummaryUrl) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[panel] tab URL changed, clearing page summary override", {
+          currentTabUrl,
+          pageSummaryUrl,
+        })
+      }
+      setPageSummaryUrl(null)
+    }
+  }, [currentTabUrl, pageSummaryUrl])
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[panel] resolved pageSummaryUrl", pageSummaryUrl, "currentTabUrl", currentTabUrl)
+    }
+  }, [currentTabUrl, pageSummaryUrl])
+
   const pageUrl =
     (match?.url ||
       match?.source_url ||
@@ -669,10 +768,10 @@ function SidePanel() {
       currentTabUrl ||
       "Current page") as string
 
+  const resolvedPageUrl = pageSummaryUrl ?? pageUrl
+
   useEffect(() => {
-    console.log("[panel] resolved pageUrl", pageUrl)
     if (match) {
-      console.log("[panel] match status", match.status, "confidence", match.confidence)
     }
   }, [match, pageUrl])
 
@@ -766,16 +865,22 @@ function SidePanel() {
           <div className="decision-card-shell">
             <DecisionCard
               {...cardProps}
+              backLabel={decisionCardBackLabel}
+              backAriaLabel={decisionCardBackAriaLabel}
               onDecisionSelect={handleDecisionSelect}
               onBack={handleDecisionBack}
             />
           </div>
         ) : (
-          <PageSummary
-            pageUrl={pageUrl}
-            providerId={resolveProviderId()}
-            onMatchSelect={handleMatchSelect}
-          />
+          <div className={`page-summary-panel${pageSummarySlideActive ? " page-summary-panel--animate" : ""}`}>
+            <PageSummary
+              pageUrl={resolvedPageUrl}
+              providerId={resolveProviderId()}
+              onMatchSelect={handleMatchSelect}
+              showBackToList={sitemapBreadcrumbVisible}
+              onReturnToSitemap={handleReturnToSitemap}
+            />
+          </div>
         )
       }
       case "sitemap": {
@@ -784,20 +889,47 @@ function SidePanel() {
             providerId={resolveProviderId()}
             onFeedToggle={handleFeedToggle}
             onPageToggle={handlePageToggle}
+            onViewPage={triggerPageSummarySlide}
+            initialSelectedFeed={lastViewedFeed}
             threshold={threshold}
             onThresholdChange={handleThresholdChange}
             onThresholdSave={saveThresholdMatches}
             thresholdSaving={thresholdSaving}
+            hasPendingThresholdChanges={thresholdDirty}
           />
         )
       }
       case "library": {
-        return (
-          <div className="library-view">
-            <div className="library-view__title">Library</div>
-            <p className="library-view__message">
-              Library content is coming soon. Check back later for templates and reference materials.
-            </p>
+        if (decisionCardVisible && match) {
+          return (
+            <div className="decision-card-shell">
+              <DecisionCard
+                {...cardProps}
+                backLabel={decisionCardBackLabel}
+                backAriaLabel={decisionCardBackAriaLabel}
+                onDecisionSelect={handleDecisionSelect}
+                onBack={handleDecisionBack}
+              />
+            </div>
+          )
+        }
+        return providerId ? (
+          libraryDocument ? (
+            <SingleViewVideo
+              document={libraryDocument}
+              videoUrl={libraryDocument.source_url}
+              providerId={providerId}
+              pageUrl={resolvedPageUrl}
+              onBack={() => setLibraryDocument(null)}
+              onConfirm={() => setLibraryDocument(null)}
+              onMatchSelect={(matchId) => handleMatchSelect(matchId, "video")}
+            />
+          ) : (
+            <LibraryDocumentsGrid providerId={providerId} onDocumentSelect={handleLibraryDocumentSelect} />
+          )
+        ) : (
+          <div className="panel__loading">
+            <span>Loading provider data…</span>
           </div>
         )
       }
@@ -812,12 +944,10 @@ function SidePanel() {
 
   useEffect(() => {
     chrome.storage?.local?.get?.({ authToken: null, authEmail: null, providerId: null }, (result) => {
-      console.log("[panel] stored auth token", result?.authToken)
       setAuthToken(result.authToken || null)
       setAuthEmail(result.authEmail || null)
       if (result?.providerId) {
         const num = toNumber(result.providerId)
-        console.log("[panel] stored providerId", num)
         setProviderId(num ?? null)
       }
     })
@@ -827,7 +957,6 @@ function SidePanel() {
     setAuthToken(token)
     setAuthEmail(email)
     if (process.env.NODE_ENV !== "production") {
-      console.log("[panel] saving auth", { email, providerId })
     }
     chrome.storage?.local?.set?.({ authToken: token, authEmail: email, providerId }, () => {
       setProviderId(providerId)
@@ -836,7 +965,6 @@ function SidePanel() {
 
   const renderContent = () => {
     if (!authToken) {
-      console.log("[panel] rendering login form")
       return (
         <div className="login-panel">
           <LoginForm
@@ -863,7 +991,6 @@ function SidePanel() {
               if (!response.ok) throw new Error("Invalid OTP")
               const data = await response.json()
               if (process.env.NODE_ENV !== "production") {
-                console.log("[panel] verify-otp response", data)
               }
               saveAuth(data.token, data.email, toNumber(data.provider_id))
             } finally {
@@ -875,7 +1002,6 @@ function SidePanel() {
       )
     }
 
-    console.log("[panel] authenticated, rendering main content")
     if (!providerId) {
       return (
         <div className="panel__loading">

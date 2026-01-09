@@ -13,6 +13,16 @@ export interface SitemapFeed {
   all_page_count?: number
 }
 
+const cleanFeedUrl = (url: string) => {
+  try {
+    const parsed = new URL(url)
+    const suffix = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`
+    return suffix.replace(/^\/+/, "") || "/"
+  } catch {
+    return url
+  }
+}
+
 export interface SitemapFeedsTableProps {
   providerId: number
   onFeedSelect?: (feed: SitemapFeed) => void
@@ -46,6 +56,7 @@ export function SitemapFeedsTable({
   const [pendingFeedToggle, setPendingFeedToggle] = useState<{
     feed: SitemapFeed
     tracked: boolean
+    previousTracked: boolean | null
   } | null>(null)
 
   useEffect(() => {
@@ -126,7 +137,13 @@ export function SitemapFeedsTable({
 
   const handleToggle = (event: React.MouseEvent, feed: SitemapFeed) => {
     event.stopPropagation()
-    setPendingFeedToggle({ feed, tracked: !feed.tracked })
+    const newTracked = !feed.tracked
+    setPendingFeedToggle({ feed, tracked: newTracked, previousTracked: feed.tracked })
+    setFeeds((prev) =>
+      prev.map((item) =>
+        item.id === feed.id ? { ...item, tracked: newTracked } : item
+      )
+    )
   }
 
   const handleConfirmToggle = () => {
@@ -147,7 +164,14 @@ export function SitemapFeedsTable({
   }
 
   const handleCancelToggle = () => {
+    if (!pendingFeedToggle) return
+    const { feed, previousTracked } = pendingFeedToggle
     setPendingFeedToggle(null)
+    setFeeds((prev) =>
+      prev.map((item) =>
+        item.id === feed.id ? { ...item, tracked: previousTracked } : item
+      )
+    )
   }
 
   return (
@@ -169,51 +193,28 @@ export function SitemapFeedsTable({
                     className="sitemap-feed-card"
                     onClick={() => handleSelect(feed)}
                   >
-                    <div className="sitemap-feed-card__url">
-                      {(() => {
-                        try {
-                          const parsed = new URL(feed.feed_url)
-                          const prefixString = `${parsed.origin}/`
-                          const suffix = parsed.pathname.replace(/^\/+/, "") || "/"
-                          return (
-                            <>
-                              <span className="sitemap-feed-card__url-prefix">{prefixString}</span>
-                              <span className="sitemap-feed-card__url-suffix">{suffix}</span>
-                            </>
-                          )
-                        } catch {
-                          return (
-                            <>
-                              <span className="sitemap-feed-card__url-prefix">{feed.feed_url}</span>
-                            </>
-                          )
-                        }
-                      })()}
-                    </div>
-                    <div className="sitemap-feed-card__summary">
-                      {formattedLastModified && <span>Last updated {formattedLastModified}</span>}
+                    <div className="sitemap-feed-card__header">
+                      <div className="sitemap-feed-card__url">
+                        <span className="sitemap-feed-card__url-unique">
+                          {(() => {
+                            try {
+                              const parsed = new URL(feed.feed_url)
+                              const suffix = `${parsed.pathname}${parsed.search || ""}${parsed.hash || ""}`
+                              return suffix.replace(/^\/+/, "") || "/"
+                            } catch {
+                              return feed.feed_url
+                            }
+                          })()}
+                        </span>
+                      </div>
+                      {formattedLastModified && (
+                        <span className="sitemap-feed-card__updated">Updated {formattedLastModified}</span>
+                      )}
                     </div>
                     <div className="sitemap-feed-card__meta">
-                      <span className="sitemap-feed-card__tracking-label">
-                        {(() => {
-                          const tracked = feed.tracked_page_count ?? 0
-                          const total = feed.all_page_count ?? tracked
-                          if (total && tracked === total) {
-                            return `Tracking all ${total} pages`
-                          }
-                          return `Tracking ${tracked} / ${total} pages`
-                        })()}
-                      </span>
                       <div className="sitemap-feed-card__status-group">
-                        {process.env.NODE_ENV !== "production" &&
-                          feed.tracked === null &&
-                          (console.log(
-                            `[sitemap-feed-card] feed ${feed.id} rendered in mixed state`,
-                            feed
-                          ),
-                          null)}
                         <span
-                          className={`status-chip ${
+                          className={`sitemap-feed-card__tracking-label ${
                             feed.tracked === null
                               ? "status-chip--partial"
                               : feed.tracked
@@ -221,7 +222,17 @@ export function SitemapFeedsTable({
                               : "status-chip--inactive"
                           }`}
                         >
-                          {feed.tracked === null ? "Partial" : feed.tracked ? "Tracked" : "Hidden"}
+                          {(() => {
+                            const tracked = feed.tracked_page_count ?? 0
+                            const total = feed.all_page_count ?? tracked
+                            if (tracked === 0) {
+                              return "Inactive on all pages"
+                            }
+                            if (total && tracked === total) {
+                              return `Live on all ${total} pages`
+                            }
+                            return `Live on ${tracked} / ${total} pages`
+                          })()}
                         </span>
                         <button
                           type="button"
@@ -261,9 +272,9 @@ export function SitemapFeedsTable({
         title="Toggle entire feed?"
         message={
           pendingFeedToggle
-            ? `This will ${pendingFeedToggle.tracked ? "track" : "hide"} every page from ${
+            ? `This will ${pendingFeedToggle.tracked ? "show matches" : "hide matches"} across all pages in ${cleanFeedUrl(
                 pendingFeedToggle.feed.feed_url
-              }.`
+              )}.`
             : ""
         }
         confirmLabel="Apply"
@@ -272,6 +283,12 @@ export function SitemapFeedsTable({
         onCancel={handleCancelToggle}
       />
       <style>{`
+        .sitemap-feeds-table {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
         .sitemap-feeds-table__shell {
           border-radius: 16px;
           width: 100%;
@@ -303,6 +320,110 @@ export function SitemapFeedsTable({
           display: flex;
           flex-direction: column;
           gap: 12px;
+        }
+
+        .sitemap-feed-card {
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          padding: 12px;
+          background: #fff;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sitemap-feed-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        }
+
+        .sitemap-feed-card__url {
+          font-size: 13px;
+          color: #0f172a;
+          font-weight: 600;
+          margin-bottom: none;
+        }
+
+        .sitemap-feed-card__url-unique {
+          font-size: 14px;
+          color: #0f172a;
+          word-break: break-word;
+          margin-bottom: none;
+        }
+
+        .sitemap-feed-card__header {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .sitemap-feed-card__updated {
+          font-size: 12px;
+          color: #475467;
+        }
+
+        .sitemap-feed-card__meta {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .sitemap-feed-card__tracking-label {
+          font-size: 12px;
+          color: #475467;
+          font-weight: 600;
+          text-transform: none;
+        }
+        .sitemap-feed-card__tracking-label.status-chip--active {
+          color: #15803d;
+        }
+        .sitemap-feed-card__tracking-label.status-chip--inactive {
+          color: #dc2626;
+        }
+        .sitemap-feed-card__tracking-label.status-chip--partial {
+          color: #ca8a04;
+        }
+
+        .sitemap-feed-card__status-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .status-chip {
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .status-chip--active {
+          color: #15803d;
+        }
+
+        .status-chip--partial {
+          color: #ca8a04;
+        }
+
+        .sitemap-feed-card__track-toggle {
+          width: 36px;
+          height: 24px;
+          border-radius: 999px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          cursor: pointer;
+        }
+        .sitemap-feed-card__track-toggle:not(.is-tracked):not(.is-indeterminate) {
+          background: #e2e8f0;
+        }
+
+        .sitemap-feed-card__track-toggle.is-indeterminate {
+          background: #f59e0b;
+          border-color: transparent;
         }
 
         .sitemap-feeds-table__empty {

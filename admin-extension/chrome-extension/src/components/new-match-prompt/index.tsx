@@ -37,7 +37,7 @@ export function NewMatchPrompt({
         {!selectedText && (
           <>
             <div className="new-match-prompt__icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#047857" viewBox="0 0 16 16">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#fff" viewBox="0 0 16 16">
                 <path fillRule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
               </svg>
             </div>
@@ -190,9 +190,10 @@ export function NewMatchPrompt({
           align-items: stretch;
           height: 100%;
           overflow: auto;
+          background: #f6f7fb;
         }
         .new-match-prompt__card {
-          background: #ffffff;
+          background: #f6f7fb;
           border-radius: 16px;
           padding: 0px 0;
           max-width: 640px;
@@ -212,7 +213,7 @@ export function NewMatchPrompt({
           height: 48px;
           margin: 0 auto;
           border-radius: 50%;
-          background: rgba(4, 120, 87, 0.12);
+          background: #1f2937;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -220,7 +221,7 @@ export function NewMatchPrompt({
         .new-match-prompt__card h2 {
           margin: 0;
           font-size: 18px;
-          color: #0f172a;
+          color: #1f2937;
         }
         .new-match-prompt__card p {
           margin: 0;
@@ -238,7 +239,7 @@ export function NewMatchPrompt({
           width: 100%;
           position: sticky;
           top: 0;
-          background: #ffffff;
+          background: #f6f7fb;
           padding: 0 0px 12px;
           z-index: 2;
           display: flex;
@@ -315,7 +316,7 @@ export function NewMatchPrompt({
           position: absolute;
           top: 10px;
           right: 10px;
-          background: #047857;
+          background: #1f2937;
           color: #fff;
           padding: 4px 10px;
           border-radius: 999px;
@@ -386,7 +387,7 @@ export function NewMatchPrompt({
         .new-match-prompt__selection-text {
           margin: 6px 0 0;
           padding: 12px;
-          background: #f8fafc;
+          background: white;
           border-radius: 12px;
           font-size: 11px;
           color: #0f172a;
@@ -411,14 +412,14 @@ export function NewMatchPrompt({
           gap: 6px;
         }
         .new-match-prompt__button--primary {
-          background: #047857;
+          background: #1f2937;
           color: #fff;
           border: none;
         }
         .new-match-prompt__button--secondary {
           background: #f1f5f9;
           color: #0f172a;
-          border: none;
+          border: 1px solid #1f2937;
         }
       `}</style>
     </div>

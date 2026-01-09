@@ -6,9 +6,18 @@ export interface ThresholdSelectorProps {
 }
 
 const LABELS: Record<ThresholdSelectorProps["current"], { title: string; description: string }> = {
-  high: { title: "High", description: "Only show very confident matches" },
-  medium: { title: "Medium", description: "Balance recall and precision" },
-  low: { title: "Low", description: "Surface more matches across the site" },
+high: { 
+    title: "Strict", 
+    description: "Shows high confidence matches only." 
+  },
+  medium: { 
+    title: "Balanced", 
+    description: "Balances relevance and volume of matches." 
+  },
+  low: { 
+    title: "Relaxed", 
+    description: "Shows a broader set of matches." 
+  },
 }
 
 const ORDERED_LEVELS: ThresholdSelectorProps["current"][] = ["low", "medium", "high"]
@@ -34,7 +43,7 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
   return (
     <div className="threshold-selector">
       <div className="threshold-selector__label">
-        <strong>Match threshold</strong>
+        <strong>Match sensitivity</strong>
         <p>{LABELS[current].description}</p>
       </div>
       <div className="threshold-selector__slider">
@@ -68,7 +77,7 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
         }
         .threshold-selector__label strong {
           display: block;
-          color: #0f172a;
+          color: #1f2937;
           font-size: 14px;
           text-align: left;
           font-weight: 600;
@@ -79,7 +88,7 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
           height: 4px;
           appearance: none;
           border-radius: 999px;
-          background: linear-gradient(90deg, #c4b5fd 0%, #a855f7 100%);
+          background: #172554;
           outline: none;
         }
         .threshold-selector__slider input[type="range"]::-webkit-slider-thumb {
@@ -109,9 +118,18 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
           margin-top: 6px;
         }
         .threshold-selector__levels span {
-          flex: 1;
-          text-align: center;
+          flex: 0;
           font-weight: 600;
+        }
+        .threshold-selector__levels span:first-child {
+          text-align: left;
+        }
+        .threshold-selector__levels span:nth-child(2) {
+          text-align: center;
+          flex: 1;
+        }
+        .threshold-selector__levels span:last-child {
+          text-align: right;
         }
         .threshold-selector__levels span.is-active {
           color: #5f61fb;

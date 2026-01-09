@@ -83,7 +83,6 @@ const handleNewMatchSelection = () => {
   const selection = window.getSelection()
   const text = selection?.toString().trim()
   if (!text) return
-  console.log("[content] new match text selected", text)
   chrome.runtime.sendMessage({ action: "newMatchSelection", text })
   disableNewMatchSelection()
 }
@@ -92,14 +91,12 @@ const enableNewMatchSelection = () => {
   if (newMatchSelectionActive) return
   document.addEventListener("mouseup", handleNewMatchSelection)
   newMatchSelectionActive = true
-  console.log("[content] new match mode enabled")
 }
 
 const disableNewMatchSelection = () => {
   if (!newMatchSelectionActive) return
   document.removeEventListener("mouseup", handleNewMatchSelection)
   newMatchSelectionActive = false
-  console.log("[content] new match mode disabled")
 }
 
 document.addEventListener("click", (event) => {

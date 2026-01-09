@@ -1,25 +1,26 @@
 import React, { useEffect, useState } from "react"
 
-export interface ProviderDocument {
+export interface LibraryDocument {
   id: number
   title: string
   source_url?: string
   media_type?: string
   cover_image_url?: string
   is_active?: boolean
+  provider_id?: number
 }
 
-export interface ProviderDocumentsGridProps {
+export interface LibraryDocumentsGridProps {
   providerId: number
-  onDocumentSelect?: (doc: ProviderDocument) => void
+  onDocumentSelect?: (doc: LibraryDocument) => void
 }
 
-export function ProviderDocumentsGrid({
+export function LibraryDocumentsGrid({
   providerId,
   onDocumentSelect,
-}: ProviderDocumentsGridProps) {
+}: LibraryDocumentsGridProps) {
   const resolvedProviderId = providerId
-  const [documents, setDocuments] = useState<ProviderDocument[]>([])
+  const [documents, setDocuments] = useState<LibraryDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
@@ -32,7 +33,7 @@ export function ProviderDocumentsGrid({
       (window as any).__SL_BACKEND_URL || "http://localhost:4173"
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
-      console.log("[provider-documents-grid] fetching documents from", endpoint)
+      console.log("[library-documents-grid] fetching documents from", endpoint)
     }
     fetch(endpoint)
       .then((res) => {
@@ -50,7 +51,7 @@ export function ProviderDocumentsGrid({
       })
       .catch((err) => {
         if (canceled) return
-        console.error("[provider-documents-grid] fetch error", err)
+        console.error("[library-documents-grid] fetch error", err)
         setError(err?.message ?? "Unable to load documents")
       })
       .finally(() => {
@@ -63,7 +64,7 @@ export function ProviderDocumentsGrid({
     }
   }, [providerId])
 
-  const handleSelect = (doc: ProviderDocument) => {
+  const handleSelect = (doc: LibraryDocument) => {
     if (!onDocumentSelect) return
     onDocumentSelect(doc)
   }
@@ -112,29 +113,6 @@ export function ProviderDocumentsGrid({
                   />
                   <div className="doc-content">
                     <h3 className="doc-title">{doc.title || "Untitled document"}</h3>
-                    <div className="doc-meta">
-                      <span className="doc-media-icon" aria-label="Video available">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          fill="currentColor"
-                          viewBox="0 0 16 16"
-                        >
-                          <path fillRule="evenodd" d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/>
-                        </svg>
-                      </span>
-                      <span>
-                        <a
-                          href={doc.source_url || "#"}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View
-                        </a>
-                      </span>
-                    </div>
                   </div>
                 </article>
               ))}
@@ -146,6 +124,7 @@ export function ProviderDocumentsGrid({
         .provider-documents {
           width: 100%;
           height: 100%;
+          background: #f6f7fb;
         }
 
         .provider-documents__grid-shell {
@@ -154,7 +133,7 @@ export function ProviderDocumentsGrid({
           height: 100%;
           display: flex;
           flex-direction: column;
-          padding: 0 15px;
+          padding: 0 16px;
         }
 
         .provider-documents__grid-header {
@@ -196,32 +175,25 @@ export function ProviderDocumentsGrid({
           border-radius: 12px;
           border: 1px solid #e2e8f0;
           overflow: hidden;
-          background: #f8fafc;
+          background: white;
           min-height: 150px;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
         .doc-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 16px 30px rgba(15, 23, 42, 0.15);
+          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.15);
         }
 
         .doc-cover {
-          width: 100%;
-          height: 90px;
-          background-color: #cbd5f5;
           background-size: cover;
           background-position: center;
-          flex-shrink: 0;
+          height: 100px;
         }
 
         .doc-content {
           padding: 10px 12px;
-          flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
         }
 
         .doc-title {
@@ -239,34 +211,17 @@ export function ProviderDocumentsGrid({
         }
 
         .doc-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           font-size: 12px;
           color: #475467;
-          display: flex;
-          justify-content: space-between;
-          gap: 4px;
-          align-items: center;
-        }
-
-        .doc-media-icon {
-          display: inline-flex;
-          width: 20px;
-          height: 20px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          background: rgba(15, 23, 42, 0.05);
-          color: #0f172a;
         }
 
         .doc-meta a {
-          color: #0f172a;
-          text-decoration: underline;
-        }
-
-        .provider-documents__empty {
-          padding: 24px;
-          text-align: center;
-          color: #a1a1aa;
+          color: #5f61fb;
+          font-weight: 600;
+          text-decoration: none;
         }
       `}</style>
     </div>

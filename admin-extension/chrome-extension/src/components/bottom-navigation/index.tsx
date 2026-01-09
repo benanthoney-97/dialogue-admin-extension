@@ -31,15 +31,6 @@ const NAV_ITEMS: BottomNavigationItem[] = [
     ),
   },
   {
-    id: "new-match",
-    label: "New match",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-plus-lg" viewBox="0 0 16 16">
-        <path fillRule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
-      </svg>
-    ),
-  },
-  {
     id: "library",
     label: "Library",
     icon: (
@@ -52,6 +43,15 @@ const NAV_ITEMS: BottomNavigationItem[] = [
         viewBox="0 0 16 16"
       >
         <path d="M0 12V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2m6.79-6.907A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/>
+      </svg>
+    ),
+  },
+  {
+    id: "new-match",
+    label: "New match",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-plus-lg" viewBox="0 0 16 16">
+        <path fillRule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
       </svg>
     ),
   },
@@ -76,7 +76,7 @@ export function BottomNavigation({ active, onSelect }: BottomNavigationProps) {
       <style>{`
         .sidepanel-bottom-nav {
           border-top: 1px solid #e2e8f0;
-          background: #fff;
+          background: #f6f7fb;
           padding: 8px;
         }
         .sidepanel-bottom-nav__inner {
@@ -100,8 +100,9 @@ export function BottomNavigation({ active, onSelect }: BottomNavigationProps) {
           transition: background 0.2s ease, color 0.2s ease;
         }
         .nav-item--active {
-          background: #0f172a;
+          background: #1f2937;
           color: #f8fafc;
+          border: 1px solid #ffffff;
         }
         .nav-item svg {
           width: 20px;

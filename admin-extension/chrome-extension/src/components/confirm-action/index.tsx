@@ -31,6 +31,9 @@ export function ConfirmAction({
         {title && <strong>{title}</strong>}
         <p>{message}</p>
         <div className="confirm-action__controls">
+          <button type="button" className="confirm-action__button confirm-action__button--cancel" onClick={onCancel}>
+            {cancelLabel}
+          </button>
           <button
             type="button"
             className="confirm-action__button confirm-action__button--confirm"
@@ -38,9 +41,6 @@ export function ConfirmAction({
             disabled={confirmDisabled}
           >
             {confirmDisabled ? confirmLoadingLabel ?? confirmLabel : confirmLabel}
-          </button>
-          <button type="button" className="confirm-action__button confirm-action__button--cancel" onClick={onCancel}>
-            {cancelLabel}
           </button>
         </div>
       </div>
@@ -96,14 +96,25 @@ export function ConfirmAction({
           cursor: pointer;
         }
         .confirm-action__button--confirm {
-          background: #0b7c55;
           color: #fff;
-          border-color: #0b7c55;
+          cursor: pointer;
+          white-space: nowrap;
+          background: #1f2937;
+          border: none;
+          border-radius: 8px;
+          align-items: center;
+          gap: 6px;
+          display: inline-flex;
+          padding: 8px 16px;
+          font-size: 13px;
+          transition: transform 0.2s, box-shadow 0.2s;
+          justify-content: center;
         }
         .confirm-action__button--cancel {
           background: #f8fafc;
           color: #0f172a;
           border-color: #cbd5f5;
+          border-radius: 8px;
         }
       `}</style>
     </div>

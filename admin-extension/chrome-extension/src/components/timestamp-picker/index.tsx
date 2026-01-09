@@ -5,6 +5,7 @@ export interface TimestampPickerProps {
   initialTimestamp?: number
   onTimestampChange?: (seconds: number) => void
   onConfirm?: (seconds: number) => void
+  showActions?: boolean
 }
 const toVimeoPlayerUrl = (value: string | undefined) => {
   if (!value) return ""
@@ -40,6 +41,7 @@ export function TimestampPicker({
   initialTimestamp = 0,
   onTimestampChange,
   onConfirm,
+  showActions = true,
 }: TimestampPickerProps) {
   const [currentValue, setCurrentValue] = useState(() => {
     return Math.max(0, initialTimestamp)
@@ -51,7 +53,6 @@ export function TimestampPicker({
     setCurrentValue((prev) => {
       const next = Math.max(0, initialTimestamp)
       if (next !== prev) {
-        console.log("[timestamp-picker] syncing initial timestamp", { prev, next })
         onTimestampChange?.(next)
       }
       return next
@@ -77,7 +78,6 @@ export function TimestampPicker({
             return
           }
         }
-        console.log("[timestamp-picker] message data", payload, event.origin)
         if (!payload || payload.method !== "getCurrentTime") return
         const reported =
           payload.value ??
@@ -109,12 +109,10 @@ export function TimestampPicker({
     const onLoad = () => {
       requestCurrentTime()
         .then((seconds) => {
-          console.log("[timestamp-picker] iframe loaded current time", seconds)
           setCurrentValue(seconds)
           onTimestampChange?.(seconds)
         })
         .catch((error) => {
-          console.error("[timestamp-picker] initial current time fetch failed", error)
         })
     }
     iframe.addEventListener("load", onLoad)
@@ -127,7 +125,6 @@ export function TimestampPicker({
     const intervalId = window.setInterval(() => {
       requestCurrentTime()
         .then((seconds) => {
-          console.log("[timestamp-picker] polled current time", seconds)
           setCurrentValue(seconds)
           onTimestampChange?.(seconds)
         })
@@ -139,11 +136,9 @@ export function TimestampPicker({
   const handleConfirm = async () => {
     try {
       const seconds = await requestCurrentTime()
-      console.log("[timestamp-picker] resolved time", seconds)
       setCurrentValue(seconds)
       onConfirm?.(seconds)
     } catch (error) {
-      console.error("[timestamp-picker] current time request failed", error)
       onConfirm?.(currentValue)
     }
   }
@@ -158,18 +153,20 @@ export function TimestampPicker({
           allow="autoplay; fullscreen"
         ></iframe>
       </div>
-      <div className="timestamp-picker__actions">
-        <button
-          type="button"
-          className="timestamp-picker__button"
-          onClick={handleConfirm}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
-          </svg>
-          Create match at {formatTime(currentValue)}
-        </button>
-      </div>
+      {showActions && (
+        <div className="timestamp-picker__actions">
+          <button
+            type="button"
+            className="timestamp-picker__button"
+            onClick={handleConfirm}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+            </svg>
+            Create match at {formatTime(currentValue)}
+          </button>
+        </div>
+      )}
       <style>{`
         .timestamp-picker {
           display: flex;

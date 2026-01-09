@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react"
+import { ConfidenceChip } from "../confidence-chip"
 
 export interface PageSummaryProps {
   pageUrl: string
   providerId: number
   onMatchSelect?: (matchId: number) => void
+  showBackToList?: boolean
+  onReturnToSitemap?: () => void
 }
 
 interface PageMatchSummary {
@@ -23,7 +26,9 @@ export function PageSummary({
   pageUrl,
   providerId,
   onMatchSelect,
-}: PageSummaryProps) {
+  showBackToList,
+  onReturnToSitemap,
+}: PageSummaryProps) { 
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +51,7 @@ export function PageSummary({
     const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-matches?provider_id=${providerId}&page_url=${encodeURIComponent(
       pageUrl
     )}`
+
 
     fetch(endpoint)
       .then((res) => {
@@ -72,14 +78,12 @@ export function PageSummary({
         const normalized = Array.isArray(payload.matches) ? payload.matches : []
         normalized.sort((a, b) => a.page_match_id - b.page_match_id)
         if (process.env.NODE_ENV !== "production") {
-          console.log(
-            "[page-summary] received matches ids",
-            normalized.map((match) => match.page_match_id)
-          )
+
         }
-        console.debug("[page-summary] matches detail", normalized)
         setPageSupported(Boolean(payload.page_supported))
-        setPageTracked(payload.tracked ?? null)
+        const resolvedTracked = payload.tracked ?? null
+
+        setPageTracked(resolvedTracked)
         setMatches(normalized)
       })
       .catch((err) => {
@@ -114,7 +118,6 @@ export function PageSummary({
 
   }
 
-  console.debug("[page-summary] resolved pageTracked", pageTracked)
 
   const previewPhrase = (phrase: string) => {
     const words = (phrase || "").trim().split(/\s+/)
@@ -146,6 +149,29 @@ const formatPagePath = (value: string) => {
   }
 }
 
+const formatTitleFromPath = (path: string) => {
+  const normalized = path.replace(/^\/+|\/+$/g, "")
+  if (!normalized) return "Home"
+  const segments = normalized.split("/").filter((segment) => segment.length > 0)
+  const target = segments[segments.length - 1] || ""
+  const words = target
+    .split(/[-_]+/)
+    .map((word) => word.replace(/[^a-zA-Z0-9]/g, ""))
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+  if (!words.length) {
+    return segments
+      .map((segment) =>
+        segment
+          .split(/[-_]+/)
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(" ")
+      )
+      .join(" / ")
+  }
+  return words.join(" ")
+}
+
 const parseHexColor = (value?: string) => {
   if (!value) return null
   let hex = value.trim()
@@ -167,10 +193,19 @@ const parseHexColor = (value?: string) => {
 }
 
 const tierBackgroundMap: Record<string, string> = {
-  "Perfect Match": "#D1FAE5",
-  "Good Match": "#ECFDF5",
-  "Potential Match": "#F1F5F9",
+  "Perfect Match": "#ede9fe",
+  "Good Match": "#dcfce7",
+  "Potential Match": "#f1f5f9",
 };
+
+const tierColorMap: Record<
+  string,
+  { color: string; borderColor: string }
+> = {
+  "Perfect Match": { color: "#7c3aed", borderColor: "rgba(124,58,237,0.35)" },
+  "Good Match": { color: "#166534", borderColor: "rgba(16,185,129,0.55)" },
+  "Potential Match": { color: "#334155", borderColor: "rgba(15,23,42,0.35)" },
+}
 
 const rgbaFromHex = (value?: string, alpha = 0.12) => {
   const rgb = parseHexColor(value)
@@ -188,8 +223,18 @@ const formatMatchLabel = (match: PageMatchSummary) => {
 const pillStyle = (label?: string, color?: string) => {
   const defaultText = "#047857"
   const textColor = color || defaultText
+  const normalizedLabel = label?.trim()
+
+  if (normalizedLabel && tierColorMap[normalizedLabel]) {
+    return {
+      color: tierColorMap[normalizedLabel].color,
+      background: tierBackgroundMap[normalizedLabel] || "#f0fdf4",
+      borderColor: tierColorMap[normalizedLabel].borderColor,
+    }
+  }
+
   const background =
-    (label && tierBackgroundMap[label.trim()]) ||
+    (normalizedLabel && tierBackgroundMap[normalizedLabel]) ||
     rgbaFromHex(color, 0.12) ||
     "rgba(4, 120, 87, 0.08)"
   const borderColor =
@@ -211,38 +256,65 @@ const pillStyle = (label?: string, color?: string) => {
   return (
     <div className="page-summary">
       <div className="page-summary__summary">
-        <div className="page-summary__header-row">
-        <div className="page-summary__header">
-          <strong>Page summary</strong>
-          {pageTracked !== null && (
-            <span
-              className={`page-summary__tracked-chip ${
-                pageTracked ? "page-summary__tracked-chip--active" : "page-summary__tracked-chip--inactive"
+        {showBackToList && onReturnToSitemap && (
+          <button className="page-summary__breadcrumb" onClick={onReturnToSitemap}>
+            Back to list
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="page-summary__breadcrumb-icon" viewBox="0 0 16 16">
+              <path fillRule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
+            </svg>
+          </button>
+        )}
+        {pageSupported && (
+          <div className="page-summary__header-row">
+            <div className="page-summary__header">
+              <div className="page-summary__header-title">
+                {formatTitleFromPath(formatPagePath(pageUrl))}
+              </div>
+              <div className="page-summary__header-chips">
+                {!pageSupported && (
+                  <span className="page-summary__unsupported-chip">
+                    Unsupported page
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="page-summary__full-url" title={pageUrl}>
+              {formatPagePath(pageUrl)}
+            </div>
+          </div>
+        )}
+        {pageTracked && (
+          <div className="page-summary__overview-row">
+            <div
+              className={`page-summary__overview-card page-summary__overview-card--status ${
+                pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
               }`}
             >
-              {pageTracked ? "Tracked" : "Not tracked"}
-            </span>
-          )}
-          {!pageSupported && (
-            <span className="page-summary__unsupported-chip">
-              Unsupported page
-            </span>
-          )}
-        </div>
-          <div className="page-summary__url">
-            <div title={pageUrl}>{formatPagePath(pageUrl)}</div>
+              <strong
+                className={
+                  pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
+                }
+              >
+                {pageTracked ? "Live" : "Inactive"}
+              </strong>
+              <span
+                className={`page-summary__overview-label ${
+                  pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
+                }`}
+              >
+                Status
+              </span>
+            </div>
+            <div className="page-summary__overview-card">
+              <strong>{matchesCount}</strong>
+              <span className="page-summary__overview-label">Matches</span>
+            </div>
+            <div className="page-summary__overview-card">
+              <strong>{videosCount}</strong>
+              <span className="page-summary__overview-label">Videos</span>
+            </div>
           </div>
-        </div>
-        <div className="page-summary__overview-row">
-          <div className="page-summary__overview-card">
-            <strong>{matchesCount}</strong>
-            <span>Matches</span>
-          </div>
-          <div className="page-summary__overview-card">
-            <strong>{videosCount}</strong>
-            <span>Videos</span>
-          </div>
-        </div>
+        )}
         <div className="page-summary__matches-header">
           <div>Matches</div>
           {error && <span className="page-summary__matches-error">{error}</span>}
@@ -294,12 +366,12 @@ const pillStyle = (label?: string, color?: string) => {
                   <div className="page-summary__match-arrow" aria-hidden="true">
                     <span>▼</span>
                   </div>
-                  <span
-                    className="page-summary__match-pill"
-                    style={pillStyle(match.confidence_label, match.confidence_color)}
-                  >
-                    {formatMatchLabel(match)}
-                  </span>
+                <ConfidenceChip
+                  className="page-summary__match-pill"
+                  label={match.confidence_label}
+                  color={match.confidence_color}
+                  text={formatMatchLabel(match)}
+                />
                 </div>
               <div className="page-summary__match-video">
                 <div className="page-summary__match-video-thumb">
@@ -323,11 +395,17 @@ const pillStyle = (label?: string, color?: string) => {
           padding: 14px 16px;
           border-radius: 14px;
           margin-bottom: 12px;
+          background: #f6f7fb;
+          color: #0f172a;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
         }
         .page-summary__summary {
           position: sticky;
           top: 0;
-          background: #ffffff;
+          background: #f6f7fb;
           z-index: 2;
           padding-top: 0;
           padding-bottom: 0px;
@@ -335,36 +413,46 @@ const pillStyle = (label?: string, color?: string) => {
           flex-direction: column;
           gap: 12px;
         }
+        .page-summary__breadcrumb {
+          align-self: flex-end;
+          border: none;
+          background: transparent;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .page-summary__breadcrumb-icon {
+          width: 16px;
+          height: 16px;
+        }
         .page-summary__header-row {
           display: flex;
           flex-direction: column;
           gap: 2px;
         }
         .page-summary__header {
-          font-size: 12px;
-          letter-spacing: 0.1em;
-          color: #6b7280;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .page-summary__header-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #0f172a;
+          text-transform: none;
+          letter-spacing: normal;
+        }
+        .page-summary__header-chips {
           display: flex;
           align-items: center;
           gap: 6px;
-        }
-        .page-summary__tracked-chip {
-          margin-left: 12px;
-          padding: 2px 8px;
-          border-radius: 12px;
-          font-size: 10px;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-        .page-summary__tracked-chip--active {
-          background: rgba(34, 197, 94, 0.16);
-          color: #15803d;
-          border: 1px solid rgba(34, 197, 94, 0.4);
-        }
-        .page-summary__tracked-chip--inactive {
-          background: rgba(248, 113, 113, 0.16);
-          color: #b91c1c;
-          border: 1px solid rgba(248, 113, 113, 0.35);
         }
         .page-summary__unsupported-chip {
           background: rgba(148, 163, 184, 0.16);
@@ -377,20 +465,19 @@ const pillStyle = (label?: string, color?: string) => {
           font-weight: 600;
           text-transform: uppercase;
         }
-        .page-summary__url {
-          font-size: 12px;
+        .page-summary__full-url {
+          font-size: 10px;
           color: #475467;
-          margin-bottom: 14px;
-        }
-        .page-summary__url div {
-          font-size: 12px;
-          color: #0f172a;
+          word-break: keep-all;
+          white-space: normal;
+          width: 100%;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          word-break: break-word;
-          white-space: normal;
+          text-overflow: ellipsis;
+          hyphens: none;
+          overflow-wrap: normal;
         }
         .page-summary__matches {
           padding-top: 0;
@@ -399,10 +486,12 @@ const pillStyle = (label?: string, color?: string) => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-size: 12px;
-          color: #475467;
+          font-size: 14px;
+          color: #0f172a;
           margin-bottom: 6px;
           font-weight: 600;
+          letter-spacing: normal;
+          text-transform: none;
         }
         .page-summary__matches-error {
           color: #e11d48;
@@ -439,6 +528,10 @@ const pillStyle = (label?: string, color?: string) => {
           display: flex;
           flex-direction: column;
           gap: 8px;
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 4px;
+          min-height: 0;
         }
         .page-summary__overview-row {
           display: flex;
@@ -450,27 +543,57 @@ const pillStyle = (label?: string, color?: string) => {
           border-radius: 12px;
           border: 1px solid #e2e8f0;
           background: #ffffff;
-          padding: 12px 0;
+          padding: 8px 0;
           text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
+          gap: 6px;
+          min-height: 72px;
           justify-content: center;
-          gap: 4px;
+        }
+        .page-summary__overview-card--status {
+          justify-content: center;
+          position: relative;
         }
         .page-summary__overview-card strong {
-          font-size: 22px;
+          font-size: 18px;
           color: #0f172a;
         }
-        .page-summary__overview-card span {
+        .page-summary__overview-card--status strong.page-summary__status-showing {
+          color: #15803d;
+        }
+        .page-summary__overview-card--status strong.page-summary__status-hidden {
+          color: #dc2626;
+        }
+        .page-summary__overview-label {
           font-size: 11px;
           color: #475467;
           letter-spacing: 0.08em;
+          text-transform: none;
+          margin-top: 0;
+        }
+        .page-summary__status-showing {
+          color: #15803d;
+        }
+        .page-summary__status-hidden {
+          color: #dc2626;
+        }
+        .page-summary__overview-card--status.page-summary__status-showing {
+          background: #ecfdf5;
+          border-color: rgba(34, 197, 94, 0.4);
+        }
+        .page-summary__overview-card--status.page-summary__status-hidden {
+          background: #fef2f2;
+          border-color: rgba(220, 38, 38, 0.35);
+        }
+        .page-summary__overview-card--status strong {
+          font-size: 14px;
         }
         .page-summary__match-card {
           padding: 16px;
           border-radius: 16px;
-          background: #ffffff;
+          background: rgba(255, 255, 255, 0.95);
           border: 1px solid #e2e8f0;
           transition: border-color 0.2s ease;
           cursor: pointer;
@@ -563,6 +686,25 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 12px;
           font-weight: 600;
           color: #0f172a;
+        }
+        .page-summary-panel {
+          overflow: hidden;
+        }
+        .page-summary-panel .page-summary {
+          transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+        .page-summary-panel--animate .page-summary {
+          animation: page-summary-slide-up 0.35s ease forwards;
+        }
+        @keyframes page-summary-slide-up {
+          from {
+            transform: translateY(24px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
         }
       `}</style>
     </div>

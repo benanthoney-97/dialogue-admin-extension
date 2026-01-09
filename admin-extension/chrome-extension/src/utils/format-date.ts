@@ -19,7 +19,7 @@ export function formatHumanReadableDate(value?: string) {
   if (Number.isNaN(date.getTime())) return null
   const day = date.getDate()
   const suffix = getOrdinalSuffix(day)
-  const month = date.toLocaleString("en-US", { month: "long" })
+  const month = date.toLocaleString("en-US", { month: "short" })
   const year = date.getFullYear()
   return `${day}${suffix} ${month} ${year}`
 }

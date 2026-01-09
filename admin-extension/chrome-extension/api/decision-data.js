@@ -1,5 +1,5 @@
 const supabase = require('./supabase-client');
-const { getProviderDocument } = require('./provider-documents');
+const { getProviderDocument } = require('./provider-documents-web-embed');
 
 const parseMetadata = (metadata) => {
   if (!metadata) return {};

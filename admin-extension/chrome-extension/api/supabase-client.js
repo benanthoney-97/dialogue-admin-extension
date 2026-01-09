@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
 
 dotenv.config({
-  path: path.resolve(__dirname, '..', '..', '.env')
+  path: path.resolve(__dirname, '..', '.env')
 });
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.PLASMO_PUBLIC_SUPABASE_URL;
