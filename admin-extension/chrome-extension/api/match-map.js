@@ -95,7 +95,27 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
 };
 
 async function handler(req, res) {
+  // --- FIX START: Standardize CORS headers ---
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // --- FIX START: Handle Preflight OPTIONS check ---
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+  // --- FIX END ---
+
   try {
+    // Basic Method Check
+    if (req.method !== 'GET') {
+      res.writeHead(405, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+
     const forwardedProto = req.headers['x-forwarded-proto'] || 'https';
     const hostname = req.headers.host || 'localhost:4173';
     const requestUrl = new URL(req.url, `${forwardedProto}://${hostname}`);
@@ -103,16 +123,18 @@ async function handler(req, res) {
     const requestedUrl = requestUrl.searchParams.get('url') || '';
     const limitParam = Number(requestUrl.searchParams.get('limit') || '');
     const limit = limitParam > 0 ? limitParam : undefined;
+
     if (!providerId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Missing provider_id' }));
     }
 
-    console.log("[match-map] requested url", requestedUrl);
     const matches = await fetchMatches(providerId, limit, requestedUrl);
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Headers are already set at the top, just send the response
+    res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(matches));
+
   } catch (err) {
     console.error('[match-map] handler error', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });

@@ -87,6 +87,7 @@
   padding: 10px 16px;
   border-radius: 999px;
   font-size: 12px;
+  text-align: center;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
   z-index: 1000;
   animation: dropToast 0.4s ease forwards;
@@ -223,7 +224,7 @@
   margin-bottom: 16px;
   position: sticky;
   bottom: 0px;
-  background: #fff;
+  background: #f6f7fb;
   padding-top: 12px;
   padding-bottom: 8px
 }

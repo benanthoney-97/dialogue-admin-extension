@@ -1,6 +1,18 @@
 const supabase = require("./supabase-client")
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL requests ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    return res.end()
+  }
+  // --- FIX END ---
+
   try {
     if (req.method !== "POST") {
       res.writeHead(405, { "Content-Type": "application/json" })
@@ -78,8 +90,8 @@ async function handler(req, res) {
 
     if (feedError) throw feedError
 
-    res.setHeader("Content-Type", "application/json")
-    res.setHeader("Access-Control-Allow-Origin", "*")
+    // Headers are already set at the top, just send the 200 OK
+    res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ success: true, updated: updatedCount }))
   } catch (error) {
     console.error("[sitemap-page-status] error", error)

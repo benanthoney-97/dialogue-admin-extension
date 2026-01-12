@@ -1,11 +1,11 @@
 const tierBackgroundMap = {
-  "Perfect Match": "#ede9fe",
+  "Great Match": "#ede9fe",
   "Good Match": "#dcfce7",
   "Potential Match": "#F1F5F9",
 };
 
 const tierColorMap = {
-  "Perfect Match": { color: "#7c3aed", borderColor: "rgba(124, 58, 237, 0.35)" },
+  "Great Match": { color: "#7c3aed", borderColor: "rgba(124, 58, 237, 0.35)" },
   "Good Match": { color: "#166534", borderColor: "rgba(16, 185, 129, 0.55)" },
   "Potential Match": { color: "#334155", borderColor: "rgba(15, 23, 42, 0.35)" },
 };

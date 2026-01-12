@@ -16,6 +16,19 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL requests ---
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
+  // If the browser asks "Can I send a POST?", we say "Yes" (200 OK)
+  if (req.method === "OPTIONS") {
+    res.writeHead(200);
+    return res.end();
+  }
+  // --- FIX END ---
+
   try {
     if (req.method !== "POST") {
       res.writeHead(405, { "Content-Type": "application/json" });
@@ -43,11 +56,14 @@ async function handler(req, res) {
     if (error) throw error;
 
     const updatedCount = Array.isArray(data) ? data.length : 0;
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    
+    // Headers are already set at the top, so we just send the JSON
+    res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ success: true, updated: updatedCount }));
+
   } catch (err) {
     console.error("[page-match-status] error", err);
+    // Even if it crashes, the CORS headers set at the top ensure the frontend can read the error
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: err.message }));
   }

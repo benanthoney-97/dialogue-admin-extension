@@ -43,14 +43,12 @@ export function SitemapFeedsTable({
 
   const normalizedFilter = filter.trim().toLowerCase()
   if (process.env.NODE_ENV !== "production") {
-    console.log("[sitemap-feeds-table] filter values", { filter, normalizedFilter, feedCount: feeds.length })
   }
   const filteredFeeds = feeds.filter((feed) => {
     if (!normalizedFilter) return true
     return feed.feed_url.toLowerCase().includes(normalizedFilter)
   })
   if (process.env.NODE_ENV !== "production") {
-    console.log("[sitemap-feeds-table] filtered count", filteredFeeds.length)
   }
 
   const [pendingFeedToggle, setPendingFeedToggle] = useState<{
@@ -66,7 +64,6 @@ export function SitemapFeedsTable({
     const API_BASE = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-feeds?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feeds-table] fetching feeds from", endpoint, { providerId: resolvedProviderId })
     }
     fetch(endpoint)
       .then((res) => {
@@ -81,22 +78,12 @@ export function SitemapFeedsTable({
           throw new Error("Unexpected sitemap feed payload")
         }
         if (process.env.NODE_ENV !== "production") {
-          console.log(
-            "[sitemap-feeds-table] fetched normalized feeds",
-            data.map((item) => ({
-              feed_id: item.id,
-              tracked: item.tracked,
-              all_page_count: item.all_page_count,
-              tracked_page_count: item.tracked_page_count,
-              pages_with_matches: item.pages_with_matches,
-            }))
-          )
+
         }
         setFeeds(data)
         })
       .catch((err) => {
         if (canceled) return
-        console.error("[sitemap-feeds-table] fetch error", err)
         setError(err?.message ?? "Unable to load sitemap feeds")
       })
       .finally(() => {
@@ -111,16 +98,6 @@ export function SitemapFeedsTable({
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
-      console.log(
-        "[sitemap-feeds-table] feeds state change",
-        feeds.map((feed) => ({
-          id: feed.id,
-          tracked: feed.tracked,
-          all_page_count: feed.all_page_count,
-          tracked_page_count: feed.tracked_page_count,
-          pages_with_matches: feed.pages_with_matches,
-        }))
-      )
     }
   }, [feeds])
 
@@ -174,6 +151,21 @@ export function SitemapFeedsTable({
     )
   }
 
+  const getTrackingLabel = (feed: SitemapFeed) => {
+    const trackedCount = feed.tracked_page_count ?? 0
+    const totalCount = feed.all_page_count ?? trackedCount
+    if (feed.tracked === false) {
+      return "Inactive on all pages"
+    }
+    if (trackedCount === 0) {
+      return "Inactive on all pages"
+    }
+    if (totalCount && trackedCount === totalCount) {
+      return `Live on all ${totalCount} pages`
+    }
+    return `Live on ${trackedCount} / ${totalCount || trackedCount} pages`
+  }
+
   return (
     <div className="sitemap-feeds-table">
       <div className="sitemap-feeds-table__shell">
@@ -222,17 +214,7 @@ export function SitemapFeedsTable({
                               : "status-chip--inactive"
                           }`}
                         >
-                          {(() => {
-                            const tracked = feed.tracked_page_count ?? 0
-                            const total = feed.all_page_count ?? tracked
-                            if (tracked === 0) {
-                              return "Inactive on all pages"
-                            }
-                            if (total && tracked === total) {
-                              return `Live on all ${total} pages`
-                            }
-                            return `Live on ${tracked} / ${total} pages`
-                          })()}
+                          {getTrackingLabel(feed)}
                         </span>
                         <button
                           type="button"

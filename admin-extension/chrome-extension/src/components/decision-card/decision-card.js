@@ -152,7 +152,7 @@ template.innerHTML = `
       font-size: 13px;
       color: #0b0c0d;
       background: #F3E8FF;
-      border: none;
+      border: 1px solid transparent;
       padding: 0;
       line-height: 1.5;
       white-space: pre-wrap;
@@ -191,6 +191,7 @@ template.innerHTML = `
     .decision-card-chip--content {
       background: #F3E8FF;
       color: #6B21A8;
+      border: 1px solid transparent;
     }
 
     .decision-card-content::-webkit-scrollbar {
@@ -394,6 +395,7 @@ class DecisionCard extends HTMLElement {
     this.videoEl = null;
     this.iframeContainer = null;
     this.contentEl = null;
+    this.videoMatchChipEl = null;
     this.phraseEl = null;
     this.backButton = null;
     this.backLabelEl = null;
@@ -415,6 +417,7 @@ class DecisionCard extends HTMLElement {
     this.phraseEl = this.shadowRoot.querySelector(".decision-card-phrase");
     this.backButton = this.shadowRoot.querySelector(".decision-card-back");
     this.backLabelEl = this.shadowRoot.querySelector(".decision-card-back-label");
+    this.videoMatchChipEl = this.shadowRoot.querySelector(".decision-card-chip--content");
     this.syncAttributes();
     this.updateBackLabel(this.getAttribute("data-back-label"));
     this.updateBackAriaLabel(this.getAttribute("data-back-aria-label"));
@@ -511,6 +514,24 @@ class DecisionCard extends HTMLElement {
     this.confidenceEl.style.background = background;
     this.confidenceEl.style.borderColor = borderColor;
     this.confidenceEl.style.color = color;
+    this.applyMatchColorStyling({ background, borderColor, color });
+  }
+
+  applyMatchColorStyling({ background, borderColor, color }) {
+    if (this.videoMatchChipEl) {
+      this.videoMatchChipEl.style.background = background;
+      this.videoMatchChipEl.style.borderColor = borderColor;
+      this.videoMatchChipEl.style.color = color;
+      this.videoMatchChipEl.style.borderStyle = "solid";
+      this.videoMatchChipEl.style.borderWidth = "1px";
+    }
+    if (this.contentEl) {
+      this.contentEl.style.background = background;
+      this.contentEl.style.color = color;
+      this.contentEl.style.borderColor = borderColor;
+      this.contentEl.style.borderStyle = "solid";
+      this.contentEl.style.borderWidth = "1px";
+    }
   }
 
   updatePhrase(value) {

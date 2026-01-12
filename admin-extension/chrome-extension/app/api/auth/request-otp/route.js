@@ -25,21 +25,33 @@ const hashCode = (code, salt) => {
   return crypto.createHmac('sha256', salt).update(code).digest('hex');
 };
 
+const defaultCorsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+const jsonResponse = (body, status = 200) =>
+  NextResponse.json(body, { status, headers: defaultCorsHeaders });
+
 export async function POST(request) {
   if (request.method !== 'POST') {
-    return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+    console.warn('[request-otp] received wrong method', request.method);
+    return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   let body;
   try {
     body = await request.json();
   } catch {
+    console.warn('[request-otp] invalid JSON payload');
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
   const email = (body.email || '').trim().toLowerCase();
   if (!email) {
-    return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    console.warn('[request-otp] missing email', body);
+    return jsonResponse({ error: 'Email is required' }, 400);
   }
 
   const { data: admin, error } = await supabase
@@ -49,7 +61,8 @@ export async function POST(request) {
     .maybeSingle();
 
   if (error || !admin) {
-    return NextResponse.json({ error: 'Email not authorized' }, { status: 401 });
+    console.warn('[request-otp] admin lookup failed', { error: error?.message, email });
+    return jsonResponse({ error: 'Email not authorized' }, 401);
   }
 
   const code = generateCode();
@@ -67,10 +80,17 @@ export async function POST(request) {
   });
 
   if (insertError) {
-    return NextResponse.json({ error: 'Unable to generate OTP' }, { status: 500 });
+    console.error('[request-otp] failed to insert OTP', insertError);
+    return jsonResponse({ error: 'Unable to generate OTP' }, 500);
   }
+  console.log('[request-otp] generated otp for', admin.email);
 
-  console.log(`[auth] OTP for ${email}: ${code}`); // replace with real email send
+  return jsonResponse({ ok: true, expires_in: OTP_TTL_SECONDS }, 200);
+}
 
-  return NextResponse.json({ ok: true, expires_in: OTP_TTL_SECONDS });
+export async function OPTIONS() {
+  return NextResponse.json(null, {
+    status: 204,
+    headers: defaultCorsHeaders,
+  });
 }

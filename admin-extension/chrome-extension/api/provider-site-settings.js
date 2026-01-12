@@ -51,19 +51,6 @@ async function handler(req, res) {
         .maybeSingle()
 
       if (error) throw error
-      if (typeof match_threshold === "number") {
-        await supabase
-          .from("page_matches")
-          .update({ status: "inactive" })
-          .eq("provider_id", providerId)
-          .lt("confidence", match_threshold)
-        await supabase
-          .from("page_matches")
-          .update({ status: "active" })
-          .eq("provider_id", providerId)
-          .gte("confidence", match_threshold)
-      }
-
       if (error) throw error
       res.setHeader("Content-Type", "application/json")
       res.setHeader("Access-Control-Allow-Origin", "*")

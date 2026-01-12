@@ -109,6 +109,14 @@ export function PageSummary({
     .map((match) => match.document_id)
   const uniqueDocumentIds = new Set(documentIds)
   const videosCount = uniqueDocumentIds.size
+  const statusText =
+    pageTracked === null ? "Unknown" : pageTracked ? "Live" : "Inactive"
+  const statusClass =
+    pageTracked === null
+      ? "page-summary__status-unknown"
+      : pageTracked
+      ? "page-summary__status-showing"
+      : "page-summary__status-hidden"
   useEffect(() => {
     if (!matches.length) return
     const missingImages = matches.filter((match) => !match.cover_image_url)
@@ -195,7 +203,7 @@ const parseHexColor = (value?: string) => {
 }
 
 const tierBackgroundMap: Record<string, string> = {
-  "Perfect Match": "#ede9fe",
+  "Great Match": "#ede9fe",
   "Good Match": "#dcfce7",
   "Potential Match": "#f1f5f9",
 };
@@ -204,7 +212,7 @@ const tierColorMap: Record<
   string,
   { color: string; borderColor: string }
 > = {
-  "Perfect Match": { color: "#7c3aed", borderColor: "rgba(124,58,237,0.35)" },
+  "Great Match": { color: "#7c3aed", borderColor: "rgba(124,58,237,0.35)" },
   "Good Match": { color: "#166534", borderColor: "rgba(16,185,129,0.55)" },
   "Potential Match": { color: "#334155", borderColor: "rgba(15,23,42,0.35)" },
 }
@@ -304,27 +312,13 @@ const pillStyle = (label?: string, color?: string) => {
             </div>
           </>
         )}
-        {pageTracked && (
+        {pageSupported && (
           <div className="page-summary__overview-row">
             <div
-              className={`page-summary__overview-card page-summary__overview-card--status ${
-                pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
-              }`}
+              className={`page-summary__overview-card page-summary__overview-card--status ${statusClass}`}
             >
-              <strong
-                className={
-                  pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
-                }
-              >
-                {pageTracked ? "Live" : "Inactive"}
-              </strong>
-              <span
-                className={`page-summary__overview-label ${
-                  pageTracked ? "page-summary__status-showing" : "page-summary__status-hidden"
-                }`}
-              >
-                Status
-              </span>
+              <strong className={statusClass}>{statusText}</strong>
+              <span className={`page-summary__overview-label ${statusClass}`}>Status</span>
             </div>
             <div className="page-summary__overview-card">
               <strong>{matchesCount}</strong>
@@ -616,6 +610,9 @@ const pillStyle = (label?: string, color?: string) => {
         .page-summary__status-hidden {
           color: #dc2626;
         }
+        .page-summary__status-unknown {
+          color: #475467;
+        }
         .page-summary__overview-card--status.page-summary__status-showing {
           background: #ecfdf5;
           border-color: rgba(34, 197, 94, 0.4);
@@ -623,6 +620,10 @@ const pillStyle = (label?: string, color?: string) => {
         .page-summary__overview-card--status.page-summary__status-hidden {
           background: #fef2f2;
           border-color: rgba(220, 38, 38, 0.35);
+        }
+        .page-summary__overview-card--status.page-summary__status-unknown {
+          background: #f3f4f6;
+          border-color: rgba(148, 163, 184, 0.35);
         }
         .page-summary__overview-card--status strong {
           font-size: 14px;

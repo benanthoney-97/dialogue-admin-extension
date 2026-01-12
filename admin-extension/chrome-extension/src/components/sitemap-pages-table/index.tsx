@@ -144,18 +144,9 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
                   className="sitemap-feed-card__url-row"
                   onClick={(event) => handleViewPageClick(event, page)}
                 >
-                  <div className="sitemap-feed-card__url">{renderPageUrl(page.page_url)}</div>
-                  <button
-                    type="button"
-                    className="sitemap-feed-card__open-page sitemap-feed-card__open-page--after"
-                    aria-label="View page"
-                    onClick={(event) => handleViewPageClick(event, page)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
-                      <path fillRule="evenodd" d="M7.364 3.5a.5.5 0 0 1 .5-.5H14.5A1.5 1.5 0 0 1 16 4.5v10a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 3 14.5V7.864a.5.5 0 1 1 1 0V14.5a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5H7.864a.5.5 0 0 1-.5-.5"/>
-                      <path fillRule="evenodd" d="M0 .5A.5.5 0 0 1 .5 0h5a.5.5 0 0 1 0 1H1.707l8.147 8.146a.5.5 0 0 1-.708.708L1 1.707V5.5a.5.5 0 0 1-1 0z"/>
-                    </svg>
-                  </button>
+                  <div className="sitemap-feed-card__url-link">
+                    <div className="sitemap-feed-card__url">{renderPageUrl(page.page_url)}</div>
+                  </div>
                 </div>
                 <div className="sitemap-feed-card__summary">
                   <span>
@@ -236,11 +227,10 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .sitemap-feed-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        .sitemap-pages-table .sitemap-feed-card:hover {
+          transform: none;
+          box-shadow: none;
         }
-
         .sitemap-feed-card__url-unique {
           font-size: 14px;
           color: #0f172a;
@@ -253,32 +243,20 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
           gap: 6px;
           flex-wrap: wrap;
         }
-        .sitemap-feed-card__url {
-          display: flex;
+        .sitemap-feed-card__url-link {
+          display: inline-flex;
           align-items: center;
           gap: 4px;
         }
-        .sitemap-feed-card__open-page {
-          width: 24px;
-          height: 24px;
-          padding: 0;
-          border: none;
-          background: transparent;
+        .sitemap-feed-card__url {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
-          font-weight: 600;
-          transition: none;
-          line-height: 0;
-        }
-        .sitemap-feed-card__open-page svg {
-          width: 12px;
-          height: 12px;
-          display: block;
-        }
-        .sitemap-feed-card__open-page:hover,
-        .sitemap-feed-card__open-page:focus-visible {
-          background: transparent;
+          gap: 4px;
+          flex: none;
+          min-width: 0;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          text-decoration-thickness: 2px;
         }
 
         .sitemap-feed-card__meta {

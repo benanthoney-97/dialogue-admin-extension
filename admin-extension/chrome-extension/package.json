@@ -1,8 +1,8 @@
 {
   "name": "Dialogue",
   "displayName": "Dialogue",
-  "version": "0.1.1",
-  "description": "The contextual intelligence layer for your browser.",
+  "version": "0.1.2",
+  "description": "The contextual intelligence layer for your website.",
   "author": "Dialogue",
   "scripts": {
     "dev": "PLASMO_PORT=4175 plasmo dev",
@@ -45,8 +45,12 @@
   },
   "manifest": {
     "host_permissions": [
-      "http://localhost:4173/*",
-      "https://*.wpcomstaging.com/*"
+"https://*.seedlegals.com/*",
+    "https://seedlegals.com/*",
+    "https://*.wpcomstaging.com/*",
+    "https://*.dialogue-ai.co/*",   
+    "https://dialogue-ai.co/*"
+
     ],
     "permissions": [
       "sidePanel",

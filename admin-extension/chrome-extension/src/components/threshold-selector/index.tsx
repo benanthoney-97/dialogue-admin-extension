@@ -1,42 +1,24 @@
 import React from "react"
+import {
+  THRESHOLD_DISPLAY,
+  THRESHOLD_LEVELS,
+  THRESHOLD_MIN,
+  THRESHOLD_MAX,
+  THRESHOLD_STEP,
+  determineThresholdLevel,
+} from "../../utils/threshold"
 
 export interface ThresholdSelectorProps {
-  current: "high" | "medium" | "low"
-  onChange?: (value: "high" | "medium" | "low") => void
+  value: number
+  onChange?: (value: number) => void
 }
 
-const LABELS: Record<ThresholdSelectorProps["current"], { title: string; description: string }> = {
-high: { 
-    title: "Strict", 
-    description: "Shows high confidence matches only." 
-  },
-  medium: { 
-    title: "Balanced", 
-    description: "Balances relevance and volume of matches." 
-  },
-  low: { 
-    title: "Relaxed", 
-    description: "Shows a broader set of matches." 
-  },
-}
-
-const ORDERED_LEVELS: ThresholdSelectorProps["current"][] = ["low", "medium", "high"]
-const VALUE_MAP: Record<ThresholdSelectorProps["current"], number> = {
-  low: 0,
-  medium: 1,
-  high: 2,
-}
-const LEVEL_FROM_VALUE = (value: number) => {
-  if (value <= 0) return "low"
-  if (value === 1) return "medium"
-  return "high"
-}
-
-export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps) {
+export function ThresholdSelector({ value, onChange }: ThresholdSelectorProps) {
+  const level = determineThresholdLevel(value)
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = Number(event.target.value)
     if (!Number.isNaN(parsed)) {
-      onChange?.(LEVEL_FROM_VALUE(parsed))
+      onChange?.(parsed)
     }
   }
 
@@ -44,21 +26,21 @@ export function ThresholdSelector({ current, onChange }: ThresholdSelectorProps)
     <div className="threshold-selector">
       <div className="threshold-selector__label">
         <strong>Match sensitivity</strong>
-        <p>{LABELS[current].description}</p>
+        <p>{THRESHOLD_DISPLAY[level].description}</p>
       </div>
       <div className="threshold-selector__slider">
         <input
           type="range"
-          min={0}
-          max={2}
-          step={1}
-          value={VALUE_MAP[current]}
+          min={THRESHOLD_MIN}
+          max={THRESHOLD_MAX}
+          step={THRESHOLD_STEP}
+          value={value}
           onChange={handleChange}
         />
         <div className="threshold-selector__levels">
-          {ORDERED_LEVELS.map((level) => (
-            <span key={level} className={level === current ? "is-active" : ""}>
-              {LABELS[level].title}
+          {THRESHOLD_LEVELS.map((levelKey) => (
+            <span key={levelKey} className={levelKey === level ? "is-active" : ""}>
+              {THRESHOLD_DISPLAY[levelKey].title}
             </span>
           ))}
         </div>

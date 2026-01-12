@@ -9,11 +9,12 @@ const readRequestBody = (req) =>
     req.on("end", () => resolve(body))
   })
 
+// Helper to set CORS headers consistently
 const setCorsHeaders = (res) => {
-  res.setHeader("Content-Type", "application/json")
-  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Origin", "*") // Or your specific extension ID if preferred
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
   res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+  // Note: Content-Type for the response is usually set when writing the body, but good to have here if we send JSON
 }
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
@@ -138,15 +139,19 @@ const findMatchingChunk = (chunks, normalizedSource, timestamp) => {
 }
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL requests ---
+  setCorsHeaders(res)
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
   if (req.method === "OPTIONS") {
-    setCorsHeaders(res)
-    res.writeHead(204)
+    res.writeHead(200) // 200 OK says "Yes, you can proceed"
     res.end()
     return
   }
+  // --- FIX END ---
 
+  // Basic method check for the actual request
   if (req.method !== "POST") {
-    setCorsHeaders(res)
     res.writeHead(405, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: "Method not allowed" }))
     return
@@ -164,6 +169,7 @@ async function handler(req, res) {
       confidence,
       selected_timestamp,
     } = JSON.parse(rawBody || "{}")
+
     const docId = Number(document_id || 0)
     const providerId = Number(provider_id || 0)
     const phraseText = (phrase || "").trim()
@@ -190,7 +196,6 @@ async function handler(req, res) {
     let knowledgeChunk = null
     let manualConfidence = null
 
-
     if (baseVideoUrl) {
       const { data: chunkRows, error: chunkError } = await supabase
         .from("provider_knowledge")
@@ -199,16 +204,9 @@ async function handler(req, res) {
         .eq("provider_id", providerId)
         .limit(100)
       if (chunkError) {
+        // silently ignore or log error if needed
       } else {
-        for (const chunk of chunkRows || []) {
-          const meta = parseMetadata(chunk.metadata)
-          const norm = normalizeSourceUrl(meta.source || meta.source_url)
-          const start = meta.timestampStart ?? meta.timestamp_start ?? null
-          const end = meta.timestampEnd ?? meta.timestamp_end ?? null
-
-        }
         knowledgeChunk = findMatchingChunk(chunkRows, baseVideoUrl, timestampValue)
-
       }
     }
 
@@ -251,11 +249,14 @@ async function handler(req, res) {
       return
     }
 
-    setCorsHeaders(res)
+    // setCorsHeaders(res) <-- Removed this duplicate call since we did it at the top
     const normalized = { ...data, page_match_id: data.id }
+    
+    res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify(normalized))
   } catch (err) {
     console.error("[create-page-match] error", err)
+    // CORS headers are already set, so browser will allow the frontend to read this error
     res.writeHead(500, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: err.message }))
   }

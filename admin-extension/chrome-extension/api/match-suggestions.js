@@ -235,9 +235,7 @@ async function handler(req, res) {
       )
       .slice(0, 10)
     normalizedResults.forEach((result) => {
-      console.log(
-        `[match-suggestions] ready result ${result.knowledge_id || 'unknown'} -> ${result.video_url} similarity=${result.similarity}`
-      )
+
     })
 
     setCorsHeaders(res)

@@ -61,9 +61,6 @@ export function SingleViewVideo({
       provider_id: String(providerId),
       document_id: String(docId),
     })
-    if (pageUrl) {
-      searchParams.set("page_url", pageUrl)
-    }
     fetch(`${cleanedBase}/api/page-matches?${searchParams.toString()}`)
       .then((res) => {
         if (!res.ok) {

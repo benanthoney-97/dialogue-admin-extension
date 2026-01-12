@@ -10,11 +10,8 @@ export interface SitemapViewProps {
   onPageToggle?: (pageId: number, tracked: boolean) => void
   onViewPage?: (pageUrl: string, feed: SitemapFeed) => void
   initialSelectedFeed?: SitemapFeed | null
-  threshold: "high" | "medium" | "low"
-  onThresholdChange: (value: "high" | "medium" | "low") => void
-  onThresholdSave: () => void
-  thresholdSaving?: boolean
-  hasPendingThresholdChanges: boolean
+  thresholdValue: number
+  onThresholdChange: (value: number) => void
 }
 
 const formatFeedUrl = (url: string) => {
@@ -33,11 +30,8 @@ export function SitemapView({
   onPageToggle,
   onViewPage,
   initialSelectedFeed,
-  threshold,
+  thresholdValue,
   onThresholdChange,
-  onThresholdSave,
-  thresholdSaving,
-  hasPendingThresholdChanges
 }: SitemapViewProps) {
   const [pageFilter, setPageFilter] = useState("")
   const [selectedFeed, setSelectedFeed] = useState<SitemapFeed | null>(initialSelectedFeed ?? null)
@@ -56,13 +50,7 @@ export function SitemapView({
           className={`sitemap-view__threshold${isDetailView ? " sitemap-view__threshold--hidden" : ""}`}
           aria-hidden={isDetailView}
         >
-          <ThresholdControls
-            current={threshold}
-            onChange={onThresholdChange}
-            onSave={onThresholdSave}
-            saving={thresholdSaving}
-            hasPendingChanges={hasPendingThresholdChanges}
-          />
+          <ThresholdControls value={thresholdValue} onChange={onThresholdChange} />
         </div>
       <div className="sitemap-view__header">
         {selectedFeed ? (
@@ -89,7 +77,7 @@ export function SitemapView({
             </div>
           </div>
         ) : (
-          <div className="sitemap-view__title">Manage pages</div>
+          <div className="sitemap-view__title">Page visibility</div>
         )}
       </div>
       <div className="sitemap-feeds-search">

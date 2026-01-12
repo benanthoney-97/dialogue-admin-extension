@@ -154,7 +154,6 @@ export function ProviderDocumentsGrid({
           height: 100%;
           display: flex;
           flex-direction: column;
-          padding: 0 15px;
         }
 
         .provider-documents__grid-header {

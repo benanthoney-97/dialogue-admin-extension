@@ -35,7 +35,7 @@ async function lookupKnowledge(knowledgeId) {
 
 async function getPageMatchById(pageMatchId) {
   if (!pageMatchId) return null;
-const { data, error } = await supabase
+  const { data, error } = await supabase
     .from('page_matches')
     .select('*')
     .eq('id', pageMatchId)
@@ -63,6 +63,19 @@ async function getConfidenceTier(providerId, score) {
 }
 
 async function handler(req, res) {
+  // --- FIX START: Standardize CORS headers ---
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // --- FIX START: Handle Preflight OPTIONS check ---
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+  // --- FIX END ---
+
   try {
     if (req.method !== 'GET') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
@@ -78,8 +91,8 @@ async function handler(req, res) {
     const documentId = Number(requestUrl.searchParams.get('document_id') || '');
     const knowledgeId = Number(requestUrl.searchParams.get('knowledge_id') || '');
 
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Note: Headers are already set at the top, so we don't need to set them here again.
+    // res.setHeader('Content-Type', 'application/json'); // Moved to writeHead or handled automatically
 
     const payload = {
       title: '',
@@ -123,6 +136,7 @@ async function handler(req, res) {
     const pageMatchId = Number(requestUrl.searchParams.get('page_match_id') || '');
     let pageMatch = await getPageMatchById(pageMatchId);
     if (!pageMatch) {
+      // (Empty block preserved)
     }
 
     payload.confidence = pageMatch?.confidence ?? null;
@@ -139,6 +153,7 @@ async function handler(req, res) {
           payload.confidence_color = tier.color_theme || '';
         }
       } catch (err) {
+        // (Silent catch preserved)
       }
     }
 
@@ -160,7 +175,6 @@ async function handler(req, res) {
         payload.video_url;
     }
 
-;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(payload));
   } catch (err) {
@@ -169,4 +183,5 @@ async function handler(req, res) {
     res.end(JSON.stringify({ error: err.message }));
   }
 }
+
 module.exports = handler;

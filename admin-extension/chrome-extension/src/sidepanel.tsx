@@ -15,12 +15,13 @@ import { LibraryDocumentsGrid } from "./components/library-documents-grid"
 import type { LibraryDocument } from "./components/library-documents-grid"
 import { SingleViewVideo } from "./components/single-view-video"
 import type { SitemapFeed } from "./components/sitemap-feeds-table"
-
-const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
-  high: 0.75,
-  medium: 0.6,
-  low: 0.4,
-}
+import {
+  THRESHOLD_DEFAULT,
+  THRESHOLD_DISPLAY,
+  THRESHOLD_STEP,
+  clampThresholdValue,
+  determineThresholdLevel,
+} from "./utils/threshold"
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number" && !Number.isNaN(value)) {
@@ -60,8 +61,7 @@ function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
   const [view, setView] = useState<"documents" | "timestamp" | null>(null)
   const [selectedDoc, setSelectedDoc] = useState<ProviderDocument | null>(null)
-  const [threshold, setThreshold] = useState<"high" | "medium" | "low">("medium")
-  const [savedThreshold, setSavedThreshold] = useState<"high" | "medium" | "low">("medium")
+  const [thresholdValue, setThresholdValue] = useState(THRESHOLD_DEFAULT)
   const [activeSection, setActiveSection] = useState<NavSection>("page")
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
@@ -69,7 +69,6 @@ function SidePanel() {
   const [decisionCardBackLabel, setDecisionCardBackLabel] = useState("Back")
   const [decisionCardBackAriaLabel, setDecisionCardBackAriaLabel] =
     useState("Back to page summary")
-  const [thresholdSaving, setThresholdSaving] = useState(false)
   const [removeConfirmVisible, setRemoveConfirmVisible] = useState(false)
   const [removeConfirmLoading, setRemoveConfirmLoading] = useState(false)
   const [pendingRemoveMatchId, setPendingRemoveMatchId] = useState<number | null>(null)
@@ -79,8 +78,6 @@ function SidePanel() {
   const [autoMatchResults, setAutoMatchResults] = useState<any[]>([])
   const [autoMatchLoading, setAutoMatchLoading] = useState(false)
   const [libraryDocument, setLibraryDocument] = useState<LibraryDocument | null>(null)
-  const [thresholdDirty, setThresholdDirty] = useState(false)
-  const thresholdDirtyRef = useRef(false)
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
@@ -89,10 +86,6 @@ function SidePanel() {
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
-
-  useEffect(() => {
-    thresholdDirtyRef.current = thresholdDirty
-  }, [thresholdDirty])
 
   const resolveProviderId = () => {
     if (process.env.NODE_ENV !== "production") {
@@ -125,13 +118,12 @@ function SidePanel() {
       } else if (message.action === "matchData") {
         setMatch(message.match)
       } else if (message.action === "thresholdData") {
-        const value = message.threshold
-        if (value && ["high", "medium", "low"].includes(value)) {
-          setThreshold(value)
-          chrome.storage?.local?.set({ threshold: value })
-          if (!thresholdDirtyRef.current) {
-            setSavedThreshold(value)
-          }
+        const rawValue = message.thresholdValue ?? message.threshold
+        const numericValue = toNumber(rawValue)
+        if (typeof numericValue === "number") {
+          const clamped = clampThresholdValue(numericValue)
+          setThresholdValue(clamped)
+          chrome.storage?.local?.set?.({ threshold: clamped })
         }
       } else if (message.action === "deliverNewMatchSelection") {
         if (message.text) {
@@ -155,13 +147,9 @@ function SidePanel() {
   }, [])
 
   useEffect(() => {
-    chrome.storage?.local?.get?.({ threshold: "medium" }, (result) => {
-      if (result?.threshold && ["high", "medium", "low"].includes(result.threshold)) {
-        setThreshold(result.threshold)
-        setSavedThreshold(result.threshold)
-        setThresholdDirty(false)
-        thresholdDirtyRef.current = false
-      }
+    chrome.storage?.local?.get?.({ threshold: THRESHOLD_DEFAULT }, (result) => {
+      const stored = clampThresholdValue(toNumber(result?.threshold) ?? THRESHOLD_DEFAULT)
+      setThresholdValue(stored)
     })
   }, [])
 
@@ -206,6 +194,13 @@ function SidePanel() {
   const startManualFlow = () => {
     setManualStage("documents")
     setManualSelectedDoc(null)
+  }
+
+  const enterNewMatchMode = () => {
+    newMatchModeRef.current = true
+    setSelectedNewMatchText(null)
+    resetManualFlow()
+    chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
   }
 
   const handleGetMatches = async () => {
@@ -412,22 +407,14 @@ function SidePanel() {
     setLibraryDocument(doc)
   }
 
-  const thresholdLabelMap: Record<"high" | "medium" | "low", string> = {
-    high: "strict",
-    medium: "balanced",
-    low: "relaxed",
-  }
-
-  const handleThresholdChange = (value: "high" | "medium" | "low") => {
-    setThreshold(value)
-    chrome.storage?.local?.set?.({ threshold: value })
-    chrome.runtime.sendMessage({ action: "setThreshold", threshold: value })
-    setToastMessage(
-      `Previewing ${thresholdLabelMap[value].charAt(0).toUpperCase() + thresholdLabelMap[value].slice(1)}`
-    )
-    const dirty = value !== savedThreshold
-    setThresholdDirty(dirty)
-    thresholdDirtyRef.current = dirty
+  const handleThresholdChange = (value: number) => {
+    const clamped = clampThresholdValue(value)
+    setThresholdValue(clamped)
+    chrome.storage?.local?.set?.({ threshold: clamped })
+    console.log("[sl-panel] handleThresholdChange clamped", clamped)
+    chrome.runtime.sendMessage({ action: "setThreshold", thresholdValue: clamped })
+    const label = THRESHOLD_DISPLAY[determineThresholdLevel(clamped)].title
+    setToastMessage(`Updated to ${label}`)
   }
 
   const handleFeedToggle = async (feedId: number, tracked: boolean) => {
@@ -449,7 +436,9 @@ function SidePanel() {
         body: JSON.stringify({ page_id: pageId, tracked }),
       })
       const data = await response.json().catch(() => null)
+      setToastMessage(tracked ? "Matches are live on this page!" : "Matches hidden on this page")
     } catch (error) {
+      setToastMessage("Unable to update page tracking")
     }
   }
 
@@ -457,7 +446,6 @@ function SidePanel() {
 
   const handlePageSummaryRefresh = () => {
     if (process.env.NODE_ENV !== "production") {
-      console.log("[panel] manual refresh, clearing override if needed")
     }
     setPageSummaryUrl(null)
   }
@@ -501,11 +489,12 @@ function SidePanel() {
 
   useEffect(() => {
     if (activeSection === "new-match") {
-      newMatchModeRef.current = true
-      setSelectedNewMatchText(null)
-      resetManualFlow()
-      chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
-    } else if (newMatchModeRef.current) {
+      if (!newMatchModeRef.current) {
+        enterNewMatchMode()
+      }
+      return
+    }
+    if (newMatchModeRef.current) {
       newMatchModeRef.current = false
       chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
     }
@@ -588,55 +577,6 @@ function SidePanel() {
 
   const handleDecisionBack = () => {
     setDecisionCardVisible(false)
-  }
-
-  const saveThresholdMatches = async () => {
-    setThresholdSaving(true)
-    try {
-      const response = await fetch(`${backendBase}/api/match-map?provider_id=${resolveProviderId()}`)
-      if (!response.ok) {
-        const errText = await response.text()
-        throw new Error(`Fetch matches failed (${response.status}): ${errText}`)
-      }
-      const matches = await response.json()
-      const thresholdValue = THRESHOLD_VALUES[threshold]
-      const toUpdate = (matches || []).filter(
-        (match: any) =>
-          match?.status !== "inactive" &&
-          typeof match?.confidence === "number" &&
-          match.confidence < thresholdValue
-      )
-      if (!toUpdate.length) {
-        setToastMessage("No active matches below the selected threshold")
-        return
-      }
-      await Promise.all(
-        toUpdate.map((match: any) =>
-          fetch(`${backendBase}/api/page-match-status`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              page_match_id: match.page_match_id,
-              status: "inactive",
-            }),
-          }).then(async (res) => {
-            if (!res.ok) {
-              const text = await res.text()
-              throw new Error(`Status update failed (${res.status}): ${text}`)
-            }
-          })
-        )
-      )
-      setToastMessage(`Saved threshold: ${toUpdate.length} match${toUpdate.length !== 1 ? "es" : ""} hidden`)
-      setSavedThreshold(threshold)
-      setThresholdDirty(false)
-      thresholdDirtyRef.current = false
-      chrome.runtime.sendMessage({ action: "thresholdData", threshold })
-    } catch (error) {
-      setToastMessage("Failed to persist threshold changes")
-    } finally {
-      setThresholdSaving(false)
-    }
   }
 
   useEffect(() => {
@@ -724,7 +664,6 @@ function SidePanel() {
     const handleTabActivated = () => {
       resolveActiveTabUrl()
       if (process.env.NODE_ENV !== "production") {
-        console.log("[panel] tab activated")
       }
     }
 
@@ -752,10 +691,6 @@ function SidePanel() {
   useEffect(() => {
     if (currentTabUrl && pageSummaryUrl && currentTabUrl !== pageSummaryUrl) {
       if (process.env.NODE_ENV !== "production") {
-        console.log("[panel] tab URL changed, clearing page summary override", {
-          currentTabUrl,
-          pageSummaryUrl,
-        })
       }
       setPageSummaryUrl(null)
     }
@@ -763,7 +698,6 @@ function SidePanel() {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
-      console.log("[panel] resolved pageSummaryUrl", pageSummaryUrl, "currentTabUrl", currentTabUrl)
     }
   }, [currentTabUrl, pageSummaryUrl])
 
@@ -894,11 +828,8 @@ function SidePanel() {
             onPageToggle={handlePageToggle}
             onViewPage={triggerPageSummarySlide}
             initialSelectedFeed={lastViewedFeed}
-            threshold={threshold}
+            thresholdValue={thresholdValue}
             onThresholdChange={handleThresholdChange}
-            onThresholdSave={saveThresholdMatches}
-            thresholdSaving={thresholdSaving}
-            hasPendingThresholdChanges={thresholdDirty}
           />
         )
       }
@@ -1022,6 +953,9 @@ function SidePanel() {
           active={activeSection}
           onSelect={(selection) => {
             setView(null)
+            if (selection === "new-match") {
+              enterNewMatchMode()
+            }
             setActiveSection(selection)
             if (selection !== "page") {
               setDecisionCardVisible(false)

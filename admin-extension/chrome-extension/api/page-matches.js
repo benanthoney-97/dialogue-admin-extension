@@ -11,21 +11,34 @@ async function handler(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`)
   const providerId = Number(requestUrl.searchParams.get("provider_id") || "")
   const pageUrl = (requestUrl.searchParams.get("page_url") || "").trim()
+  const documentIdRaw = requestUrl.searchParams.get("document_id")
+  const documentId = Number(documentIdRaw || "")
+  const hasDocumentId = Number.isFinite(documentId) && documentId > 0
+  const hasPageUrl = Boolean(pageUrl)
 
-  if (!providerId || !pageUrl) {
+  if (!providerId || (!hasDocumentId && !hasPageUrl)) {
     res.writeHead(400, { "Content-Type": "application/json" })
-    res.end(JSON.stringify({ error: "provider_id and page_url are required" }))
+    res.end(
+      JSON.stringify({
+        error: "provider_id is required and at least one of document_id or page_url must be provided",
+      })
+    )
     return
   }
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("page_matches")
       .select("id, phrase, confidence, status, document_id, url")
       .eq("provider_id", providerId)
-      .eq("url", pageUrl)
       .order("id", { ascending: true })
       .limit(50)
+    if (hasDocumentId) {
+      query = query.eq("document_id", documentId)
+    } else {
+      query = query.eq("url", pageUrl)
+    }
+    const { data, error } = await query
 
     if (error) throw error
 
@@ -71,11 +84,15 @@ const findTierForScore = (score, tiers) => {
     })
 
     const tiers = await getConfidenceTiers(providerId)
-    const { data: pageRow } = await supabase
-      .from("sitemap_pages")
-      .select("tracked")
-      .eq("page_url", pageUrl)
-      .maybeSingle()
+    let pageRow = null
+    if (hasPageUrl && !hasDocumentId) {
+      const { data } = await supabase
+        .from("sitemap_pages")
+        .select("tracked")
+        .eq("page_url", pageUrl)
+        .maybeSingle()
+      pageRow = data
+    }
     const matches = (data || []).map((row) => {
       const tier = findTierForScore(row.confidence, tiers)
       if (!documents[row.document_id]?.cover_image_url) {
@@ -97,7 +114,7 @@ const findTierForScore = (score, tiers) => {
 
     const payload = {
       matches,
-      page_supported: Boolean(pageRow),
+      page_supported: hasDocumentId ? true : Boolean(pageRow),
       tracked: pageRow?.tracked ?? null,
     }
 

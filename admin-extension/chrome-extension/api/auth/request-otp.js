@@ -34,12 +34,32 @@ const hashCode = (code, salt) => {
   return crypto.createHmac('sha256', salt).update(code).digest('hex');
 };
 
+const defaultCorsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+const setCors = (res) => {
+  for (const [key, value] of Object.entries(defaultCorsHeaders)) {
+    res.setHeader(key, value);
+  }
+};
+
 async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    setCors(res);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
   if (req.method !== 'POST') {
+    setCors(res);
     res.writeHead(405, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));
     return;
   }
+  setCors(res);
 
   let body;
   try {
@@ -94,7 +114,6 @@ async function handler(req, res) {
     return;
   }
 
-  console.log(`[auth] OTP for ${email}: ${code}`);
   await sendResendEmail(email, code);
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({ ok: true, expires_in: OTP_TTL_SECONDS }));

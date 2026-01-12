@@ -180,7 +180,6 @@
   };
 
   const ensureHighlightStyle = () => {
-    console.log("[sl-admin-script] ensureHighlightStyle invoked");
     let style = document.getElementById(HIGHLIGHT_STYLE_ID);
     const existed = Boolean(style);
     if (!style) {
@@ -192,24 +191,28 @@
       .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed),
       .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed),
       body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed) {
-        border-bottom: 2px solid #5f61fb !important;
+        border-bottom: none !important;
         cursor: pointer !important;
         color: #5f61fb !important;
         font-weight: 500 !important;
         transition: border-color 0.2s ease, color 0.2s ease !important;
         line-height: 1.2 !important;
         display: inline !important;
+        text-decoration-line: underline !important;
+        text-decoration-color: #5f61fb !important;
+        text-decoration-thickness: 2px !important;
+        text-decoration-skip-ink: none !important;
       }
       .sl-smart-link:hover,
       .sl-admin-mode .sl-smart-link:hover,
       body.sl-visitor-mode .sl-smart-link:hover {
-        border-color: #5f61fb !important;
+        text-decoration-color: #5f61fb !important;
         color: #5f61fb !important;
       }
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
-        border-color: #5f61fb !important;
+        text-decoration-color: #ede9fe !important;
         color: #ede9fe !important;
         background-color: rgba(76, 29, 149, 0.9) !important;
         box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4) !important;
@@ -323,7 +326,6 @@
         border: none;
       }
     `;
-    console.log("[sl-admin-script] ensured highlight stylesheet", { existed });
   };
 
   const persistMatches = (matches) => {
@@ -353,10 +355,7 @@
   }
 
   const highlightMatches = (matches) => {
-    console.log("[sl-admin-script] highlightMatches invoked", {
-      matches: matches.length,
-      body: Boolean(document.body),
-    });
+
     if (!matches.length || !document.body) {
       return;
     }
@@ -365,10 +364,7 @@
       if (!match || !match.phrase) return;
       const target = normalize(decodeHtmlEntities(match.phrase));
       if (!target) return;
-      console.log("[sl-admin-script] searching for match phrase", {
-        matchIndex,
-        target: target.slice(0, 120),
-      });
+
 
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
       let node;
@@ -389,21 +385,13 @@
         const searchTarget = target.toLowerCase();
         const matchStart = normalizedLower.indexOf(searchTarget);
         if (matchStart === -1) {
-          console.log("[sl-admin-script] phrase missing block", {
-            matchIndex,
-            blockText: normalize(block.textContent || "").slice(0, 180),
-            target,
-          });
+
           continue;
         }
 
         const highlight = highlightRange(normalizedMap, matchStart, matchStart + searchTarget.length, match, matchIndex);
         if (!highlight) continue;
-        console.log("[sl-admin-script] inserted highlight", {
-          matchIndex,
-          matchStart,
-          blockSnapshot: normalize(block.textContent || "").slice(0, 200),
-        });
+
 
         block.classList.add("sl-smart-link-block");
         block.dataset.matchIndex = matchIndex;
@@ -469,7 +457,7 @@
 
     const timestampMatch = value.match(/#t=(\d+)/);
     const suffix = timestampMatch ? `#t=${timestampMatch[1]}s` : "";
-    return `https://player.vimeo.com/video/${videoId}?autoplay=1&title=0&byline=0${suffix}`;
+    return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=0&title=0&byline=0${suffix}`;
   };
 
   const hideVisitorPlayer = () => {
@@ -568,11 +556,7 @@
       throw new Error(`match-map fetch failed (${response.status})`);
     }
     const data = await response.json();
-    console.log("[sl-admin-script] fetchMatchMap response", {
-      url,
-      count: Array.isArray(data) ? data.length : 0,
-      sample: Array.isArray(data) && data.length ? data[0] : null,
-    });
+
     return data;
   };
 
@@ -580,10 +564,7 @@
     state.matches = Array.isArray(matches) ? matches.slice() : [];
     persistMatches(state.matches);
     whenDOMReady(() => {
-      console.log("[sl-admin-script] applyMatches running", {
-        matchesLoaded: state.matches.length,
-        threshold: state.thresholdValue,
-      });
+
       ensureHighlightStyle();
       highlightMatches(state.matches);
       applyThresholdToSpans(state.thresholdValue);
@@ -717,10 +698,7 @@
   };
 
   const init = async (config = {}) => {
-    console.log("[sl-admin-script] init called", {
-      providerId: config.providerId,
-      endpoint: config.endpoint,
-    });
+
     if (state.initialized) {
       return;
     }

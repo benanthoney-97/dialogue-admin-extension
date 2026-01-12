@@ -1,9 +1,21 @@
 const supabase = require("./supabase-client")
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL requests ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    return res.end()
+  }
+  // --- FIX END ---
+
   try {
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feed-status] incoming", req.method, req.url)
+      // (Empty block preserved from original)
     }
 
     if (req.method !== "POST") {
@@ -42,12 +54,9 @@ async function handler(req, res) {
     if (pageFetch.error) throw pageFetch.error
 
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feed-status] feed exists", { feed_id, existingFeed })
-      console.log("[sitemap-feed-status] page fetch", { feed_id, records: pageFetch.data?.length })
     }
 
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feed-status] updating feed", { feed_id, tracked })
     }
     const { data: feedUpdate, error: feedUpdateError } = await supabase
       .from("sitemap_feeds")
@@ -75,11 +84,7 @@ async function handler(req, res) {
     if (pageUrls.length) {
       const status = tracked ? "active" : "inactive"
       if (process.env.NODE_ENV !== "production") {
-        console.log("[sitemap-feed-status] updating page_matches", {
-          pageUrls: pageUrls.slice(0, 5),
-          status,
-          total: pageUrls.length,
-        })
+
       }
       const { data: matchData, error: matchError } = await supabase
         .from("page_matches")
@@ -92,16 +97,11 @@ async function handler(req, res) {
 
     const feedRowsUpdated = Array.isArray(feedUpdate) ? feedUpdate.length : 0
     if (process.env.NODE_ENV !== "production") {
-      console.log("[sitemap-feed-status] update response", {
-        feed_id,
-        feedRowsUpdated,
-        pagesUpdated,
-        pageMatchesUpdated,
-      })
+
     }
 
-    res.setHeader("Content-Type", "application/json")
-    res.setHeader("Access-Control-Allow-Origin", "*")
+    // Headers are already set at the top.
+    res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ success: true, updated: feedRowsUpdated }))
   } catch (error) {
     console.error("[sitemap-feed-status] error", error)

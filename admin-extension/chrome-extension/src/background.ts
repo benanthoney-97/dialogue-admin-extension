@@ -1,6 +1,13 @@
 export {}
 
-console.log("BACKGROUND: Service Worker Loaded!")
+import {
+  THRESHOLD_DEFAULT,
+  THRESHOLD_VALUE_MAP,
+  clampThresholdValue,
+  determineThresholdLevel,
+} from "./utils/threshold"
+import type { ThresholdLevel } from "./utils/threshold"
+
 
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
@@ -10,8 +17,8 @@ chrome.sidePanel
 type MatchPayload = Record<string, unknown>
 let latestMatch: MatchPayload | null = null
 let lastMatchTabId: number | null = null
-let globalThresholdLevel: "high" | "medium" | "low" = "medium"
-let globalThresholdValue = 0.6
+let globalThresholdLevel: ThresholdLevel = determineThresholdLevel(THRESHOLD_DEFAULT)
+let globalThresholdValue = THRESHOLD_DEFAULT
 let newMatchModeActive = false
 
 declare global {
@@ -67,13 +74,23 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
 })
 
 const sendMessageToActiveTab = (message: Record<string, unknown>) => {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    const active = tabs?.[0]
-    if (!active?.id) return
-    chrome.tabs.sendMessage(active.id, message, () => {
+  const targetTabId = lastMatchTabId
+  const deliver = (tabId: number) => {
+    chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
       }
     })
+  }
+
+  if (typeof targetTabId === "number") {
+    deliver(targetTabId)
+    return
+  }
+
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const active = tabs?.[0]
+    if (!active?.id) return
+    deliver(active.id)
   })
 }
 
@@ -121,32 +138,25 @@ const toVimeoPlayerUrl = (value: unknown) => {
 
   const timestampMatch = value.match(/#t=(\d+)/)
   const suffix = timestampMatch ? `#t=${timestampMatch[1]}s` : ''
-  return `https://player.vimeo.com/video/${videoId}?autoplay=1&title=0&byline=0${suffix}`
+  return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=0&title=0&byline=0${suffix}`
 }
 
-const THRESHOLD_VALUES: Record<"high" | "medium" | "low", number> = {
-  high: 0.75,
-  medium: 0.6,
-  low: 0.4,
-}
-
-const determineThresholdLevel = (value: number) => {
-  if (value >= THRESHOLD_VALUES.high) return "high"
-  if (value <= THRESHOLD_VALUES.low) return "low"
-  return "medium"
-}
-
-const notifyThresholdData = (level: "high" | "medium" | "low") => {
-  chrome.runtime.sendMessage({ action: "thresholdData", threshold: level }, () => {
-    if (chrome.runtime.lastError) {
+const notifyThresholdData = (value: number, level: ThresholdLevel) => {
+  chrome.runtime.sendMessage(
+    { action: "thresholdData", thresholdValue: value, thresholdLevel: level },
+    () => {
+      if (chrome.runtime.lastError) {
+      }
     }
-  })
+  )
 }
 
-const updateGlobalThreshold = (level: "high" | "medium" | "low") => {
+const updateGlobalThreshold = (value: number) => {
+  const clamped = clampThresholdValue(value)
+  const level = determineThresholdLevel(clamped)
   globalThresholdLevel = level
-  globalThresholdValue = THRESHOLD_VALUES[level]
-  notifyThresholdData(level)
+  globalThresholdValue = clamped
+  notifyThresholdData(clamped, level)
   propagateThresholdToTab()
 }
 
@@ -155,14 +165,15 @@ const fetchSiteSettings = async (providerId: number) => {
   try {
     const data = await fetchJson(url)
     if (typeof data?.match_threshold === "number") {
-      updateGlobalThreshold(determineThresholdLevel(data.match_threshold))
+      updateGlobalThreshold(data.match_threshold)
     }
   } catch (error) {
   }
 }
 
-const persistSiteThreshold = async (providerId: number, level: "high" | "medium" | "low") => {
+const persistSiteThreshold = async (providerId: number, value: number) => {
   const url = `${SITE_SETTINGS_API}?provider_id=${encodeURIComponent(providerId)}`
+  const clamped = clampThresholdValue(value)
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -170,15 +181,15 @@ const persistSiteThreshold = async (providerId: number, level: "high" | "medium"
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        match_threshold: THRESHOLD_VALUES[level],
+        match_threshold: clamped,
       }),
     })
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Failed to persist threshold (${response.status}): ${text}`)
-      }
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(`Failed to persist threshold (${response.status}): ${text}`)
+    }
 
-      await fetchSiteSettings(providerId)
+    await fetchSiteSettings(providerId)
   } catch (error) {
   }
 }
@@ -503,17 +514,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
   if (message.action === "setThreshold") {
-    const threshold = message.threshold
-    if (threshold && ["high", "medium", "low"].includes(threshold)) {
-      updateGlobalThreshold(threshold)
-      persistSiteThreshold(safeProviderId(), threshold)
+
+    let requestedValue = toNumber(message.thresholdValue ?? message.threshold)
+    if (typeof requestedValue !== "number" && typeof message.threshold === "string") {
+      const level = message.threshold
+      if (level && THRESHOLD_VALUE_MAP[level as ThresholdLevel] !== undefined) {
+        requestedValue = THRESHOLD_VALUE_MAP[level as ThresholdLevel]
+      }
     }
-    return false
-  }
-  if (message.action === "setThreshold") {
-    const threshold = message.threshold
-    if (threshold && ["high", "medium", "low"].includes(threshold)) {
-      updateGlobalThreshold(threshold)
+    if (typeof requestedValue === "number") {
+      updateGlobalThreshold(requestedValue)
+      persistSiteThreshold(safeProviderId(), requestedValue)
+    } else {
     }
     return false
   }
