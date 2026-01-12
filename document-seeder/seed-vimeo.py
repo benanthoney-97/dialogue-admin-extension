@@ -24,12 +24,13 @@ PROVIDER_ID = 12
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-def process_video(video_url, manual_title=None):
+def process_video(video_url, manual_title=None, existing_doc=None):
     print(f"\n🚀 Starting processing for: {video_url}")
     
     audio_path = ""
     detected_title = ""
-    
+    doc_id = None
+
     # yt-dlp Configuration
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -45,6 +46,7 @@ def process_video(video_url, manual_title=None):
         'cookiesfrombrowser': ('chrome',), # Keeps your Vimeo access
     }
 
+    success = False
     try:
         # A. DOWNLOAD
         print("   ⬇️  Downloading audio (using Chrome cookies)...")
@@ -74,23 +76,22 @@ def process_video(video_url, manual_title=None):
 
         # C. SAVE PARENT DOC
         print("   💾 Saving to Supabase...")
-        
-        # Check for duplicates first
-        existing = supabase.table('provider_documents').select("id").eq("source_url", video_url).execute()
-        if existing.data:
-            print(f"      ⚠️ Document already exists (ID: {existing.data[0]['id']}). Skipping insert.")
-            doc_id = existing.data[0]['id']
-            # Optional: Delete old chunks if re-seeding
-            # supabase.table('provider_knowledge').delete().eq("document_id", doc_id).execute()
+        if existing_doc:
+            doc_id = existing_doc.get("id")
+            final_title = manual_title or existing_doc.get("title") or final_title
         else:
-            data, count = supabase.table('provider_documents').insert({
-                "provider_id": PROVIDER_ID,
-                "title": final_title,
-                "source_url": video_url,
-                "media_type": "video" 
-            }).execute()
-            
-            # Robust ID retrieval
+            existing = supabase.table('provider_documents').select("id").eq("source_url", video_url).execute()
+            if existing.data:
+                print(f"      ⚠️ Document already exists (ID: {existing.data[0]['id']}). Reusing row.")
+                doc_id = existing.data[0]['id']
+            else:
+                data, count = supabase.table('provider_documents').insert({
+                    "provider_id": PROVIDER_ID,
+                    "title": final_title,
+                    "source_url": video_url,
+                    "media_type": "video" 
+                }).execute()
+                
             if hasattr(data, 'data') and len(data.data) > 0:
                  doc_id = data.data[0]['id']
             else:
@@ -139,16 +140,50 @@ def process_video(video_url, manual_title=None):
             for i in range(0, len(rows), batch_size):
                 supabase.table('provider_knowledge').insert(rows[i:i+batch_size]).execute()
             print(f"   ✨ SUCCESS! '{final_title}' has been ingested with timestamps.")
+        success = True
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
     finally:
         if audio_path and os.path.exists(audio_path):
             os.remove(audio_path)
+    return success, doc_id
+
+def fetch_next_pending_document():
+    response = (
+        supabase.table("provider_documents")
+        .select("id,title,source_url")
+        .eq("is_active", False)
+        .limit(1)
+        .maybe_single()
+        .execute()
+    )
+    data = getattr(response, "data", None)
+    error = getattr(response, "error", None)
+    if error:
+        raise error
+    return data
+
+
+def mark_document_active(document_id):
+    supabase.table("provider_documents").update({"is_active": True}).eq("id", document_id).execute()
+
+
+def main():
+    pending = fetch_next_pending_document()
+    if not pending:
+        print("🎉 Nothing pending.")
+        return
+    while pending:
+        video_url = pending.get("source_url")
+        if not video_url:
+            print("⚠️  Pending document missing source_url")
+            break
+        success, doc_id = process_video(video_url, manual_title=pending.get("title"), existing_doc=pending)
+        if success and doc_id:
+            mark_document_active(doc_id)
+        pending = fetch_next_pending_document()
+
 
 if __name__ == "__main__":
-    # Example Usage
-    TARGET_URL = "https://vimeo.com/1124162666" 
-    MANUAL_TITLE = "Win minds AND investment: the insider's guide to being brand-ready for investors" 
-    
-    process_video(TARGET_URL, MANUAL_TITLE)
+    main()

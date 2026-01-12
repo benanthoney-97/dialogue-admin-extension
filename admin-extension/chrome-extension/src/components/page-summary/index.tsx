@@ -205,7 +205,7 @@ const parseHexColor = (value?: string) => {
 const tierBackgroundMap: Record<string, string> = {
   "Great Match": "#ede9fe",
   "Good Match": "#dcfce7",
-  "Potential Match": "#f1f5f9",
+  "Match": "#f1f5f9",
 };
 
 const tierColorMap: Record<
@@ -214,7 +214,7 @@ const tierColorMap: Record<
 > = {
   "Great Match": { color: "#7c3aed", borderColor: "rgba(124,58,237,0.35)" },
   "Good Match": { color: "#166534", borderColor: "rgba(16,185,129,0.55)" },
-  "Potential Match": { color: "#334155", borderColor: "rgba(15,23,42,0.35)" },
+  "Match": { color: "#334155", borderColor: "rgba(15,23,42,0.35)" },
 }
 
 const rgbaFromHex = (value?: string, alpha = 0.12) => {
