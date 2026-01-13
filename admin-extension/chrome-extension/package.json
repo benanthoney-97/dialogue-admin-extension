@@ -11,6 +11,7 @@
     "package": "plasmo package"
   },
   "dependencies": {
+    "@yt-dlp/yt-dlp": "^2024.11.3",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.78.0",
     "axios": "^1.13.2",

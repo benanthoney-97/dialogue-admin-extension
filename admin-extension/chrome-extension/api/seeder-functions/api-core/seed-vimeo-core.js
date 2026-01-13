@@ -1,4 +1,8 @@
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const crypto = require("crypto");
+const { spawn } = require("child_process");
 const { createClient } = require("@supabase/supabase-js");
 const { OpenAI } = require("openai");
 const dotenv = require("dotenv");
@@ -16,72 +20,194 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_API_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const embedModel = process.env.SEED_VIMEO_EMBED_MODEL || "text-embedding-3-small";
+const ytDlpBinary = require.resolve("@yt-dlp/yt-dlp/bin/yt-dlp");
+const AUDIO_BASE_DIR = path.join(os.tmpdir(), "dialogue-seed-vimeo");
+const CHUNK_THRESHOLD = Number(process.env.SEED_VIMEO_CHUNK_SIZE || 1000);
 
-const YTDLP_PATH = require.resolve("@yt-dlp/yt-dlp");
-const { spawn } = require("child_process");
-const fs = require("fs");
-const os = require("os");
-
-const OUTPUT_DIR = path.resolve(path.dirname(YTDLP_PATH), "../../audio_cache");
-if (!fs.existsSync(OUTPUT_DIR)) {
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+if (!fs.existsSync(AUDIO_BASE_DIR)) {
+  fs.mkdirSync(AUDIO_BASE_DIR, { recursive: true });
 }
-
-const embedModel = "text-embedding-3-small";
 
 const fetchPendingDocument = async () => {
   const { data, error } = await supabase
     .from("provider_documents")
-    .select("id,title,source_url")
+    .select("id, provider_id, source_url, title")
     .eq("is_active", false)
     .limit(1)
     .maybeSingle();
-  if (error) throw error;
-  return data;
+  if (error) {
+    throw error;
+  }
+  return data || null;
 };
 
 const markDocumentActive = async (documentId) => {
   await supabase.from("provider_documents").update({ is_active: true }).eq("id", documentId);
 };
 
-const downloadAudio = (url, outputPath) =>
-  new Promise((resolve, reject) => {
-    const args = ["-x", "--audio-format", "mp3", "--audio-quality", "32", "--cookies-from-browser", "chrome", "-o", outputPath, url];
-    const child = spawn("yt-dlp", args, { stdio: "inherit" });
-    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error("yt-dlp failed"))));
+const downloadAudio = async (videoUrl) => {
+  const sessionDir = path.join(AUDIO_BASE_DIR, crypto.randomUUID());
+  fs.mkdirSync(sessionDir, { recursive: true });
+  const outputPattern = path.join(sessionDir, "%(id)s.%(ext)s");
+  const args = [
+    "-f",
+    "bestaudio/best",
+    "--cookies-from-browser",
+    "chrome",
+    "--extract-audio",
+    "--audio-format",
+    "mp3",
+    "--audio-quality",
+    "32",
+    "--output",
+    outputPattern,
+    "--no-progress",
+    "--no-playlist",
+    "--quiet",
+    videoUrl,
+  ];
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(ytDlpBinary, args, {
+      env: process.env,
+      stdio: "ignore",
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`yt-dlp exited with ${code}`));
+    });
     child.on("error", reject);
   });
 
-const embedText = async (text) => {
-  const response = await openai.embeddings.create({
-    model: embedModel,
-    input: [text],
-  });
-  return response.data[0].embedding;
+  const mp3Files = fs.readdirSync(sessionDir).filter((file) => file.endsWith(".mp3"));
+  if (!mp3Files.length) {
+    throw new Error("yt-dlp did not produce an MP3");
+  }
+  return { audioPath: path.join(sessionDir, mp3Files[0]), sessionDir };
 };
 
-const insertChunks = async (documentId, videoUrl, chunks) => {
+const transcribeAudio = async (audioPath) => {
+  const stream = fs.createReadStream(audioPath);
+  const transcript = await openai.audio.transcriptions.create({
+    model: "whisper-1",
+    file: stream,
+    response_format: "verbose_json",
+    timestamp_granularities: ["segment"],
+  });
+  return transcript.segments || [];
+};
+
+const chunkSegments = (segments = []) => {
+  const chunks = [];
+  let buffer = "";
+  let timestampStart = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const text = (segment.text ?? segment["text"] ?? "").trim();
+    const start = Number(segment.start ?? segment["start"] ?? 0);
+    const end = Number(segment.end ?? segment["end"] ?? start);
+    if (!text) continue;
+    if (!buffer) {
+      timestampStart = start;
+    }
+    buffer += `${text} `;
+    const atEnd = i === segments.length - 1;
+    if (buffer.length >= CHUNK_THRESHOLD || atEnd) {
+      chunks.push({
+        text: buffer.trim(),
+        timestampStart: Math.floor(timestampStart),
+        timestampEnd: Math.floor(end),
+      });
+      buffer = "";
+    }
+  }
+  return chunks;
+};
+
+const embedChunks = async (chunks) => {
   if (!chunks.length) return [];
-  const { data, error } = await supabase
-    .from("provider_knowledge")
-    .insert(
-      chunks.map((chunk, index) => ({
-        provider_id: chunk.provider_id,
-        document_id: documentId,
-        content: chunk.text,
-        embedding: chunk.embedding,
-        metadata: { source: videoUrl, chunk_index: index },
-      }))
-    )
-    .select("id");
-  if (error) throw error;
+  const embeddings = [];
+  const batchSize = 16;
+  const chunkTexts = chunks.map((chunk) => chunk.text);
+  for (let i = 0; i < chunkTexts.length; i += batchSize) {
+    const batch = chunkTexts.slice(i, i + batchSize);
+    const response = await openai.embeddings.create({
+      model: embedModel,
+      input: batch,
+    });
+    embeddings.push(...response.data.map((item) => item.embedding));
+  }
+  return embeddings;
+};
+
+const cleanUpSession = (sessionDir) => {
+  try {
+    fs.rmSync(sessionDir, { recursive: true, force: true });
+  } catch (error) {
+    console.warn("[seed-vimeo-core] cleanup failed", error.message);
+  }
+};
+
+const insertKnowledge = async (document, chunks, embeddings) => {
+  if (!chunks.length || !embeddings.length) return [];
+  const payload = chunks.map((chunk, idx) => ({
+    provider_id: document.provider_id,
+    document_id: document.id,
+    content: chunk.text,
+    embedding: embeddings[idx],
+    chunk_index: idx,
+    metadata: {
+      source: document.source_url,
+      timestampStart: chunk.timestampStart,
+      timestampEnd: chunk.timestampEnd,
+    },
+  }));
+  const { data, error } = await supabase.from("provider_knowledge").insert(payload).select("id,chunk_index");
+  if (error) {
+    throw error;
+  }
   return data || [];
 };
 
+const runNextVideo = async () => {
+  const pending = await fetchPendingDocument();
+  if (!pending) {
+    return { ok: false, message: "No pending documents" };
+  }
+  let session;
+  try {
+    session = await downloadAudio(pending.source_url);
+    const segments = await transcribeAudio(session.audioPath);
+    if (!segments.length) {
+      throw new Error("No transcript segments returned");
+    }
+    const chunks = chunkSegments(segments);
+    if (!chunks.length) {
+      throw new Error("No chunks generated");
+    }
+    const embeddings = await embedChunks(chunks);
+    if (embeddings.length !== chunks.length) {
+      throw new Error("Embedding mismatch");
+    }
+    const inserted = await insertKnowledge(pending, chunks, embeddings);
+    await markDocumentActive(pending.id);
+    return {
+      ok: true,
+      inserted: inserted.length,
+      document: pending,
+    };
+  } finally {
+    if (session) {
+      cleanUpSession(session.sessionDir);
+    }
+  }
+};
+
 module.exports = {
+  runNextVideo,
   fetchPendingDocument,
-  markDocumentActive,
-  downloadAudio,
-  embedText,
-  insertChunks,
 };
