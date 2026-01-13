@@ -32,7 +32,14 @@ export default async function handler(req, res) {
   }
 
   let payload;
-  const pageUrl = payload?.page_url || payload?.pageUrl || req.query?.page_url || req.query?.pageUrl;
+  const rawData = payload?.body ?? payload;
+  const pageUrl =
+    payload?.page_url ||
+    payload?.pageUrl ||
+    rawData?.page_url ||
+    rawData?.pageUrl ||
+    req.query?.page_url ||
+    req.query?.pageUrl;
 
   if (!pageUrl) {
     res.status(400).json({ error: "page_url is required" });
