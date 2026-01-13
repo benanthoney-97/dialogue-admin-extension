@@ -7,8 +7,8 @@ export default async function handler(req, res) {
   }
   const indexUrl = req.body?.indexUrl || req.query?.indexUrl;
   try {
-    await doImport(indexUrl);
-    res.status(200).json({ ok: true });
+    const result = await doImport(indexUrl);
+    res.status(200).json({ ok: true, result });
   } catch (error) {
     console.error("Import failed:", error);
     res.status(500).json({ error: error.message || "Import failed" });

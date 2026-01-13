@@ -34,16 +34,18 @@ const extractTagValue = (fragment, tagName) => {
 };
 
 const insertPages = async (feedId, pages) => {
-  if (!feedId || !pages.length) return;
+  if (!feedId || !pages.length) return 0;
   const rows = pages.map((pageUrl) => ({
     feed_id: feedId,
     page_url: pageUrl,
     tracked: true,
   }));
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("sitemap_pages")
-    .upsert(rows, { onConflict: "feed_id,page_url" });
+    .upsert(rows, { onConflict: "feed_id,page_url" })
+    .select("page_url");
   if (error) throw error;
+  return (data || []).length;
 };
 
 const fetchXml = async (url) => {
@@ -61,7 +63,7 @@ const insertFeed = async (feedUrl, lastModified, providerId) => {
     .eq("feed_url", feedUrl)
     .maybeSingle();
   if (existing.data?.id) {
-    return existing.data.id;
+    return { feedId: existing.data.id, created: false };
   }
   const { data, error } = await supabase
     .from("sitemap_feeds")
@@ -74,17 +76,18 @@ const insertFeed = async (feedUrl, lastModified, providerId) => {
     .select("id")
     .maybeSingle();
   if (error) throw error;
-  return data?.id;
+  return { feedId: data?.id, created: true };
 };
 
 const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl) => {
   console.log(`[import-sitemap] processing provider ${providerId}`);
+  const feedResults = [];
   if (sitemapList.length) {
     for (const sitemap of sitemapList) {
       const feedUrl = extractTagValue(sitemap, "loc");
       if (!feedUrl) continue;
       const lastmod = extractTagValue(sitemap, "lastmod");
-      const feedId = await insertFeed(feedUrl, lastmod, providerId);
+      const { feedId, created } = await insertFeed(feedUrl, lastmod, providerId);
       if (!feedId) continue;
       try {
         const feedXml = await fetchXml(feedUrl);
@@ -92,20 +95,33 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
         const urls = urlEntries
           .map((entry) => extractTagValue(entry, "loc"))
           .filter(Boolean);
-        await insertPages(feedId, urls);
+        const pageCount = await insertPages(feedId, urls);
+        feedResults.push({
+          providerId,
+          feedUrl,
+          feedCreated: created,
+          pagesAdded: pageCount,
+        });
       } catch (error) {
         console.warn(`Skipping feed ${feedUrl}:`, error.message);
       }
     }
   } else {
-    const feedId = await insertFeed(indexUrl, null, providerId);
-    if (!feedId) return;
+    const { feedId, created } = await insertFeed(indexUrl, null, providerId);
+    if (!feedId) return feedResults;
     const urlEntries = getEntries(indexXml, "url");
     const urls = urlEntries
       .map((entry) => extractTagValue(entry, "loc"))
       .filter(Boolean);
-    await insertPages(feedId, urls);
+    const pageCount = await insertPages(feedId, urls);
+    feedResults.push({
+      providerId,
+      feedUrl: indexUrl,
+      feedCreated: created,
+      pagesAdded: pageCount,
+    });
   }
+  return feedResults;
 };
 
 const fetchSitemapIndexes = async () => {
@@ -127,7 +143,7 @@ const updateIndexTimestamp = async (indexId) => {
 const importIndexUrl = async (providerId, indexUrl) => {
   const indexXml = await fetchXml(indexUrl);
   const sitemapList = getEntries(indexXml, "sitemap");
-  await runImportForProvider(providerId, indexXml, sitemapList, indexUrl);
+  return await runImportForProvider(providerId, indexXml, sitemapList, indexUrl);
 };
 
 const doImport = async (indexUrl) => {
@@ -136,15 +152,22 @@ const doImport = async (indexUrl) => {
     if (!targetProvider) {
       throw new Error("Provider ID must be set when calling doImport with an indexUrl");
     }
-    await importIndexUrl(targetProvider, indexUrl);
-    return;
+    return await importIndexUrl(targetProvider, indexUrl);
   }
 
   const indexes = await fetchSitemapIndexes();
+  const summary = [];
   for (const indexEntry of indexes) {
-    await importIndexUrl(indexEntry.provider_id, indexEntry.index_url);
+    const feeds = await importIndexUrl(indexEntry.provider_id, indexEntry.index_url);
+    summary.push({
+      indexId: indexEntry.id,
+      providerId: indexEntry.provider_id,
+      indexUrl: indexEntry.index_url,
+      feeds,
+    });
     await updateIndexTimestamp(indexEntry.id);
   }
+  return summary;
 };
 
 module.exports = {
