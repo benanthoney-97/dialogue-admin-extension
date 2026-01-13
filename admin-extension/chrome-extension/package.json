@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.78.0",
+    "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -21,6 +22,7 @@
     "markdown-to-jsx": "^9.4.2",
     "motion": "^12.23.26",
     "openai": "^6.15.0",
+    "pg": "^8.16.3",
     "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -45,12 +47,11 @@
   },
   "manifest": {
     "host_permissions": [
-"https://*.seedlegals.com/*",
-    "https://seedlegals.com/*",
-    "https://*.wpcomstaging.com/*",
-    "https://*.dialogue-ai.co/*",   
-    "https://dialogue-ai.co/*"
-
+      "https://*.seedlegals.com/*",
+      "https://seedlegals.com/*",
+      "https://*.wpcomstaging.com/*",
+      "https://*.dialogue-ai.co/*",
+      "https://dialogue-ai.co/*"
     ],
     "permissions": [
       "sidePanel",
