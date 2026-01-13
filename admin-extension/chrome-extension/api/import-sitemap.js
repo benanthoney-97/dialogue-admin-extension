@@ -6,10 +6,6 @@ export default async function handler(req, res) {
     return;
   }
   const indexUrl = req.body?.indexUrl || req.query?.indexUrl;
-  if (!indexUrl) {
-    res.status(400).json({ error: "Missing indexUrl parameter" });
-    return;
-  }
   try {
     await doImport(indexUrl);
     res.status(200).json({ ok: true });
