@@ -87,7 +87,7 @@ const syncProviderVideos = async (client, providerId, videos) => {
     const query = `
       INSERT INTO provider_documents
         (provider_id, title, source_url, media_type, cover_image_url, is_active)
-      SELECT $1, $2, $3, 'video', $4, true
+      SELECT $1, $2, $3, 'video', $4, false
       WHERE NOT EXISTS (
         SELECT 1 FROM provider_documents
         WHERE provider_id = $1 AND source_url = $3
