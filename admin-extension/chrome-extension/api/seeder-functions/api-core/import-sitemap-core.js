@@ -35,27 +35,32 @@ const extractTagValue = (fragment, tagName) => {
 
 const insertPages = async (feedId, pages) => {
   if (!feedId) return [];
-  console.log(`   ↳ feed_id=${feedId}: ${pages.length} total URLs discovered`);
+  // console.log(`   ↳ feed_id=${feedId}: ${pages.length} URLs processing...`); // Optional noise reduction
+  
   if (!pages.length) return [];
-  const { data: existing = [] } = await supabase
-    .from("sitemap_pages")
-    .select("page_url")
-    .eq("feed_id", feedId)
-    .in("page_url", pages);
-  const existingSet = new Set(existing.map((row) => row.page_url));
-  const toInsert = pages.filter((pageUrl) => !existingSet.has(pageUrl));
-  console.log(`   ↳ feed_id=${feedId}: ${existingSet.size} already stored, ${toInsert.length} new`);
-  if (!toInsert.length) return [];
-  const rows = toInsert.map((pageUrl) => ({
+
+  // Prepare the rows payload
+  const rows = pages.map((pageUrl) => ({
     feed_id: feedId,
     page_url: pageUrl,
     tracked: true,
   }));
+
   const { data, error } = await supabase
     .from("sitemap_pages")
-    .insert(rows)
-    .select("id,page_url");
-  if (error) throw error;
+    .upsert(rows, { 
+      onConflict: 'page_url', 
+      ignoreDuplicates: true 
+    })
+    .select("id, page_url");
+
+  if (error) {
+    console.error(`Error upserting pages for feed ${feedId}:`, error.message);
+    throw error;
+  }
+  const successfulCount = data ? data.length : 0; 
+  console.log(`   ↳ feed_id=${feedId}: Processed ${pages.length} URLs. (New inserts: ~${successfulCount})`);
+  
   return data || [];
 };
 
