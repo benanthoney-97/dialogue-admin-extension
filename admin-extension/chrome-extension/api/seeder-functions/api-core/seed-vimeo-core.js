@@ -21,7 +21,19 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_API_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const embedModel = process.env.SEED_VIMEO_EMBED_MODEL || "text-embedding-3-small";
-const ytDlpBinary = require.resolve("@yt-dlp/yt-dlp/bin/yt-dlp");
+const YTDLP_BIN_FALLBACK = (() => {
+  try {
+    return require.resolve("yt-dlp-exec/bin/yt-dlp");
+  } catch (err) {
+    return null;
+  }
+})();
+const ytDlpBinary = process.env.YTDLP_BIN || YTDLP_BIN_FALLBACK;
+if (!ytDlpBinary) {
+  throw new Error(
+    "yt-dlp binary not configured. Install yt-dlp-exec or set YTDLP_BIN to an executable."
+  );
+}
 const AUDIO_BASE_DIR = path.join(os.tmpdir(), "dialogue-seed-vimeo");
 const CHUNK_THRESHOLD = Number(process.env.SEED_VIMEO_CHUNK_SIZE || 1000);
 
@@ -69,7 +81,7 @@ const downloadAudio = async (videoUrl) => {
   ];
 
   await new Promise((resolve, reject) => {
-    const child = spawn(ytDlpBinary, args, {
+  const child = spawn(ytDlpBinary, args, {
       env: process.env,
       stdio: "ignore",
     });
