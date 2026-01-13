@@ -6,8 +6,10 @@ export default async function handler(req, res) {
     return;
   }
   const indexUrl = req.body?.indexUrl || req.query?.indexUrl;
+  const providerIdValue = req.body?.providerId ?? req.query?.providerId;
+  const providerId = providerIdValue ? Number(providerIdValue) : null;
   try {
-    const result = await doImport(indexUrl);
+    const result = await doImport(indexUrl, providerId);
     res.status(200).json({ ok: true, result });
   } catch (error) {
     console.error("Import failed:", error);
