@@ -1,4 +1,4 @@
-const { doImport } = require("../../../document-seeder/local_functions/import-sitemap-core");
+const { doImport } = require("./seeder-functions/api-core/import-sitemap-core");
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

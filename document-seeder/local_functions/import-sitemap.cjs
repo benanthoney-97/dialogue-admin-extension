@@ -1,4 +1,4 @@
-const { doImport } = require("./import-sitemap-core");
+const { doImport } = require("../../admin-extension/chrome-extension/api/seeder-functions/api-core/import-sitemap-core");
 
 const main = async () => {
   const indexUrl = process.argv[2];
