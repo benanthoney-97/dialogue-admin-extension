@@ -5,9 +5,11 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "Only POST allowed" });
     return;
   }
-  const indexUrl = req.body?.indexUrl || req.query?.indexUrl;
-  const providerIdValue = req.body?.providerId ?? req.query?.providerId;
+  const body = await req.json().catch(() => ({}));
+  const indexUrl = body?.indexUrl || req.query?.indexUrl;
+  const providerIdValue = body?.providerId ?? req.query?.providerId;
   const providerId = providerIdValue ? Number(providerIdValue) : null;
+  console.log("[import-sitemap] providerId parameter:", providerIdValue, providerId);
   try {
     const result = await doImport(indexUrl, providerId);
     res.status(200).json({ ok: true, result });

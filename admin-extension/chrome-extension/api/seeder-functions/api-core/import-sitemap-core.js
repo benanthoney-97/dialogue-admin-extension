@@ -36,27 +36,43 @@ const extractTagValue = (fragment, tagName) => {
 const insertPages = async (feedId, pages) => {
   if (!feedId) return [];
   console.log(`   ↳ feed_id=${feedId}: ${pages.length} total URLs discovered`);
+  
   if (!pages.length) return [];
-  const { data: existing = [] } = await supabase
+
+  // --- FIX START ---
+  // Don't rely on destructuring defaults. Grab data directly.
+  const { data } = await supabase
     .from("sitemap_pages")
     .select("page_url")
     .eq("feed_id", feedId)
     .in("page_url", pages);
+
+  // Explicitly fallback to empty array if data is null
+  const existing = data || []; 
+  // --- FIX END ---
+
   const existingSet = new Set(existing.map((row) => row.page_url));
   const toInsert = pages.filter((pageUrl) => !existingSet.has(pageUrl));
+  
   console.log(`   ↳ feed_id=${feedId}: ${existingSet.size} already stored, ${toInsert.length} new`);
+  
   if (!toInsert.length) return [];
+  
   const rows = toInsert.map((pageUrl) => ({
     feed_id: feedId,
     page_url: pageUrl,
     tracked: true,
   }));
-  const { data, error } = await supabase
+
+  const { data: insertedData, error } = await supabase
     .from("sitemap_pages")
     .insert(rows)
     .select("id,page_url");
+
   if (error) throw error;
-  return data || [];
+  
+  // Safety check here too, though insert usually returns [] on empty
+  return insertedData || [];
 };
 
 const fetchXml = async (url) => {
@@ -121,7 +137,7 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
   } else {
     const { feedId, created } = await insertFeed(indexUrl, null, providerId);
     if (!feedId) return feedResults;
-    const urlEntries = getEntries(indexXml, "url");
+    const urlEntries = getEntries(indexXml, "url") || [];
     const urls = urlEntries
       .map((entry) => extractTagValue(entry, "loc"))
       .filter(Boolean);
