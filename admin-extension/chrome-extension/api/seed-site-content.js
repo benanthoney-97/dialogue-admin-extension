@@ -32,6 +32,13 @@ export default async function handler(req, res) {
   }
 
   let payload;
+  try {
+    payload = await parseRequestBody(req);
+  } catch (error) {
+    res.status(400).json({ error: "Invalid JSON payload" });
+    return;
+  }
+
   const rawData = payload?.body ?? payload;
   const pageUrl =
     payload?.page_url ||
@@ -43,13 +50,6 @@ export default async function handler(req, res) {
 
   if (!pageUrl) {
     res.status(400).json({ error: "page_url is required" });
-    return;
-  }
-
-  try {
-    payload = await parseRequestBody(req);
-  } catch (error) {
-    res.status(400).json({ error: "Invalid JSON payload" });
     return;
   }
 
