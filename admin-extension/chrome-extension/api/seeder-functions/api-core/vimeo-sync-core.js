@@ -1,5 +1,5 @@
 const path = require("path");
-const axios = require("axios");
+const fetch = globalThis.fetch || require("node-fetch");
 const { Client } = require("pg");
 
 const dotenvPath = path.resolve(__dirname, "../../../../.env");
@@ -17,17 +17,20 @@ if (!VIMEO_CLIENT_ID || !VIMEO_CLIENT_SECRET || !DATABASE_URL) {
 
 const getAccessToken = async () => {
   const authString = Buffer.from(`${VIMEO_CLIENT_ID}:${VIMEO_CLIENT_SECRET}`).toString("base64");
-  const response = await axios.post(
-    "https://api.vimeo.com/oauth/authorize/client",
-    { grant_type: "client_credentials", scope: "public" },
-    {
-      headers: {
-        Authorization: `Basic ${authString}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-  return response.data.access_token;
+  const response = await fetch("https://api.vimeo.com/oauth/authorize/client", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${authString}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ grant_type: "client_credentials", scope: "public" }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Vimeo auth failed: ${body}`);
+  }
+  const payload = await response.json();
+  return payload.access_token;
 };
 
 const fetchVimeoProviders = async (client) => {
@@ -46,15 +49,19 @@ const fetchVideosForUser = async (accessToken, externalId) => {
   let hasMore = true;
 
   while (hasMore) {
-    const response = await axios.get(`https://api.vimeo.com/users/${externalId}/videos`, {
+    const url = new URL(`https://api.vimeo.com/users/${externalId}/videos`);
+    url.searchParams.set("per_page", "100");
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("fields", "uri,name,link,duration,created_time,pictures.sizes");
+    const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
-      params: {
-        per_page: 100,
-        page,
-        fields: "uri,name,link,duration,created_time,pictures.sizes",
-      },
     });
-    const { data, paging } = response.data;
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Vimeo fetch failed (page ${page}): ${body}`);
+    }
+    const payload = await response.json();
+    const { data, paging } = payload;
     if (Array.isArray(data) && data.length) {
       videos.push(...data);
     }
