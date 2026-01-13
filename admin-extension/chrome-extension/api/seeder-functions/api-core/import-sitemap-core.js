@@ -39,7 +39,7 @@ const insertPages = async (feedId, pages) => {
     .from("sitemap_pages")
     .select("page_url")
     .eq("feed_id", feedId)
-    .in_("page_url", pages);
+    .in("page_url", pages);
   const existingSet = new Set(existing.map((row) => row.page_url));
   const toInsert = pages.filter((pageUrl) => !existingSet.has(pageUrl));
   if (!toInsert.length) return [];
