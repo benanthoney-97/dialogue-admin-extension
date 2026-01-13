@@ -40,12 +40,12 @@ const insertPages = async (feedId, pages) => {
   if (!pages.length) return [];
 
   // Prepare the rows payload
-  const { data, error } = await supabase
+  const { data: queryData, error: queryError } = await supabase
     .from("sitemap_pages")
     .select("page_url")
     .eq("feed_id", feedId)
     .in("page_url", pages);
-  const existingRows = data || [];
+  const existingRows = queryData || [];
   const existingSet = new Set(existingRows.map((row) => row.page_url));
   const newPages = pages.filter((pageUrl) => !existingSet.has(pageUrl));
   console.log(
@@ -57,15 +57,15 @@ const insertPages = async (feedId, pages) => {
     page_url: pageUrl,
     tracked: true,
   }));
-  const { data, error } = await supabase
+  const { data: insertedRows, error: insertError } = await supabase
     .from("sitemap_pages")
     .insert(rows)
     .select("id, page_url");
-  if (error) {
-    console.error(`Error inserting pages for feed ${feedId}:`, error.message);
-    throw error;
+  if (insertError) {
+    console.error(`Error inserting pages for feed ${feedId}:`, insertError.message);
+    throw insertError;
   }
-  return data || [];
+  return insertedRows || [];
 };
 
 const fetchXml = async (url) => {
@@ -77,15 +77,15 @@ const fetchXml = async (url) => {
 };
 
 const insertFeed = async (feedUrl, lastModified, providerId) => {
-  const existing = await supabase
+  const { data: existingFeed } = await supabase
     .from("sitemap_feeds")
     .select("id")
     .eq("feed_url", feedUrl)
     .maybeSingle();
-  if (existing.data?.id) {
-    return { feedId: existing.data.id, created: false };
+  if (existingFeed?.id) {
+    return { feedId: existingFeed.id, created: false };
   }
-  const { data, error } = await supabase
+  const { data: insertedFeed, error: feedError } = await supabase
     .from("sitemap_feeds")
     .insert({
       provider_id: providerId,
@@ -95,8 +95,8 @@ const insertFeed = async (feedUrl, lastModified, providerId) => {
     })
     .select("id")
     .maybeSingle();
-  if (error) throw error;
-  return { feedId: data?.id, created: true };
+  if (feedError) throw feedError;
+  return { feedId: insertedFeed?.id, created: true };
 };
 
 const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl) => {
