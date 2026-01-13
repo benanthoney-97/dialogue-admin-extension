@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "Only POST allowed" });
     return;
   }
-  const body = await req.json().catch(() => ({}));
+  const body = req.body || {};
   const indexUrl = body?.indexUrl || req.query?.indexUrl;
   const providerIdValue = body?.providerId ?? req.query?.providerId;
   const providerId = providerIdValue ? Number(providerIdValue) : null;
