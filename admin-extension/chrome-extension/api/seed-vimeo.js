@@ -1,7 +1,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const PYTHON_BIN = process.env.PYTHON_BIN || "python";
+const PYTHON_BIN = process.env.PYTHON_BIN || "python3";
 const SEED_VIMEO_SCRIPT = path.join(__dirname, "..", "..", "document-seeder", "local_functions", "seed-vimeo.py");
 
 async function runPythonSeeder() {
