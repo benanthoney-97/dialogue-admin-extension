@@ -54,15 +54,6 @@ const fetchXml = async (url) => {
   return res.text();
 };
 
-const fetchProviderIds = async () => {
-  if (DEFAULT_PROVIDER_ID) {
-    return [DEFAULT_PROVIDER_ID];
-  }
-  const resp = await supabase.from("providers").select("id");
-  const data = resp.data || [];
-  return data.map((row) => row.id).filter(Boolean);
-};
-
 const insertFeed = async (feedUrl, lastModified, providerId) => {
   const existing = await supabase
     .from("sitemap_feeds")
@@ -117,12 +108,42 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
   }
 };
 
-const doImport = async (indexUrl) => {
+const fetchSitemapIndexes = async () => {
+  const resp = await supabase
+    .from("sitemap_indexes")
+    .select("id,provider_id,index_url")
+    .order("id");
+  return resp.data || [];
+};
+
+const updateIndexTimestamp = async (indexId) => {
+  if (!indexId) return;
+  await supabase
+    .from("sitemap_indexes")
+    .update({ last_imported_at: new Date().toISOString() })
+    .eq("id", indexId);
+};
+
+const importIndexUrl = async (providerId, indexUrl) => {
   const indexXml = await fetchXml(indexUrl);
   const sitemapList = getEntries(indexXml, "sitemap");
-  const providerIds = await fetchProviderIds();
-  for (const providerId of providerIds) {
-    await runImportForProvider(providerId, indexXml, sitemapList, indexUrl);
+  await runImportForProvider(providerId, indexXml, sitemapList, indexUrl);
+};
+
+const doImport = async (indexUrl) => {
+  if (indexUrl) {
+    const targetProvider = DEFAULT_PROVIDER_ID;
+    if (!targetProvider) {
+      throw new Error("Provider ID must be set when calling doImport with an indexUrl");
+    }
+    await importIndexUrl(targetProvider, indexUrl);
+    return;
+  }
+
+  const indexes = await fetchSitemapIndexes();
+  for (const indexEntry of indexes) {
+    await importIndexUrl(indexEntry.provider_id, indexEntry.index_url);
+    await updateIndexTimestamp(indexEntry.id);
   }
 };
 
