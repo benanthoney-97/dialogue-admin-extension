@@ -1,4 +1,5 @@
-const supabase = require("./supabase-client");
+const supabaseModule = require("./supabase-client");
+const supabase = supabaseModule?.default ?? supabaseModule;
 const { processPage } = require("./seeder-functions/api-core/site-content-seeder-core");
 
 const parseRequestBody = (req) =>
