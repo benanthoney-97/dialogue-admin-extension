@@ -34,7 +34,9 @@ const extractTagValue = (fragment, tagName) => {
 };
 
 const insertPages = async (feedId, pages) => {
-  if (!feedId || !pages.length) return [];
+  if (!feedId) return [];
+  console.log(`   ↳ feed_id=${feedId}: ${pages.length} total URLs discovered`);
+  if (!pages.length) return [];
   const { data: existing = [] } = await supabase
     .from("sitemap_pages")
     .select("page_url")
@@ -42,6 +44,7 @@ const insertPages = async (feedId, pages) => {
     .in("page_url", pages);
   const existingSet = new Set(existing.map((row) => row.page_url));
   const toInsert = pages.filter((pageUrl) => !existingSet.has(pageUrl));
+  console.log(`   ↳ feed_id=${feedId}: ${existingSet.size} already stored, ${toInsert.length} new`);
   if (!toInsert.length) return [];
   const rows = toInsert.map((pageUrl) => ({
     feed_id: feedId,
