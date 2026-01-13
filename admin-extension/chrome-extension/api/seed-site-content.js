@@ -39,18 +39,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  const pageUrl = payload?.page_url || payload?.pageUrl;
-  const providerId = payload?.provider_id || payload?.providerId;
-
-  if (!pageUrl || !providerId) {
-    res.status(400).json({ error: "page_url and provider_id are required" });
-    return;
-  }
-
   try {
     const { data: pageRow, error: pageError } = await supabase
       .from("sitemap_pages")
-      .select("id,page_url,provider_id")
+      .select("id,page_url,feed_id")
       .eq("page_url", pageUrl)
       .maybeSingle();
 
@@ -63,14 +55,20 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (Number(pageRow.provider_id) !== Number(providerId)) {
-      res.status(400).json({ error: "provider_id does not match sitemap page" });
-      return;
+    const { data: feedRow, error: feedError } = await supabase
+      .from("sitemap_feeds")
+      .select("provider_id")
+      .eq("id", pageRow.feed_id)
+      .maybeSingle();
+
+    if (feedError || !feedRow) {
+      throw feedError || new Error("Failed to load sitemap feed");
     }
 
+    const providerId = feedRow.provider_id;
     const insertedChunks = await processPage({
       pageUrl: pageRow.page_url,
-      providerId: pageRow.provider_id,
+      providerId,
       sitemapPageId: pageRow.id,
     });
 
