@@ -40,27 +40,30 @@ const insertPages = async (feedId, pages) => {
   if (!pages.length) return [];
 
   // Prepare the rows payload
-  const rows = pages.map((pageUrl) => ({
+  const { data: existing = [] } = await supabase
+    .from("sitemap_pages")
+    .select("page_url")
+    .eq("feed_id", feedId)
+    .in("page_url", pages);
+  const existingSet = new Set(existing.map((row) => row.page_url));
+  const newPages = pages.filter((pageUrl) => !existingSet.has(pageUrl));
+  console.log(
+    `   ↳ feed_id=${feedId}: ${pages.length} URLs discovered, ${existingSet.size} already stored, ${newPages.length} new`
+  );
+  if (!newPages.length) return [];
+  const rows = newPages.map((pageUrl) => ({
     feed_id: feedId,
     page_url: pageUrl,
     tracked: true,
   }));
-
   const { data, error } = await supabase
     .from("sitemap_pages")
-    .upsert(rows, { 
-      onConflict: 'page_url', 
-      ignoreDuplicates: true 
-    })
+    .insert(rows)
     .select("id, page_url");
-
   if (error) {
-    console.error(`Error upserting pages for feed ${feedId}:`, error.message);
+    console.error(`Error inserting pages for feed ${feedId}:`, error.message);
     throw error;
   }
-  const successfulCount = data ? data.length : 0; 
-  console.log(`   ↳ feed_id=${feedId}: Processed ${pages.length} URLs. (New inserts: ~${successfulCount})`);
-  
   return data || [];
 };
 
