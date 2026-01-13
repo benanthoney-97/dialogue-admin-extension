@@ -102,8 +102,8 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
       if (!feedId) continue;
       try {
         const feedXml = await fetchXml(feedUrl);
-        const urlEntries = getEntries(feedXml, "url");
-        const urls = urlEntries
+      const urlEntries = getEntries(feedXml, "url") || [];
+      const urls = urlEntries
           .map((entry) => extractTagValue(entry, "loc"))
           .filter(Boolean);
         const newPages = await insertPages(feedId, urls);
@@ -155,7 +155,7 @@ const updateIndexTimestamp = async (indexId) => {
 
 const importIndexUrl = async (providerId, indexUrl) => {
   const indexXml = await fetchXml(indexUrl);
-  const sitemapList = getEntries(indexXml, "sitemap");
+    const sitemapList = getEntries(indexXml, "sitemap") || [];
   return await runImportForProvider(providerId, indexXml, sitemapList, indexUrl);
 };
 
