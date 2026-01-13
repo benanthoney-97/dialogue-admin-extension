@@ -15,6 +15,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 const getEntries = (xml, tagName) => {
   const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "gi");
   const entries = [];
@@ -80,12 +81,10 @@ const doImport = async (indexUrl) => {
   const indexXml = await fetchXml(indexUrl);
   const sitemapList = getEntries(indexXml, "sitemap");
   if (sitemapList.length) {
-    console.log(`Discovered ${sitemapList.length} feeds`);
     for (const sitemap of sitemapList) {
       const feedUrl = extractTagValue(sitemap, "loc");
       if (!feedUrl) continue;
       const lastmod = extractTagValue(sitemap, "lastmod");
-      console.log(`Importing feed ${feedUrl}`);
       const feedId = await insertFeed(feedUrl, lastmod);
       if (!feedId) continue;
       try {
@@ -94,43 +93,22 @@ const doImport = async (indexUrl) => {
         const urls = urlEntries
           .map((entry) => extractTagValue(entry, "loc"))
           .filter(Boolean);
-        console.log(`  -> importing ${urls.length} pages`);
         await insertPages(feedId, urls);
       } catch (error) {
-        console.warn(`  -> skipping feed ${feedUrl}:`, error.message);
+        console.warn(`Skipping feed ${feedUrl}:`, error.message);
       }
     }
   } else {
-    console.log("No sitemap entries found—treating index as single feed");
     const feedId = await insertFeed(indexUrl, null);
-    if (!feedId) {
-      console.warn("Failed to insert fallback feed");
-      return;
-    }
+    if (!feedId) return;
     const urlEntries = getEntries(indexXml, "url");
     const urls = urlEntries
       .map((entry) => extractTagValue(entry, "loc"))
       .filter(Boolean);
-    console.log(`  -> importing ${urls.length} pages from ${indexUrl}`);
     await insertPages(feedId, urls);
   }
-  console.log("Import complete");
 };
 
-const main = async () => {
-  const indexUrl = process.argv[2];
-  if (!indexUrl) {
-    console.error("Usage: node document-seeder/import-sitemap.cjs <sitemap_index_url>");
-    process.exit(1);
-  }
-  try {
-    await doImport(indexUrl);
-  } catch (error) {
-    console.error("Import failed:", error);
-    process.exit(1);
-  }
+module.exports = {
+  doImport,
 };
-
-if (require.main === module) {
-  main();
-}
