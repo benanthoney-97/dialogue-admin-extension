@@ -43,8 +43,7 @@ const insertPages = async (feedId, pages) => {
   const { data: queryData, error: queryError } = await supabase
     .from("sitemap_pages")
     .select("page_url")
-    .eq("feed_id", feedId)
-    .in("page_url", pages);
+    .eq("feed_id", feedId);
   const existingRows = queryData || [];
   const existingSet = new Set(existingRows.map((row) => row.page_url));
   const newPages = pages.filter((pageUrl) => !existingSet.has(pageUrl));
