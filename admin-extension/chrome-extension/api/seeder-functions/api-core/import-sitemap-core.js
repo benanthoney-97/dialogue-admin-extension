@@ -36,7 +36,6 @@ const insertFeed = async (feedUrl, lastModified) => {
   const existing = await supabase
     .from("sitemap_feeds")
     .select("id")
-    .eq("provider_id", PROVIDER_ID)
     .eq("feed_url", feedUrl)
     .maybeSingle();
   if (existing.data?.id) {
