@@ -2,20 +2,17 @@ const path = require("path");
 const fetch = globalThis.fetch || require("node-fetch");
 const cheerio = require("cheerio");
 const { OpenAI } = require("openai");
-const { createClient } = require("@supabase/supabase-js");
+const supabaseModule = require("../../supabase-client");
+const supabase = supabaseModule?.default ?? supabaseModule;
 
 const dotenvPath = path.resolve(__dirname, "../../../../.env");
 require("dotenv").config({ path: dotenvPath });
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.PLASMO_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_API_KEY) {
+if (!supabase || !OPENAI_API_KEY) {
   throw new Error("Missing Supabase or OpenAI credentials for site-content seeder");
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const EMBED_MODEL = "text-embedding-3-small";
 const CHUNK_MIN_LENGTH = Number(process.env.SITE_CHUNK_MIN_LENGTH || 30);
@@ -98,7 +95,7 @@ const persistSiteChunks = async (providerId, sitemapPageId, pageUrl, chunks, emb
     embedding: embeddings[idx] || [],
     metadata: { source: pageUrl, title, chunk_index: idx },
   }));
-  const { data, error } = await supabase.table("site_content").insert(payload).select("id, chunk_index");
+const { data, error } = await supabase.from("site_content").insert(payload).select("id, chunk_index");
   if (error) {
     console.error("Site content insert error:", error);
     throw error;
