@@ -2,10 +2,10 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const crypto = require("crypto");
-const { spawn } = require("child_process");
 const { createClient } = require("@supabase/supabase-js");
 const { OpenAI } = require("openai");
 const dotenv = require("dotenv");
+const ytdlp = require("yt-dlp-exec");
 
 const dotenvPath = path.resolve(__dirname, "../../../../.env");
 dotenv.config({ path: dotenvPath });
@@ -21,19 +21,6 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_API_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const embedModel = process.env.SEED_VIMEO_EMBED_MODEL || "text-embedding-3-small";
-const YTDLP_BIN_FALLBACK = (() => {
-  try {
-    return require.resolve("yt-dlp-exec/bin/yt-dlp");
-  } catch (err) {
-    return null;
-  }
-})();
-const ytDlpBinary = process.env.YTDLP_BIN || YTDLP_BIN_FALLBACK;
-if (!ytDlpBinary) {
-  throw new Error(
-    "yt-dlp binary not configured. Install yt-dlp-exec or set YTDLP_BIN to an executable."
-  );
-}
 const AUDIO_BASE_DIR = path.join(os.tmpdir(), "dialogue-seed-vimeo");
 const CHUNK_THRESHOLD = Number(process.env.SEED_VIMEO_CHUNK_SIZE || 1000);
 
@@ -62,37 +49,16 @@ const downloadAudio = async (videoUrl) => {
   const sessionDir = path.join(AUDIO_BASE_DIR, crypto.randomUUID());
   fs.mkdirSync(sessionDir, { recursive: true });
   const outputPattern = path.join(sessionDir, "%(id)s.%(ext)s");
-  const args = [
-    "-f",
-    "bestaudio/best",
-    "--cookies-from-browser",
-    "chrome",
-    "--extract-audio",
-    "--audio-format",
-    "mp3",
-    "--audio-quality",
-    "32",
-    "--output",
-    outputPattern,
-    "--no-progress",
-    "--no-playlist",
-    "--quiet",
-    videoUrl,
-  ];
-
-  await new Promise((resolve, reject) => {
-  const child = spawn(ytDlpBinary, args, {
-      env: process.env,
-      stdio: "ignore",
-    });
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`yt-dlp exited with ${code}`));
-    });
-    child.on("error", reject);
+  await ytdlp(videoUrl, {
+    output: outputPattern,
+    extractAudio: true,
+    audioFormat: "mp3",
+    audioQuality: 32,
+    cookiesFromBrowser: "chrome",
+    noProgress: true,
+    noPlaylist: true,
+    quiet: true,
+    ffmpegLocation: process.env.FFMPEG_PATH,
   });
 
   const mp3Files = fs.readdirSync(sessionDir).filter((file) => file.endsWith(".mp3"));
