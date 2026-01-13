@@ -40,12 +40,13 @@ const insertPages = async (feedId, pages) => {
   if (!pages.length) return [];
 
   // Prepare the rows payload
-  const { data: existing = [] } = await supabase
+  const { data, error } = await supabase
     .from("sitemap_pages")
     .select("page_url")
     .eq("feed_id", feedId)
     .in("page_url", pages);
-  const existingSet = new Set(existing.map((row) => row.page_url));
+  const existingRows = data || [];
+  const existingSet = new Set(existingRows.map((row) => row.page_url));
   const newPages = pages.filter((pageUrl) => !existingSet.has(pageUrl));
   console.log(
     `   ↳ feed_id=${feedId}: ${pages.length} URLs discovered, ${existingSet.size} already stored, ${newPages.length} new`
