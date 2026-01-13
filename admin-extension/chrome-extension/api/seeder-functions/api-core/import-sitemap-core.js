@@ -34,18 +34,26 @@ const extractTagValue = (fragment, tagName) => {
 };
 
 const insertPages = async (feedId, pages) => {
-  if (!feedId || !pages.length) return 0;
-  const rows = pages.map((pageUrl) => ({
+  if (!feedId || !pages.length) return [];
+  const { data: existing = [] } = await supabase
+    .from("sitemap_pages")
+    .select("page_url")
+    .eq("feed_id", feedId)
+    .in_("page_url", pages);
+  const existingSet = new Set(existing.map((row) => row.page_url));
+  const toInsert = pages.filter((pageUrl) => !existingSet.has(pageUrl));
+  if (!toInsert.length) return [];
+  const rows = toInsert.map((pageUrl) => ({
     feed_id: feedId,
     page_url: pageUrl,
     tracked: true,
   }));
   const { data, error } = await supabase
     .from("sitemap_pages")
-    .upsert(rows, { onConflict: "feed_id,page_url" })
-    .select("page_url");
+    .insert(rows)
+    .select("id,page_url");
   if (error) throw error;
-  return (data || []).length;
+  return data || [];
 };
 
 const fetchXml = async (url) => {
@@ -95,12 +103,13 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
         const urls = urlEntries
           .map((entry) => extractTagValue(entry, "loc"))
           .filter(Boolean);
-        const pageCount = await insertPages(feedId, urls);
+        const newPages = await insertPages(feedId, urls);
         feedResults.push({
           providerId,
           feedUrl,
           feedCreated: created,
-          pagesAdded: pageCount,
+          pagesAdded: newPages.length,
+          newPages,
         });
       } catch (error) {
         console.warn(`Skipping feed ${feedUrl}:`, error.message);
@@ -113,12 +122,13 @@ const runImportForProvider = async (providerId, indexXml, sitemapList, indexUrl)
     const urls = urlEntries
       .map((entry) => extractTagValue(entry, "loc"))
       .filter(Boolean);
-    const pageCount = await insertPages(feedId, urls);
+    const newPages = await insertPages(feedId, urls);
     feedResults.push({
       providerId,
       feedUrl: indexUrl,
       feedCreated: created,
-      pagesAdded: pageCount,
+      pagesAdded: newPages.length,
+      newPages,
     });
   }
   return feedResults;
