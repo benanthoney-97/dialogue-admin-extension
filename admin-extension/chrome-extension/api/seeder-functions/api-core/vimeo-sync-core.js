@@ -77,6 +77,7 @@ const fetchVideosForUser = async (accessToken, externalId) => {
 const syncProviderVideos = async (client, providerId, videos) => {
   let inserted = 0;
   let skipped = 0;
+  const newVideos = [];
   for (const video of videos) {
     let coverImage = null;
     if (video.pictures?.sizes?.length) {
@@ -95,13 +96,19 @@ const syncProviderVideos = async (client, providerId, videos) => {
     const values = [providerId, video.name, video.link, coverImage];
     try {
       const res = await client.query(query, values);
-      if (res.rowCount > 0) inserted++;
-      else skipped++;
+      if (res.rowCount > 0) {
+        inserted++;
+        newVideos.push({
+          providerId,
+          title: video.name,
+          sourceUrl: video.link,
+        });
+      } else skipped++;
     } catch (err) {
       console.error(`   ⚠️ DB Error inserting ${video.link}: ${err.message}`);
     }
   }
-  return { inserted, skipped };
+  return { inserted, skipped, newVideos };
 };
 
 const doVimeoSync = async () => {
@@ -110,12 +117,19 @@ const doVimeoSync = async () => {
     await client.connect();
     const accessToken = await getAccessToken();
     const providers = await fetchVimeoProviders(client);
+    const summary = [];
     for (const provider of providers) {
       console.log(`▶️ Processing provider ${provider.provider_id} (${provider.external_id})`);
       const videos = await fetchVideosForUser(accessToken, provider.external_id);
-      const { inserted, skipped } = await syncProviderVideos(client, provider.provider_id, videos);
+      const { inserted, skipped, newVideos } = await syncProviderVideos(
+        client,
+        provider.provider_id,
+        videos
+      );
       console.log(`   ✅ Updated ${inserted} new, skipped ${skipped} duplicates.`);
+      summary.push(...newVideos);
     }
+    return summary;
   } catch (err) {
     console.error("Vimeo sync failed:", err);
     throw err;

@@ -6,8 +6,8 @@ export default async function handler(req, res) {
     return;
   }
   try {
-    await doVimeoSync();
-    res.status(200).json({ ok: true });
+    const result = await doVimeoSync();
+    res.status(200).json({ ok: true, result });
   } catch (error) {
     console.error("Vimeo sync failed:", error);
     res.status(500).json({ error: error.message || "Sync failed" });
