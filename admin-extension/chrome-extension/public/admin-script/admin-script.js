@@ -14,7 +14,8 @@
     initialized: false,
     mode: MODE_VISITOR,
     visitorListenerAttached: false,
-    thresholdValue: 0
+    thresholdValue: 0,
+    config: null,
   };
 
   const getMatchIdentifier = (match) =>
@@ -559,6 +560,16 @@
     return data;
   };
 
+  const fetchMatchesAndApply = async () => {
+    const config = state.config || {};
+    const { providerId, apiOrigin, endpoint = DEFAULT_MATCH_ENDPOINT, limit = 50 } = config;
+    if (!providerId) {
+      return;
+    }
+    const matches = await fetchMatchMap({ providerId, apiOrigin, endpoint, limit });
+    applyMatches(matches);
+  };
+
   const applyMatches = (matches) => {
     state.matches = Array.isArray(matches) ? matches.slice() : [];
     persistMatches(state.matches);
@@ -571,6 +582,14 @@
       ensureVisitorPlayer();
       setupVisitorClicks();
     });
+  };
+
+  const refreshMatches = async () => {
+    try {
+      await fetchMatchesAndApply();
+    } catch (error) {
+      console.error("[sl-admin-script] refresh matches failed", error);
+    }
   };
 
   const markSpansInactive = (pageMatchId) => {
@@ -599,7 +618,6 @@
   const applyThresholdToSpans = (value) => {
     if (typeof value !== "number") return;
     state.thresholdValue = value;
-    console.log("[sl-admin-script] applying threshold", value);
     const spans = document.querySelectorAll(".sl-smart-link");
     spans.forEach((span) => {
       const confidence = getSpanConfidence(span);
@@ -698,20 +716,22 @@
   };
 
   const init = async (config = {}) => {
+    state.config = {
+      ...(state.config || {}),
+      ...config,
+    };
+
+    if (!state.config?.providerId) {
+      return;
+    }
 
     if (state.initialized) {
       return;
     }
     state.initialized = true;
 
-    const { providerId, apiOrigin, endpoint = DEFAULT_MATCH_ENDPOINT, limit = 50 } = config;
-    if (!providerId) {
-      return;
-    }
-
     try {
-      const matches = await fetchMatchMap({ providerId, apiOrigin, endpoint, limit });
-      applyMatches(matches);
+      await fetchMatchesAndApply();
     } catch (error) {
       console.error("[sl-admin-script] match map init failed", error);
     }
@@ -731,7 +751,9 @@
       applyThresholdToSpans(value);
     }
   };
-  console.log("[sl-admin-script] __SL_applyThreshold hook ready", window.__SL_applyThreshold, "thresholdValue", state.thresholdValue);
+  window.__SL_refreshMatches = () => {
+    refreshMatches();
+  };
 
   whenDOMReady(() => {
     applyMode(state.mode);

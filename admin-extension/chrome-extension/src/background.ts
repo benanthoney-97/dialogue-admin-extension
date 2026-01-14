@@ -160,6 +160,7 @@ const updateGlobalThreshold = (value: number) => {
   globalThresholdValue = clamped
   notifyThresholdData(clamped, level)
   propagateThresholdToTab()
+  propagateMatchesRefresh()
 }
 
 const fetchSiteSettings = async (providerId: number) => {
@@ -463,6 +464,7 @@ const executePageMode = async (tabId: number, mode: string) => {
 }
 
 async function executeThresholdUpdate(tabId: number, value: number) {
+  console.log("[sl-background] executeThresholdUpdate", { tabId, value })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -474,6 +476,23 @@ async function executeThresholdUpdate(tabId: number, value: number) {
         }
       },
       args: [value],
+    })
+  } catch (error) {
+  }
+}
+
+async function executeMatchesRefresh(tabId: number) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        const refresher = (window as any).__SL_refreshMatches
+        if (typeof refresher === "function") {
+          refresher()
+        }
+      },
+      args: [],
     })
   } catch (error) {
   }
@@ -491,6 +510,22 @@ function propagateThresholdToTab(preferredTabId?: number) {
     if (activeId) {
       lastMatchTabId = activeId
       executeThresholdUpdate(activeId, globalThresholdValue)
+    }
+  })
+}
+
+function propagateMatchesRefresh(preferredTabId?: number) {
+  const tabId = preferredTabId ?? lastMatchTabId
+  if (tabId) {
+    executeMatchesRefresh(tabId)
+    return
+  }
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const active = tabs?.[0]
+    const activeId = active?.id
+    if (activeId) {
+      lastMatchTabId = activeId
+      executeMatchesRefresh(activeId)
     }
   })
 }

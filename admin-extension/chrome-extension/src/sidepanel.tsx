@@ -65,6 +65,8 @@ function SidePanel() {
   const [activeSection, setActiveSection] = useState<NavSection>("page")
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<number | null>(null)
+  const thresholdUpdateTimerRef = useRef<number | null>(null)
+  const lastAppliedThresholdRef = useRef<number>(THRESHOLD_DEFAULT)
   const [decisionCardVisible, setDecisionCardVisible] = useState(false)
   const [decisionCardBackLabel, setDecisionCardBackLabel] = useState("Back")
   const [decisionCardBackAriaLabel, setDecisionCardBackAriaLabel] =
@@ -98,6 +100,15 @@ const newMatchModeRef = useRef(false)
     const port = chrome.runtime.connect({ name: "admin-mode" })
     return () => {
       port.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (thresholdUpdateTimerRef.current) {
+        window.clearTimeout(thresholdUpdateTimerRef.current)
+        thresholdUpdateTimerRef.current = null
+      }
     }
   }, [])
 
@@ -150,6 +161,7 @@ const newMatchModeRef = useRef(false)
     chrome.storage?.local?.get?.({ threshold: THRESHOLD_DEFAULT }, (result) => {
       const stored = clampThresholdValue(toNumber(result?.threshold) ?? THRESHOLD_DEFAULT)
       setThresholdValue(stored)
+      lastAppliedThresholdRef.current = stored
     })
   }, [])
 
@@ -412,9 +424,20 @@ const newMatchModeRef = useRef(false)
     setThresholdValue(clamped)
     chrome.storage?.local?.set?.({ threshold: clamped })
     console.log("[sl-panel] handleThresholdChange clamped", clamped)
-    chrome.runtime.sendMessage({ action: "setThreshold", thresholdValue: clamped })
-    const label = THRESHOLD_DISPLAY[determineThresholdLevel(clamped)].title
-    setToastMessage(`Updated to ${label}`)
+    if (thresholdUpdateTimerRef.current) {
+      window.clearTimeout(thresholdUpdateTimerRef.current)
+    }
+    thresholdUpdateTimerRef.current = window.setTimeout(() => {
+      if (lastAppliedThresholdRef.current === clamped) {
+        thresholdUpdateTimerRef.current = null
+        return
+      }
+      lastAppliedThresholdRef.current = clamped
+      chrome.runtime.sendMessage({ action: "setThreshold", thresholdValue: clamped })
+      const label = THRESHOLD_DISPLAY[determineThresholdLevel(clamped)].title
+      setToastMessage(`Updated to ${label}`)
+      thresholdUpdateTimerRef.current = null
+    }, 250)
   }
 
   const handleFeedToggle = async (feedId: number, tracked: boolean) => {

@@ -26,7 +26,7 @@ export function ThresholdSelector({ value, onChange }: ThresholdSelectorProps) {
     <div className="threshold-selector">
       <div className="threshold-selector__label">
         <strong>Match sensitivity</strong>
-        <p>{THRESHOLD_DISPLAY[level].description}</p>
+        <p>Decide the volume of matches on active pages</p>
       </div>
       <div className="threshold-selector__slider">
         <input
