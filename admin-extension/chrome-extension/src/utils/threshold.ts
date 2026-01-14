@@ -1,9 +1,9 @@
 export type ThresholdLevel = "high" | "medium" | "low"
 
 export const THRESHOLD_MIN = 0.5
-export const THRESHOLD_MAX = 0.75
-export const THRESHOLD_STEP = 0.01
-export const THRESHOLD_DEFAULT = 0.625
+export const THRESHOLD_MAX = 0.7
+export const THRESHOLD_STEP = (THRESHOLD_MAX - THRESHOLD_MIN) / 4
+export const THRESHOLD_DEFAULT = 0.575
 
 export const THRESHOLD_LEVELS: ThresholdLevel[] = ["low", "medium", "high"]
 

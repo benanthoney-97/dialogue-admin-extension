@@ -160,7 +160,7 @@ const updateGlobalThreshold = (value: number) => {
   globalThresholdValue = clamped
   notifyThresholdData(clamped, level)
   propagateThresholdToTab()
-  propagateMatchesRefresh()
+  propagatePageReload()
 }
 
 const fetchSiteSettings = async (providerId: number) => {
@@ -481,19 +481,9 @@ async function executeThresholdUpdate(tabId: number, value: number) {
   }
 }
 
-async function executeMatchesRefresh(tabId: number) {
+const reloadTab = (tabId: number) => {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      world: "MAIN",
-      func: () => {
-        const refresher = (window as any).__SL_refreshMatches
-        if (typeof refresher === "function") {
-          refresher()
-        }
-      },
-      args: [],
-    })
+    chrome.tabs.reload(tabId)
   } catch (error) {
   }
 }
@@ -514,10 +504,10 @@ function propagateThresholdToTab(preferredTabId?: number) {
   })
 }
 
-function propagateMatchesRefresh(preferredTabId?: number) {
+function propagatePageReload(preferredTabId?: number) {
   const tabId = preferredTabId ?? lastMatchTabId
   if (tabId) {
-    executeMatchesRefresh(tabId)
+    reloadTab(tabId)
     return
   }
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
@@ -525,7 +515,7 @@ function propagateMatchesRefresh(preferredTabId?: number) {
     const activeId = active?.id
     if (activeId) {
       lastMatchTabId = activeId
-      executeMatchesRefresh(activeId)
+      reloadTab(activeId)
     }
   })
 }

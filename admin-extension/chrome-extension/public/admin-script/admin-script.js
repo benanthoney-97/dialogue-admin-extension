@@ -14,7 +14,6 @@
     initialized: false,
     mode: MODE_VISITOR,
     visitorListenerAttached: false,
-    thresholdValue: 0,
     config: null,
   };
 
@@ -262,6 +261,12 @@
         content: '';
         display: none;
       }
+      .sl-smart-link.sl-smart-link--preview-dim,
+      .sl-admin-mode .sl-smart-link.sl-smart-link--preview-dim,
+      body.sl-visitor-mode .sl-smart-link.sl-smart-link--preview-dim {
+        opacity: 0.35 !important;
+        filter: grayscale(1) !important;
+      }
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
         display: none;
       }
@@ -410,6 +415,36 @@
         }
 
         break;
+      }
+    });
+  };
+
+  const getSpanConfidence = (span) => {
+    const raw = span.dataset.confidence;
+    if (!raw) return null;
+    const value = Number(raw);
+    if (Number.isNaN(value)) return null;
+    return value;
+  };
+
+  const clearPreviewStyling = () => {
+    const previewed = document.querySelectorAll(".sl-smart-link.sl-smart-link--preview-dim");
+    previewed.forEach((span) => span.classList.remove("sl-smart-link--preview-dim"));
+  };
+
+  const applyPreviewThreshold = (value) => {
+    if (typeof value !== "number") return;
+    const spans = document.querySelectorAll(".sl-smart-link");
+    spans.forEach((span) => {
+      const confidence = getSpanConfidence(span);
+      if (confidence === null) {
+        span.classList.remove("sl-smart-link--preview-dim");
+        return;
+      }
+      if (confidence < value) {
+        span.classList.add("sl-smart-link--preview-dim");
+      } else {
+        span.classList.remove("sl-smart-link--preview-dim");
       }
     });
   };
@@ -577,19 +612,11 @@
 
       ensureHighlightStyle();
       highlightMatches(state.matches);
-      applyThresholdToSpans(state.thresholdValue);
+      clearPreviewStyling();
       setupObserver();
       ensureVisitorPlayer();
       setupVisitorClicks();
     });
-  };
-
-  const refreshMatches = async () => {
-    try {
-      await fetchMatchesAndApply();
-    } catch (error) {
-      console.error("[sl-admin-script] refresh matches failed", error);
-    }
   };
 
   const markSpansInactive = (pageMatchId) => {
@@ -604,43 +631,6 @@
       span.dataset.matchStatus = "inactive";
       span.style.pointerEvents = "none";
       refreshSpanStyles(span);
-    });
-  };
-
-  const getSpanConfidence = (span) => {
-    const raw = span.dataset.confidence;
-    if (!raw) return null;
-    const value = Number(raw);
-    if (Number.isNaN(value)) return null;
-    return value;
-  };
-
-  const applyThresholdToSpans = (value) => {
-    if (typeof value !== "number") return;
-    state.thresholdValue = value;
-    const spans = document.querySelectorAll(".sl-smart-link");
-    spans.forEach((span) => {
-      const confidence = getSpanConfidence(span);
-      const status = span.dataset.matchStatus || "active";
-      if (status === "inactive") {
-        return;
-      }
-      if (confidence === null) {
-        span.classList.remove("sl-smart-link--inactive");
-        span.dataset.matchStatus = "active";
-        refreshSpanStyles(span);
-        return;
-      }
-      if (confidence < value) {
-        span.classList.add("sl-smart-link--inactive");
-        span.dataset.matchStatus = "inactive";
-        span.style.opacity = "1";
-        refreshSpanStyles(span);
-      } else {
-        span.classList.remove("sl-smart-link--inactive");
-        span.dataset.matchStatus = "active";
-        refreshSpanStyles(span);
-      }
     });
   };
 
@@ -708,11 +698,10 @@
     window.__SL_MATCH_MAP__ = state.matches;
     persistMatches(state.matches);
 
-    whenDOMReady(() => {
-      ensureHighlightStyle();
-      highlightMatches([normalizedMatch]);
-      applyThresholdToSpans(state.thresholdValue);
-    });
+      whenDOMReady(() => {
+        ensureHighlightStyle();
+        highlightMatches([normalizedMatch]);
+      });
   };
 
   const init = async (config = {}) => {
@@ -733,7 +722,6 @@
     try {
       await fetchMatchesAndApply();
     } catch (error) {
-      console.error("[sl-admin-script] match map init failed", error);
     }
   };
 
@@ -748,11 +736,8 @@
   window.__SL_getMode = () => state.mode;
   window.__SL_applyThreshold = (value) => {
     if (typeof value === "number") {
-      applyThresholdToSpans(value);
+      applyPreviewThreshold(value);
     }
-  };
-  window.__SL_refreshMatches = () => {
-    refreshMatches();
   };
 
   whenDOMReady(() => {

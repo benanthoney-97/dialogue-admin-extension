@@ -2,7 +2,22 @@ const supabase = require("./supabase-client")
 const { getProviderDocument } = require("./provider-documents-web-embed")
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL responses ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS") // Only GET is supported here
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // Handle the "Preflight" check
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    res.end()
+    return
+  }
+  // --- FIX END ---
+
+  // Now we can enforce GET-only for the actual logic
   if (req.method !== "GET") {
+    // Headers are already set, so this 405 will be visible to the browser
     res.writeHead(405, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: "Method not allowed" }))
     return
@@ -46,31 +61,34 @@ async function handler(req, res) {
       new Set((data || []).map((row) => row.document_id).filter((id) => id))
     )
 
-const documents = {}
-async function getConfidenceTiers(providerId) {
-  if (!providerId) return [];
-  const { data, error } = await supabase
-    .from("confidence_tiers")
-    .select("display_label, color_theme, min_score")
-    .eq("provider_id", providerId)
-    .order("min_score", { ascending: false });
+    const documents = {}
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
-}
+    // Helper functions moved/kept here as per your snippet
+    async function getConfidenceTiers(providerId) {
+      if (!providerId) return [];
+      const { data, error } = await supabase
+        .from("confidence_tiers")
+        .select("display_label, color_theme, min_score")
+        .eq("provider_id", providerId)
+        .order("min_score", { ascending: false });
 
-const normalizeNumber = (value) => {
-  if (typeof value === "number" && !Number.isNaN(value)) {
-    return value;
-  }
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    }
 
-const findTierForScore = (score, tiers) => {
-  const normalizedScore = normalizeNumber(score);
-  return tiers.find((tier) => normalizedScore >= normalizeNumber(tier.min_score)) || null;
-};
+    const normalizeNumber = (value) => {
+      if (typeof value === "number" && !Number.isNaN(value)) {
+        return value;
+      }
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const findTierForScore = (score, tiers) => {
+      const normalizedScore = normalizeNumber(score);
+      return tiers.find((tier) => normalizedScore >= normalizeNumber(tier.min_score)) || null;
+    };
+
     await Promise.all(
       documentIds.map(async (documentId) => {
         const doc = await getProviderDocument(documentId, providerId)
@@ -80,11 +98,9 @@ const findTierForScore = (score, tiers) => {
       })
     )
 
-    documentIds.forEach((documentId) => {
-    })
-
     const tiers = await getConfidenceTiers(providerId)
     let pageRow = null
+    
     if (hasPageUrl && !hasDocumentId) {
       const { data } = await supabase
         .from("sitemap_pages")
@@ -93,10 +109,9 @@ const findTierForScore = (score, tiers) => {
         .maybeSingle()
       pageRow = data
     }
+
     const matches = (data || []).map((row) => {
       const tier = findTierForScore(row.confidence, tiers)
-      if (!documents[row.document_id]?.cover_image_url) {
-      }
       return {
         page_match_id: row.id,
         phrase: row.phrase || "",
@@ -118,8 +133,7 @@ const findTierForScore = (score, tiers) => {
       tracked: pageRow?.tracked ?? null,
     }
 
-    res.setHeader("Content-Type", "application/json")
-    res.setHeader("Access-Control-Allow-Origin", "*")
+    res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify(payload))
   } catch (error) {
     res.writeHead(500, { "Content-Type": "application/json" })

@@ -1,6 +1,18 @@
 const supabase = require("./supabase-client")
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL requests ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    return res.end()
+  }
+  // --- FIX END ---
+
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`)
     const providerId = Number(requestUrl.searchParams.get("provider_id") || "")

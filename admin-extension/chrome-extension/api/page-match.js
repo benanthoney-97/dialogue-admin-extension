@@ -12,7 +12,22 @@ const readRequestBody = (req) =>
 const normalizeMatch = (row) => (row ? { ...row, page_match_id: row.id } : row)
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL responses ---
+  // This ensures even 400/500 errors get these headers so you can see the real error message.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle the "Preflight" check
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+  // --- FIX END ---
+
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  
   if (req.method === 'GET') {
     const pageMatchId = Number(requestUrl.searchParams.get('page_match_id') || '');
     if (!pageMatchId) {
@@ -36,8 +51,7 @@ async function handler(req, res) {
         return;
       }
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(normalizeMatch(data)));
     } catch (err) {
       console.error('[page-match] handler error', err);
@@ -93,8 +107,7 @@ async function handler(req, res) {
           return;
         }
 
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(normalizeMatch(data)));
         return;
       }
@@ -135,8 +148,7 @@ async function handler(req, res) {
         return;
       }
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(normalizeMatch(data)));
       return;
     } catch (err) {
@@ -170,8 +182,7 @@ async function handler(req, res) {
         return;
       }
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, deleted: data }));
     } catch (err) {
       console.error('[page-match] delete error', err);

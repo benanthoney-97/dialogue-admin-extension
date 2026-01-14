@@ -1,6 +1,18 @@
 const supabase = require('./supabase-client');
 
 async function handler(req, res) {
+    // --- FIX START: Set CORS headers immediately for ALL requests ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // --- FIX START: Handle the Preflight (OPTIONS) check ---
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    return res.end()
+  }
+  // --- FIX END ---
+  
   if (req.method !== 'GET') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));
