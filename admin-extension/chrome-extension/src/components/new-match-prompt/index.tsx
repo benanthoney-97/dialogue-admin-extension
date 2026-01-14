@@ -65,12 +65,7 @@ export function NewMatchPrompt({
                 const percent = Math.max(0, Math.min(100, Math.round(score * 100)))
                 const videoSrc = result.video_url || result.source_url || ''
                 const snippetText = result.snippet?.trim() || "Transcript unavailable"
-                console.log(
-                  '[new-match-prompt] rendering result',
-                  index,
-                  result.knowledge_id,
-                  { videoSrc, similarity: result.similarity, metadataSource: result.source_url }
-                )
+
                 return (
                   <button
                     key={result.knowledge_id ?? `${index}-${result.document_id}`}

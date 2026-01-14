@@ -21,6 +21,8 @@ const toVimeoPlayerUrl = (value: string | undefined) => {
     const playerId = "dialogue-timestamp-player"
     embedUrl.searchParams.set("api", "1")
     embedUrl.searchParams.set("player_id", playerId)
+    embedUrl.searchParams.set("autoplay", "1")
+    embedUrl.searchParams.set("muted", "1")
     if (parsed.hash) {
       embedUrl.hash = parsed.hash
     }

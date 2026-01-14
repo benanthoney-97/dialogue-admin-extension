@@ -618,11 +618,29 @@ const newMatchModeRef = useRef(false)
     }
   }, [toastMessage])
 
-  const buildVideoUrl = (sourceUrl?: string, seconds?: number) => {
+  const toVimeoPlayerEmbedUrl = (sourceUrl?: string, seconds?: number) => {
     if (!sourceUrl) return ""
-    const [base] = sourceUrl.split("#")
-    const normalizedSeconds = Math.max(0, Math.round(seconds || 0))
-    return normalizedSeconds ? `${base}#t=${normalizedSeconds}` : base
+    const normalizedSeconds =
+      typeof seconds === "number" && Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : null
+    const cleaned = sourceUrl.split("#")[0]
+    const patterns = [/player\.vimeo\.com\/video\/(\d+)/, /vimeo\.com\/(\d+)/]
+    let videoId: string | null = null
+    for (const pattern of patterns) {
+      const match = cleaned.match(pattern)
+      if (match) {
+        videoId = match[1]
+        break
+      }
+    }
+    const suffix = normalizedSeconds ? `#t=${normalizedSeconds}s` : ""
+    if (!videoId) {
+      return cleaned + suffix
+    }
+    return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&title=0&byline=0&portrait=0${suffix}`
+  }
+
+  const buildVideoUrl = (sourceUrl?: string, seconds?: number) => {
+    return toVimeoPlayerEmbedUrl(sourceUrl, seconds)
   }
 
   const handleTimestampConfirm = async (seconds: number) => {
