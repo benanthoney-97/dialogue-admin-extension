@@ -219,7 +219,7 @@
 }
 .new-match-documents__actions {
   display: flex;
-  gap: 8px;
+  gap: 0px;
   margin-top: 4px;
   margin-bottom: 16px;
   position: sticky;
@@ -241,7 +241,7 @@
   cursor: pointer;
 }
 .new-match-documents__button--primary {
-  background: #047857;
+  background: #1f2937;
   color: #fff;
 }
 .new-match-documents__button--secondary {

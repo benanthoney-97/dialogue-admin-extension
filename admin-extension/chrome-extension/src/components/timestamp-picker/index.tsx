@@ -4,7 +4,7 @@ export interface TimestampPickerProps {
   videoUrl: string
   initialTimestamp?: number
   onTimestampChange?: (seconds: number) => void
-  onConfirm?: (seconds: number) => void
+  onConfirm?: (seconds: number) => void | Promise<void>
   showActions?: boolean
 }
 const toVimeoPlayerUrl = (value: string | undefined) => {
@@ -50,6 +50,7 @@ export function TimestampPicker({
   })
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const requestIdRef = useRef(0)
+  const [isCreating, setIsCreating] = useState(false)
 
   useEffect(() => {
     setCurrentValue((prev) => {
@@ -135,15 +136,23 @@ export function TimestampPicker({
     return () => window.clearInterval(intervalId)
   }, [requestCurrentTime, onTimestampChange])
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
+    if (isCreating) return
+    setIsCreating(true)
+    const finalize = async (seconds: number) => {
+      if (!onConfirm) return
+      await Promise.resolve(onConfirm(seconds))
+    }
     try {
       const seconds = await requestCurrentTime()
       setCurrentValue(seconds)
-      onConfirm?.(seconds)
+      await finalize(seconds)
     } catch (error) {
-      onConfirm?.(currentValue)
+      await finalize(currentValue)
+    } finally {
+      setIsCreating(false)
     }
-  }
+  }, [currentValue, isCreating, onConfirm, requestCurrentTime])
 
   return (
     <div className="timestamp-picker">
@@ -167,6 +176,7 @@ export function TimestampPicker({
             </svg>
             Create match at {formatTime(currentValue)}
           </button>
+          {isCreating && <div className="timestamp-picker__status">Creating...</div>}
         </div>
       )}
       <style>{`
@@ -222,6 +232,12 @@ export function TimestampPicker({
         .timestamp-picker__button:hover {
           transform: translateY(-1px);
           box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+        }
+        .timestamp-picker__status {
+          font-size: 12px;
+          color: #475467;
+          text-align: right;
+          margin-top: 2px;
         }
       `}</style>
     </div>
