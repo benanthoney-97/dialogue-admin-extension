@@ -61,7 +61,7 @@ export function SitemapFeedsTable({
     let canceled = false
     setLoading(true)
     setError(null)
-    const API_BASE = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
+    const API_BASE = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-feeds?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
     }

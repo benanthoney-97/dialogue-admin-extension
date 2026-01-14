@@ -44,7 +44,7 @@ export function SingleViewVideo({
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
+  const backendBase = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
 
   useEffect(() => {
     const docId = document?.id

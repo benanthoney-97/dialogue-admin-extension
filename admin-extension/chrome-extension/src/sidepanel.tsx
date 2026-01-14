@@ -81,7 +81,7 @@ function SidePanel() {
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
-  const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
+  const backendBase = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
   const newMatchModeRef = useRef(false)
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)

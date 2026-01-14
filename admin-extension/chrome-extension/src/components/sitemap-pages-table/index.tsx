@@ -78,7 +78,7 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
     let canceled = false
     setLoading(true)
     setError(null)
-    const API_BASE = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
+    const API_BASE = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-pages?feed_id=${feedId}`
     if (process.env.NODE_ENV !== "production") {
       console.log("[sitemap-pages-table] fetching pages from", endpoint)

@@ -37,7 +37,7 @@ export function PageSummary({
   const [pageSupported, setPageSupported] = useState(true)
   const [pageTracked, setPageTracked] = useState<boolean | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const backendBase = (window as any).__SL_BACKEND_URL || "http://localhost:4173"
+  const backendBase = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
 
   useEffect(() => {
     if (!pageUrl) {
