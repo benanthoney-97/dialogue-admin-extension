@@ -95,7 +95,7 @@ export function useScanEngine() {
     })
 
     try {
-        const API_URL = "https://app.dialogue-ai.co"
+        const API_URL = process.env.PLASMO_PUBLIC_BACKEND_URL;
         const response = await fetch(`${API_URL}/api/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

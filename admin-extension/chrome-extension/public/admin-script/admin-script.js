@@ -599,6 +599,7 @@
   const applyThresholdToSpans = (value) => {
     if (typeof value !== "number") return;
     state.thresholdValue = value;
+    console.log("[sl-admin-script] applying threshold", value);
     const spans = document.querySelectorAll(".sl-smart-link");
     spans.forEach((span) => {
       const confidence = getSpanConfidence(span);
@@ -730,6 +731,7 @@
       applyThresholdToSpans(value);
     }
   };
+  console.log("[sl-admin-script] __SL_applyThreshold hook ready", window.__SL_applyThreshold, "thresholdValue", state.thresholdValue);
 
   whenDOMReady(() => {
     applyMode(state.mode);

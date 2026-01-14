@@ -35,8 +35,41 @@ const vimeoEmbedUrl = (originalUrl = '', timestamp = 0) => {
   return `https://player.vimeo.com/video/${videoId}?autoplay=1&title=0&byline=0${suffix}`;
 };
 
+const resolveThreshold = (rawValue) => {
+  if (typeof rawValue === 'number') {
+    return rawValue;
+  }
+  if (typeof rawValue === 'string' && rawValue.trim() !== '') {
+    const numeric = Number(rawValue);
+    if (!Number.isNaN(numeric)) {
+      return numeric;
+    }
+  }
+  return null;
+};
+
+const fetchProviderThreshold = async (providerId) => {
+  const { data, error } = await supabase
+    .from('provider_site_settings')
+    .select('match_threshold')
+    .eq('provider_id', providerId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[match-map] provider threshold fetch error', error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return resolveThreshold(data.match_threshold);
+};
+
 const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
     const effectiveLimit = Number(limit) > 0 ? Number(limit) : 50;
+    const threshold = await fetchProviderThreshold(providerId);
     let query = supabase
       .from('page_matches')
       .select('id, phrase, video_url, confidence, document_id, status')
@@ -44,6 +77,9 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
       .order('created_at', { ascending: false });
     if (pageUrl) {
       query = query.eq('url', pageUrl);
+    }
+    if (typeof threshold === 'number') {
+      query = query.gte('confidence', threshold);
     }
     query = query.limit(effectiveLimit);
     const { data, error } = await query;

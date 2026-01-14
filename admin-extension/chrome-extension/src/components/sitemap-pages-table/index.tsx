@@ -257,6 +257,9 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
           text-decoration: underline;
           text-underline-offset: 3px;
           text-decoration-thickness: 2px;
+          overflow-wrap: break-word;
+          word-break: break-word;
+          max-width: 100%;
         }
 
         .sitemap-feed-card__meta {

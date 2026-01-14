@@ -10,7 +10,7 @@ const pageMatchHandler = require('../admin-extension/chrome-extension/api/page-m
 const createPageMatchHandler = require('../admin-extension/chrome-extension/api/create-page-match');
 const providerDocumentHandler = require('../admin-extension/chrome-extension/api/provider-document');
 const providerKnowledgeHandler = require('../admin-extension/chrome-extension/api/provider-knowledge');
-const providerDocumentsListHandler = require('../admin-extension/chrome-extension/api/provider-documents-list');
+const providerDocumentsListHandler = require('../admin-extension/chrome-extension/api/provider-documents');
 const providerSiteSettingsHandler = require('../admin-extension/chrome-extension/api/provider-site-settings');
 const sitemapFeedsHandler = require('../admin-extension/chrome-extension/api/sitemap-feeds');
 const sitemapPagesHandler = require('../admin-extension/chrome-extension/api/sitemap-pages');
@@ -18,7 +18,6 @@ const sitemapPageStatusHandler = require('../admin-extension/chrome-extension/ap
 const pageMatchesHandler = require('../admin-extension/chrome-extension/api/page-matches');
 const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
 const matchSuggestionsHandler = require('../admin-extension/chrome-extension/api/match-suggestions');
-const siteContentSeedHandler = require('../admin-extension/chrome-extension/api/site-content-seed');
 const authRequestOtpHandler = require('../admin-extension/chrome-extension/api/auth/request-otp');
 const authVerifyOtpHandler = require('../admin-extension/chrome-extension/api/auth/verify-otp');
 

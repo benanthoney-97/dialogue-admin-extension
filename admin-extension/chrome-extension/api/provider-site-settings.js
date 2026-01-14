@@ -1,10 +1,25 @@
 const supabase = require("./supabase-client")
 
 async function handler(req, res) {
+  // --- FIX START: Set CORS headers immediately for ALL responses ---
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  // Handle the browser's "Preflight" check
+  if (req.method === "OPTIONS") {
+    res.writeHead(200)
+    res.end()
+    return
+  }
+  // --- FIX END ---
+
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`)
     const providerId = Number(requestUrl.searchParams.get("provider_id") || "")
+
     if (!providerId) {
+      // CORS headers are already set above, so we just send status + error
       res.writeHead(400, { "Content-Type": "application/json" })
       res.end(JSON.stringify({ error: "provider_id is required" }))
       return
@@ -18,8 +33,8 @@ async function handler(req, res) {
         .maybeSingle()
 
       if (error) throw error
-      res.setHeader("Content-Type", "application/json")
-      res.setHeader("Access-Control-Allow-Origin", "*")
+      
+      res.writeHead(200, { "Content-Type": "application/json" })
       res.end(JSON.stringify(data || null))
       return
     }
@@ -32,6 +47,7 @@ async function handler(req, res) {
       await new Promise((resolve) => req.on("end", resolve))
       const payload = JSON.parse(body || "{}")
       const { match_threshold } = payload
+      
       if (typeof match_threshold === "undefined") {
         res.writeHead(400, { "Content-Type": "application/json" })
         res.end(JSON.stringify({ error: "match_threshold is required" }))
@@ -51,15 +67,16 @@ async function handler(req, res) {
         .maybeSingle()
 
       if (error) throw error
-      if (error) throw error
-      res.setHeader("Content-Type", "application/json")
-      res.setHeader("Access-Control-Allow-Origin", "*")
+
+      res.writeHead(200, { "Content-Type": "application/json" })
       res.end(JSON.stringify(data || null))
       return
     }
 
+    // Method not allowed
     res.writeHead(405, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: "Method not allowed" }))
+
   } catch (error) {
     console.error("[provider-site-settings] handler error", error)
     res.writeHead(500, { "Content-Type": "application/json" })
