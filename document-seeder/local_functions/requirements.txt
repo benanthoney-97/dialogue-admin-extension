@@ -1,0 +1,6 @@
+Flask>=3.0
+yt-dlp
+openai>=1.0.0
+supabase>=1.2.0
+llama-index>=0.11.0
+python-dotenv>=1.0

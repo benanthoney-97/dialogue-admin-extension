@@ -34,7 +34,6 @@
   const DISALLOWED_HIGHLIGHT_TAGS = /SCRIPT|STYLE|BUTTON|NOSCRIPT|TEXTAREA|INPUT/;
 
   const setActiveInlineStyles = (span) => {
-    span.style.setProperty("border-bottom", "2px solid #5f61fb", "important");
     span.style.setProperty("cursor", "pointer", "important");
     span.style.setProperty("color", "#5f61fb", "important");
     span.style.setProperty("font-weight", "500", "important");
