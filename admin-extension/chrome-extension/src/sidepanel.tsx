@@ -81,8 +81,8 @@ function SidePanel() {
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
-  const backendBase = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
-  const newMatchModeRef = useRef(false)
+const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL;  
+const newMatchModeRef = useRef(false)
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)

@@ -37,7 +37,7 @@ export function PageSummary({
   const [pageSupported, setPageSupported] = useState(true)
   const [pageTracked, setPageTracked] = useState<boolean | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const backendBase = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
+const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL;  
 
   useEffect(() => {
     if (!pageUrl) {

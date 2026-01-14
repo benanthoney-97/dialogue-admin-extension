@@ -29,7 +29,7 @@ export function ProviderDocumentsGrid({
     setLoading(true)
     setError(null)
     const API_BASE =
-      (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
+process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
       console.log("[provider-documents-grid] fetching documents from", endpoint)

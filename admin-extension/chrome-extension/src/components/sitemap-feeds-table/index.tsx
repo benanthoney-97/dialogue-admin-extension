@@ -61,7 +61,7 @@ export function SitemapFeedsTable({
     let canceled = false
     setLoading(true)
     setError(null)
-    const API_BASE = (window as any).__SL_BACKEND_URL || "app.dialogue-ai.co"
+    const API_BASE = process.env.PLASMO_PUBLIC_BACKEND_URL;
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/sitemap-feeds?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
     }

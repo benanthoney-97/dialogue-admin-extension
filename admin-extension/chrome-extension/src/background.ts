@@ -28,17 +28,19 @@ declare global {
 }
 
 const getApiOrigin = () => {
-  if (typeof window !== "undefined" && window.__SL_API_ORIGIN) {
-    return window.__SL_API_ORIGIN.replace(/\/$/, "")
+  // 1. (Optional) Keep window check if this code is shared with frontend, 
+  // but it usually fails in background scripts anyway.
+  if (typeof window !== "undefined" && (window as any).__SL_API_ORIGIN) {
+    return (window as any).__SL_API_ORIGIN.replace(/\/$/, "")
   }
-  if (typeof process !== "undefined" && process.env.API_ORIGIN) {
-    return process.env.API_ORIGIN.replace(/\/$/, "")
+
+  // 2. THIS IS THE FIX: Use your new Plasmo variable
+  if (process.env.PLASMO_PUBLIC_BACKEND_URL) {
+    return process.env.PLASMO_PUBLIC_BACKEND_URL.replace(/\/$/, "")
   }
-  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-    const match = chrome.runtime.getURL("").match(/(https?:\/\/[^/]+)/)
-    if (match) return match[1]
-  }
-  return "http://localhost:4173"
+
+  // 3. Fallback only if everything explodes (you can likely remove this now)
+  return "https://app.dialogue-ai.co" 
 }
 
 const API_ORIGIN = getApiOrigin()

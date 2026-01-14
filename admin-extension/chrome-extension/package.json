@@ -1,7 +1,7 @@
 {
   "name": "Dialogue",
   "displayName": "Dialogue",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The contextual intelligence layer for your website.",
   "author": "Dialogue",
   "scripts": {
