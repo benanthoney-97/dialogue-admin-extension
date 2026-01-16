@@ -86,7 +86,8 @@ const embedChunks = async (chunks) => {
 
 const persistSiteChunks = async (providerId, sitemapPageId, pageUrl, chunks, embeddings, title) => {
   if (!chunks.length || !embeddings.length) return [];
-  const payload = chunks.map((chunkText, idx) => ({
+  
+  const allPayloads = chunks.map((chunkText, idx) => ({
     provider_id: providerId,
     sitemap_page_id: sitemapPageId,
     page_url: pageUrl,
@@ -95,12 +96,23 @@ const persistSiteChunks = async (providerId, sitemapPageId, pageUrl, chunks, emb
     embedding: embeddings[idx] || [],
     metadata: { source: pageUrl, title, chunk_index: idx },
   }));
-const { data, error } = await supabase.from("site_content").insert(payload).select("id, chunk_index");
-  if (error) {
-    console.error("Site content insert error:", error);
-    throw error;
+
+  // OPTIMISATION: Insert in batches of 10 to avoid 8s timeout
+  const BATCH_SIZE = 10;
+  const results = [];
+  
+  for (let i = 0; i < allPayloads.length; i += BATCH_SIZE) {
+    const batch = allPayloads.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase.from("site_content").insert(batch).select("id, chunk_index");
+    
+    if (error) {
+      console.error("Site content insert error:", error);
+      throw error;
+    }
+    if (data) results.push(...data);
   }
-  return data || [];
+
+  return results;
 };
 
 const processPage = async ({ pageUrl, providerId, sitemapPageId }) => {
