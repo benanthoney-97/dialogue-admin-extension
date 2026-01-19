@@ -72,14 +72,11 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
     const threshold = await fetchProviderThreshold(providerId);
     let query = supabase
       .from('page_matches')
-      .select('id, phrase, video_url, confidence, document_id, status')
+      .select('id, phrase, video_url, confidence, document_id, status, match_source')
       .eq('provider_id', providerId)
       .order('created_at', { ascending: false });
     if (pageUrl) {
       query = query.eq('url', pageUrl);
-    }
-    if (typeof threshold === 'number') {
-      query = query.gte('confidence', threshold);
     }
     query = query.limit(effectiveLimit);
     const { data, error } = await query;
@@ -102,6 +99,10 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
     }
     const embedUrl = vimeoEmbedUrl(row.video_url, timestampValue);
 
+    if (typeof threshold === 'number' && row.match_source !== 'user-created' && row.confidence < threshold) {
+      continue;
+    }
+
     const match = {
       page_match_id: row.id,
       phrase: row.phrase || '',
@@ -110,6 +111,7 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
       document_id: row.document_id,
       provider_id: providerId,
       status: row.status,
+      match_source: row.match_source || 'system-created',
     };
 
     if (match.document_id) {

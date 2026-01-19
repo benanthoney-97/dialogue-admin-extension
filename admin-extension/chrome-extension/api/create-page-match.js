@@ -272,6 +272,7 @@ async function handler(req, res) {
       url: pageUrl,
       status: status || "active",
       confidence: Number(confidence ?? manualConfidence ?? 0),
+      match_source: "user-created",
     }
     if (typeof video_url === "string" && video_url.trim()) {
       payload.video_url = video_url.trim()
