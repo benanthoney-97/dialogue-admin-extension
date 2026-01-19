@@ -121,7 +121,6 @@ const findMatchingSiteContent = async (providerId, normalizedPhrase) => {
     .from("site_content")
     .select("id, chunk_text")
     .eq("provider_id", providerId)
-    .limit(100)
   if (contentError || !Array.isArray(contentRows)) return null
   for (const chunk of contentRows) {
     const chunkText = chunk.chunk_text
