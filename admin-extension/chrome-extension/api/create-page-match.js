@@ -115,6 +115,16 @@ const normalizeText = (value) => {
     .toLowerCase()
 }
 
+const extractFirstSentence = (value) => {
+  if (typeof value !== "string") return ""
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(.*?[.?!])(\s|$)/u)
+  if (match && match[1]) {
+    return match[1]
+  }
+  return trimmed
+}
+
 const findMatchingSiteContent = async (providerId, normalizedPhrase) => {
   if (!providerId || !normalizedPhrase) return null
   const { data: contentRows, error: contentError } = await supabase
@@ -125,7 +135,8 @@ const findMatchingSiteContent = async (providerId, normalizedPhrase) => {
   for (const chunk of contentRows) {
     const chunkText = chunk.chunk_text
     if (!chunkText) continue
-    if (normalizeText(chunkText) === normalizedPhrase) {
+    const normalizedChunkText = normalizeText(chunkText)
+    if (normalizedChunkText && normalizedChunkText === normalizedPhrase) {
       return chunk.id
     }
   }
@@ -247,9 +258,11 @@ async function handler(req, res) {
     }
 
     const normalizedPhraseText = normalizeText(phraseText)
+    const normalizedFirstSentence = normalizeText(extractFirstSentence(phraseText))
+    const targetNormalizedPhrase = normalizedFirstSentence || normalizedPhraseText
     const matchedSiteContentId =
-      normalizedPhraseText && providerId
-        ? await findMatchingSiteContent(providerId, normalizedPhraseText)
+      targetNormalizedPhrase && providerId
+        ? await findMatchingSiteContent(providerId, targetNormalizedPhrase)
         : null
 
     const payload = {
