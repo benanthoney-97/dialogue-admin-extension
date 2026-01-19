@@ -33,7 +33,6 @@ export function LibraryDocumentsGrid({
 process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
     if (process.env.NODE_ENV !== "production") {
-      console.log("[library-documents-grid] fetching documents from", endpoint)
     }
     fetch(endpoint)
       .then((res) => {
@@ -51,7 +50,6 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
       })
       .catch((err) => {
         if (canceled) return
-        console.error("[library-documents-grid] fetch error", err)
         setError(err?.message ?? "Unable to load documents")
       })
       .finally(() => {
@@ -81,7 +79,6 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
   return (
     <div className="provider-documents">
       <div className="provider-documents__grid-shell">
-        <div className="provider-documents__grid-header">Video library</div>
         <div className="provider-documents__grid-content">
           <div className="provider-documents__search">
             <input
@@ -133,7 +130,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           height: 100%;
           display: flex;
           flex-direction: column;
-          padding: 0 16px;
+          padding: 0 0px;
         }
 
         .provider-documents__grid-header {

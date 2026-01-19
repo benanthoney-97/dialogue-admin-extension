@@ -5,6 +5,8 @@
   "description": "The contextual intelligence layer for your website.",
   "author": "Dialogue",
   "scripts": {
+    "predev": "node ./scripts/generate-admin-config.js",
+    "prebuild": "node ./scripts/generate-admin-config.js",
     "dev": "PLASMO_PORT=4175 plasmo dev",
     "build": "plasmo build",
     "sync-admin-script": "true",

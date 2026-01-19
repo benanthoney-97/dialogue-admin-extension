@@ -107,6 +107,32 @@ const normalizeEmbedding = (value) => {
   return null
 }
 
+const normalizeText = (value) => {
+  if (typeof value !== "string") return ""
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+}
+
+const findMatchingSiteContent = async (providerId, normalizedPhrase) => {
+  if (!providerId || !normalizedPhrase) return null
+  const { data: contentRows, error: contentError } = await supabase
+    .from("site_content")
+    .select("id, chunk_text")
+    .eq("provider_id", providerId)
+    .limit(100)
+  if (contentError || !Array.isArray(contentRows)) return null
+  for (const chunk of contentRows) {
+    const chunkText = chunk.chunk_text
+    if (!chunkText) continue
+    if (normalizeText(chunkText) === normalizedPhrase) {
+      return chunk.id
+    }
+  }
+  return null
+}
+
 const findMatchingChunk = (chunks, normalizedSource, timestamp) => {
   if (!Array.isArray(chunks)) return null
   const requestedId = extractVideoId(normalizedSource)
@@ -221,6 +247,12 @@ async function handler(req, res) {
       }
     }
 
+    const normalizedPhraseText = normalizeText(phraseText)
+    const matchedSiteContentId =
+      normalizedPhraseText && providerId
+        ? await findMatchingSiteContent(providerId, normalizedPhraseText)
+        : null
+
     const payload = {
       phrase: phraseText,
       document_id: docId,
@@ -235,12 +267,21 @@ async function handler(req, res) {
     if (knowledgeChunk?.id) {
       payload.knowledge_id = knowledgeChunk.id
     }
+    if (matchedSiteContentId) {
+      payload.site_content_id = matchedSiteContentId
+    }
 
+    console.log("[create-page-match] inserting page match payload", payload)
     const { data, error } = await supabase
       .from("page_matches")
       .insert(payload)
       .select()
       .maybeSingle()
+
+    console.log("[create-page-match] inserted page_match payload", {
+      payload,
+      matched: data,
+    })
 
     if (error) throw error
     if (!data) {

@@ -15,6 +15,8 @@ import { LibraryDocumentsGrid } from "./components/library-documents-grid"
 import type { LibraryDocument } from "./components/library-documents-grid"
 import { SingleViewVideo } from "./components/single-view-video"
 import type { SitemapFeed } from "./components/sitemap-feeds-table"
+import { LibraryProvidersGrid, type LibraryProvider } from "./components/library-providers-grid"
+import { supabase } from "./lib/supabase"
 import {
   THRESHOLD_DEFAULT,
   THRESHOLD_DISPLAY,
@@ -77,12 +79,20 @@ function SidePanel() {
   const [selectedNewMatchText, setSelectedNewMatchText] = useState<string | null>(null)
   const [manualStage, setManualStage] = useState<"prompt" | "documents" | "timestamp">("prompt")
   const [manualSelectedDoc, setManualSelectedDoc] = useState<ProviderDocument | null>(null)
+  const [manualLibraryTab, setManualLibraryTab] = useState<"provider" | "marketplace">("provider")
+  const [manualLibraryProviderId, setManualLibraryProviderId] = useState<number | null>(null)
+  const [manualLibraryProviderName, setManualLibraryProviderName] = useState<string | null>(null)
   const [autoMatchResults, setAutoMatchResults] = useState<any[]>([])
   const [autoMatchLoading, setAutoMatchLoading] = useState(false)
   const [libraryDocument, setLibraryDocument] = useState<LibraryDocument | null>(null)
+  const [selectedLibraryProviderId, setSelectedLibraryProviderId] = useState<number | null>(null)
+  const [selectedLibraryProviderName, setSelectedLibraryProviderName] = useState<string | null>(null)
+  const [libraryTab, setLibraryTab] = useState<"provider" | "marketplace">("provider")
+  const [providerName, setProviderName] = useState<string | null>(null)
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
+  const [pageNewMatchVisible, setPageNewMatchVisible] = useState(false)
 const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL;  
 const newMatchModeRef = useRef(false)
   const [authToken, setAuthToken] = useState<string | null>(null)
@@ -198,14 +208,33 @@ const newMatchModeRef = useRef(false)
     setRemoveConfirmLoading(false)
   }
 
+  const resetManualLibrarySelection = () => {
+    setManualLibraryTab("provider")
+    setManualLibraryProviderId(null)
+    setManualLibraryProviderName(null)
+  }
+
+  const handleManualLibraryProviderSelect = (provider: LibraryProvider) => {
+    setManualLibraryProviderId(provider.id)
+    setManualLibraryProviderName(provider.name ?? null)
+    setManualLibraryTab("provider")
+  }
+
+  const handleManualLibraryProvidersBack = () => {
+    setManualLibraryProviderId(null)
+    setManualLibraryProviderName(null)
+  }
+
   const resetManualFlow = () => {
     setManualStage("prompt")
     setManualSelectedDoc(null)
+    resetManualLibrarySelection()
   }
 
   const startManualFlow = () => {
     setManualStage("documents")
     setManualSelectedDoc(null)
+    resetManualLibrarySelection()
   }
 
   const enterNewMatchMode = () => {
@@ -213,6 +242,11 @@ const newMatchModeRef = useRef(false)
     setSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
+  }
+
+  const openPageNewMatchPrompt = () => {
+    setPageNewMatchVisible(true)
+    enterNewMatchMode()
   }
 
   const handleGetMatches = async () => {
@@ -309,8 +343,39 @@ const newMatchModeRef = useRef(false)
   }, [selectedNewMatchText])
 
   useEffect(() => {
+    if (!providerId) {
+      setProviderName(null)
+      return
+    }
+    let canceled = false
+    const fetchName = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("providers")
+          .select("name")
+          .eq("id", providerId)
+          .single()
+        if (canceled) return
+        if (error) {
+          throw error
+        }
+        setProviderName(data?.name ?? null)
+      } catch (err) {
+        if (canceled) return
+        console.error("[sidepanel] failed to load provider name", err)
+      }
+    }
+    void fetchName()
+    return () => {
+      canceled = true
+    }
+  }, [providerId])
+
+  useEffect(() => {
     if (activeSection !== "library") {
       setLibraryDocument(null)
+      setSelectedLibraryProviderId(null)
+      setSelectedLibraryProviderName(null)
     }
   }, [activeSection])
 
@@ -419,6 +484,26 @@ const newMatchModeRef = useRef(false)
     setLibraryDocument(doc)
   }
 
+  const handleLibraryTabChange = (tab: "provider" | "marketplace") => {
+    setLibraryTab(tab)
+    setSelectedLibraryProviderId(null)
+    setSelectedLibraryProviderName(null)
+  }
+
+  const handleLibraryProviderSelect = (provider: LibraryProvider) => {
+    setSelectedLibraryProviderId(provider.id)
+    setSelectedLibraryProviderName(provider.name ?? null)
+    setLibraryDocument(null)
+    setLibraryTab("marketplace")
+  }
+
+  const handleLibraryProvidersBack = () => {
+    setSelectedLibraryProviderId(null)
+    setSelectedLibraryProviderName(null)
+    setLibraryDocument(null)
+    setLibraryTab("marketplace")
+  }
+
   const handleThresholdChange = (value: number) => {
     const clamped = clampThresholdValue(value)
     setThresholdValue(clamped)
@@ -523,6 +608,12 @@ const newMatchModeRef = useRef(false)
     }
   }, [activeSection])
 
+  useEffect(() => {
+    if (activeSection !== "page") {
+      setPageNewMatchVisible(false)
+    }
+  }, [activeSection])
+
   const handleChooseManually = () => {
     if (!selectedNewMatchText) {
       setToastMessage("Highlight text first to choose manually")
@@ -539,6 +630,7 @@ const newMatchModeRef = useRef(false)
     setSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
+    setPageNewMatchVisible(false)
   }
 
   const handleMatchSelect = async (pageMatchId: number, context: DecisionContext = "page") => {
@@ -754,17 +846,80 @@ const newMatchModeRef = useRef(false)
 
   const renderNewMatchFlow = () => {
     switch (manualStage) {
-      case "documents":
+      case "documents": {
+        const providerTabLabel = providerName ?? "Your library"
+        const resolvedProviderId = resolveProviderId()
         return (
           <div className="new-match-documents">
             <div className="new-match-documents__header">Selected text</div>
             {selectedNewMatchText && (
               <div className="new-match-documents__phrase">{selectedNewMatchText}</div>
             )}
-            <ProviderDocumentsGrid
-              providerId={resolveProviderId()}
-              onDocumentSelect={handleManualDocumentSelect}
-            />
+            <div className="new-match-documents__library">
+              <div className="library-main-shell">
+                <div className="library-providers-shell">
+                  {manualLibraryProviderId ? (
+                    <div className="library-documents-shell">
+                      <div className="library-documents-header">
+                        <button
+                          type="button"
+                          className="library-documents-back"
+                          onClick={handleManualLibraryProvidersBack}
+                        >
+                          ← Providers
+                        </button>
+                        <div>
+                          <div className="library-documents-title">
+                            {manualLibraryProviderName ?? "Provider library"}
+                          </div>
+                          <div className="library-documents-subtitle">Library</div>
+                        </div>
+                      </div>
+                      <LibraryDocumentsGrid
+                        providerId={manualLibraryProviderId}
+                        onDocumentSelect={handleManualDocumentSelect}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="library-tabs-pill">
+                        <button
+                          type="button"
+                          className={`library-tabs-pill__button${manualLibraryTab === "provider" ? " library-tabs-pill__button--active" : ""}`}
+                          onClick={() => setManualLibraryTab("provider")}
+                        >
+                          {providerTabLabel}
+                        </button>
+                        <button
+                          type="button"
+                          className={`library-tabs-pill__button${manualLibraryTab === "marketplace" ? " library-tabs-pill__button--active" : ""}`}
+                          onClick={() => setManualLibraryTab("marketplace")}
+                        >
+                          Marketplace
+                        </button>
+                      </div>
+                      {manualLibraryTab === "provider" ? (
+                        resolvedProviderId ? (
+                          <LibraryDocumentsGrid
+                            providerId={resolvedProviderId}
+                            onDocumentSelect={handleManualDocumentSelect}
+                          />
+                        ) : (
+                          <div className="panel__loading">
+                            <span>Loading provider data…</span>
+                          </div>
+                        )
+                      ) : (
+                        <LibraryProvidersGrid
+                          excludeProviderId={resolvedProviderId ?? undefined}
+                          onSelect={handleManualLibraryProviderSelect}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="new-match-documents__actions">
               <button
                 type="button"
@@ -797,6 +952,7 @@ const newMatchModeRef = useRef(false)
             </div>
           </div>
         )
+      }
       case "timestamp":
         return manualSelectedDoc ? (
           <TimestampView
@@ -855,14 +1011,20 @@ const newMatchModeRef = useRef(false)
           </div>
         ) : (
           <div className={`page-summary-panel${pageSummarySlideActive ? " page-summary-panel--animate" : ""}`}>
-            <PageSummary
-              pageUrl={resolvedPageUrl}
-              providerId={resolveProviderId()}
-              onMatchSelect={handleMatchSelect}
-              showBackToList={sitemapBreadcrumbVisible}
-              onReturnToSitemap={handleReturnToSitemap}
-              onRefresh={handlePageSummaryRefresh}
-            />
+            <div className="page-summary-panel__container">
+              <PageSummary
+                pageUrl={resolvedPageUrl}
+                providerId={resolveProviderId()}
+                onMatchSelect={handleMatchSelect}
+                showBackToList={sitemapBreadcrumbVisible}
+                onReturnToSitemap={handleReturnToSitemap}
+                onRefresh={handlePageSummaryRefresh}
+                onNewMatch={openPageNewMatchPrompt}
+              />
+              {pageNewMatchVisible && (
+                <div className="page-new-match-overlay">{renderNewMatchFlow()}</div>
+              )}
+            </div>
           </div>
         )
       }
@@ -893,23 +1055,74 @@ const newMatchModeRef = useRef(false)
             </div>
           )
         }
-        return providerId ? (
-          libraryDocument ? (
-            <SingleViewVideo
-              document={libraryDocument}
-              videoUrl={libraryDocument.source_url}
-              providerId={providerId}
-              pageUrl={resolvedPageUrl}
-              onBack={() => setLibraryDocument(null)}
-              onConfirm={() => setLibraryDocument(null)}
-              onMatchSelect={(matchId) => handleMatchSelect(matchId, "video")}
-            />
-          ) : (
-            <LibraryDocumentsGrid providerId={providerId} onDocumentSelect={handleLibraryDocumentSelect} />
+        const providerTabLabel = providerName ?? "Your library"
+        if (selectedLibraryProviderId) {
+          return (
+            <div className="library-main-shell">
+              <div className="library-documents-shell">
+                <div className="library-documents-header">
+                  <button
+                    type="button"
+                    className="library-documents-back"
+                    onClick={handleLibraryProvidersBack}
+                  >
+                    ← Providers
+                  </button>
+                  <div>
+                    <div className="library-documents-title">
+                      {selectedLibraryProviderName ?? "Provider library"}
+                    </div>
+                    <div className="library-documents-subtitle">Library</div>
+                  </div>
+                </div>
+                <LibraryDocumentsGrid
+                  providerId={selectedLibraryProviderId}
+                  onDocumentSelect={handleLibraryDocumentSelect}
+                />
+              </div>
+            </div>
           )
-        ) : (
-          <div className="panel__loading">
-            <span>Loading provider data…</span>
+        }
+        return (
+          <div className="library-main-shell">
+            <div className="library-providers-shell">
+              <div className="library-providers-shell__header">
+                <div className="library-providers-shell__title">Video library</div>
+                <p className="library-providers-shell__subtitle">
+                  Pick a provider to explore its video library.
+                </p>
+              </div>
+              <div className="library-tabs-pill">
+                <button
+                  type="button"
+                  className={`library-tabs-pill__button${libraryTab === "provider" ? " library-tabs-pill__button--active" : ""}`}
+                  onClick={() => handleLibraryTabChange("provider")}
+                >
+                  {providerTabLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`library-tabs-pill__button${libraryTab === "marketplace" ? " library-tabs-pill__button--active" : ""}`}
+                  onClick={() => handleLibraryTabChange("marketplace")}
+                >
+                  Marketplace
+                </button>
+              </div>
+              {libraryTab === "provider" ? (
+                providerId ? (
+                  <LibraryDocumentsGrid providerId={providerId} onDocumentSelect={handleLibraryDocumentSelect} />
+                ) : (
+                  <div className="panel__loading">
+                    <span>Loading provider data…</span>
+                  </div>
+                )
+              ) : (
+                <LibraryProvidersGrid
+                  excludeProviderId={providerId ?? undefined}
+                  onSelect={handleLibraryProviderSelect}
+                />
+              )}
+            </div>
           </div>
         )
       }

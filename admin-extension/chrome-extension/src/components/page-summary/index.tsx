@@ -8,6 +8,7 @@ export interface PageSummaryProps {
   showBackToList?: boolean
   onReturnToSitemap?: () => void
   onRefresh?: () => void
+  onNewMatch?: () => void
 }
 
 interface PageMatchSummary {
@@ -30,6 +31,7 @@ export function PageSummary({
   showBackToList,
   onReturnToSitemap,
   onRefresh,
+  onNewMatch,
 }: PageSummaryProps) { 
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -291,21 +293,34 @@ const pillStyle = (label?: string, color?: string) => {
               </div>
           <button
             type="button"
-            className="page-summary__refresh"
-            aria-label="Refresh matches"
+            className="page-summary__new-match"
             onClick={() => {
-              onRefresh?.()
-              setRefreshKey((prev) => prev + 1)
+              console.log("[page-summary] new match button clicked")
+              if (onNewMatch) {
+                onNewMatch()
+              } else {
+                onRefresh?.()
+                setRefreshKey((prev) => prev + 1)
+              }
             }}
           >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path
-                    fillRule="evenodd"
-                    d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
-                  />
-                  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-                </svg>
-              </button>
+            <span className="page-summary__new-match-icon" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                className="bi bi-plus-lg"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+                />
+              </svg>
+            </span>
+            <span>New match</span>
+          </button>
             </div>
             <div className="page-summary__full-url" title={pageUrl}>
               {formatPagePath(pageUrl)}
@@ -496,19 +511,28 @@ const pillStyle = (label?: string, color?: string) => {
           overflow-wrap: normal;
           margin-top: -8px;
         }
-        .page-summary__refresh {
-          background: transparent;
-          border: none;
-          color: #0f172a;
+        .page-summary__new-match {
+          margin-left: auto;
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+          border-radius: 999px;
+          border: 1px solid #0f1727;
+          background: #0f1727;
+          color: #f8fafc;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .page-summary__new-match-icon {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 0;
-          cursor: pointer;
         }
-        .page-summary__refresh svg {
-          width: 18px;
-          height: 18px;
+        .page-summary__new-match svg {
+          width: 16px;
+          height: 16px;
         }
         .page-summary__matches {
           padding-top: 0;
@@ -532,6 +556,21 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 12px;
           color: #475467;
           margin-bottom: 8px;
+        }
+        .page-new-match-overlay {
+          position: absolute;
+          inset: 0;
+          border-radius: 0;
+          background: rgba(246, 247, 251, 0.98);
+          border: none;
+          box-shadow: none;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          z-index: 2;
+        }
+        .page-new-match-overlay .new-match-prompt {
+          height: 100%;
         }
         .page-summary__unsupported-state {
           padding: 12px;
@@ -726,9 +765,22 @@ const pillStyle = (label?: string, color?: string) => {
           color: #0f172a;
         }
         .page-summary-panel {
+          position: relative;
           overflow: hidden;
+          flex: 1;
+          min-height: 0;
+          display: flex;
         }
-        .page-summary-panel .page-summary {
+        .page-summary-panel__container {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+        }
+        .page-summary-panel__container .page-summary {
+          flex: 1;
+          min-height: 0;
           transition: transform 0.35s ease, opacity 0.35s ease;
         }
         .page-summary-panel--animate .page-summary {

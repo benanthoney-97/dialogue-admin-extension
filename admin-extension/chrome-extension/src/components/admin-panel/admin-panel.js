@@ -1,4 +1,5 @@
 import '../slider/slider.js';
+import '../providers-grid/providers-grid.js';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -48,16 +49,17 @@ template.innerHTML = `
       opacity: 0.9;
     }
   </style>
-  <div class="panel">
-    <div>
-      <h2>Control Center</h2>
-      <p>Fine-tune the Video Intelligence threshold and review immediate actions.</p>
+    <div class="panel">
+      <div>
+        <h2>Control Center</h2>
+        <p>Fine-tune the Video Intelligence threshold and review immediate actions.</p>
+      </div>
+      <confidence-slider></confidence-slider>
+      <providers-grid></providers-grid>
+      <div class="actions">
+        <button type="button">Save Changes</button>
+      </div>
     </div>
-    <confidence-slider></confidence-slider>
-    <div class="actions">
-      <button type="button">Save Changes</button>
-    </div>
-  </div>
 `;
 
 class AdminPanel extends HTMLElement {

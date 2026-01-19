@@ -31,7 +31,7 @@ export function NewMatchPrompt({
   onSelectMatch,
   onReset,
 }: NewMatchPromptProps) {
-              return (
+  return (
     <div className="new-match-prompt">
       <div className={`new-match-prompt__card ${!selectedText ? "new-match-prompt__card--centered" : ""}`}>
         {!selectedText && (
@@ -179,7 +179,7 @@ export function NewMatchPrompt({
       </div>
       <style>{`
         .new-match-prompt {
-          padding: 12px 24px;
+          padding: 0px 0px;
           display: flex;
           justify-content: center;
           align-items: stretch;
@@ -200,7 +200,7 @@ export function NewMatchPrompt({
           font-size: 11px;
         }
         .new-match-prompt__card--centered {
-          padding: 32px 0 40px;
+          padding: 0px 0 40px;
           justify-content: center;
         }
         .new-match-prompt__icon {
@@ -235,7 +235,7 @@ export function NewMatchPrompt({
           position: sticky;
           top: 0;
           background: #f6f7fb;
-          padding: 0 0px 12px;
+          padding: 0px 16px 12px;
           z-index: 2;
           display: flex;
           flex-direction: column;
@@ -392,9 +392,11 @@ export function NewMatchPrompt({
           word-break: break-word;
         }
         .new-match-prompt__actions {
-          margin-top: 16px;
+          margin-top: 0px;
           display: flex;
           gap: 8px;
+          margin-left: 16px;
+          margin-right: 16px;
         }
         .new-match-prompt__button {
           flex: 1;

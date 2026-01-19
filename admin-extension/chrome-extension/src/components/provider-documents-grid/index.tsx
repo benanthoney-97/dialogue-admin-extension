@@ -79,8 +79,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
 
   return (
     <div className="provider-documents">
-      <div className="provider-documents__grid-shell">
-        <div className="provider-documents__grid-header">Video library</div>
+        <div className="provider-documents__grid-shell">
         <div className="provider-documents__grid-content">
           <div className="provider-documents__search">
             <input
@@ -167,7 +166,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
 
         .provider-documents__grid-content {
           flex: 1;
-          padding: 12px 0px 16px;
+          padding: 12px 0px 8px;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
