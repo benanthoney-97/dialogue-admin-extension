@@ -64,6 +64,14 @@
     span.style.setProperty("pointer-events", "none", "important");
   };
 
+  const knowledgeCache = new Map();
+  let completionTimer = null;
+  let completionThreshold = null;
+  let completionDuration = null;
+  let completionStart = null;
+  let completionMatch = null;
+  let completionRequestId = 0;
+
   const refreshSpanStyles = (span) => {
     if (!span) return;
     const status = span.dataset.matchStatus || "active";
@@ -97,6 +105,150 @@
     }
     refreshSpanStyles(span);
     return span;
+  };
+
+  const fetchKnowledgeMetadata = async (knowledgeId) => {
+    if (!knowledgeId) return null;
+    if (knowledgeCache.has(knowledgeId)) {
+      return knowledgeCache.get(knowledgeId);
+    }
+    try {
+      const response = await fetch(
+        `${getApiOrigin()}/api/provider-knowledge?knowledge_id=${encodeURIComponent(knowledgeId)}`
+      );
+      if (!response.ok) {
+        throw new Error(`failed to fetch knowledge metadata (${response.status})`);
+      }
+      const data = await response.json();
+      knowledgeCache.set(knowledgeId, data);
+      return data;
+    } catch (error) {
+      console.error("[admin-script] knowledge metadata fetch failed", error);
+      return null;
+    }
+  };
+
+  const requestIframeCurrentTime = (iframe) => {
+    if (!iframe?.contentWindow) {
+      return Promise.reject(new Error("iframe not ready"));
+    }
+    return new Promise((resolve, reject) => {
+      const expectedOrigin = "https://player.vimeo.com";
+      const requestId = ++completionRequestId;
+      const listener = (event) => {
+        if (event.source !== iframe.contentWindow) return;
+        if (!String(event.origin).startsWith(expectedOrigin)) return;
+        let payload = event.data;
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            return;
+          }
+        }
+        if (!payload || payload.method !== "getCurrentTime") return;
+        const reported =
+          payload.value ??
+          payload.seconds ??
+          payload.currentTime ??
+          payload.data?.currentTime ??
+          payload.data?.seconds;
+        if (reported === undefined || reported === null) return;
+        const seconds = Number(reported);
+        if (Number.isNaN(seconds)) return;
+        window.removeEventListener("message", listener);
+        clearTimeout(timeout);
+        resolve(Math.max(0, seconds));
+      };
+      const timeout = window.setTimeout(() => {
+        window.removeEventListener("message", listener);
+        reject(new Error("timeout waiting for current time"));
+      }, 2000);
+      window.addEventListener("message", listener);
+      iframe.contentWindow.postMessage(
+        {
+          method: "getCurrentTime",
+          value: "",
+          player_id: "dialogue-admin-player",
+          request_id: requestId,
+        },
+        "*"
+      );
+    });
+  };
+
+  const stopCompletionWatcher = () => {
+    if (completionTimer) {
+      clearInterval(completionTimer);
+      completionTimer = null;
+    }
+    completionThreshold = null;
+    completionDuration = null;
+    completionStart = null;
+    completionMatch = null;
+  };
+
+  const sendCompletionEvent = async (match, seconds, duration, start) => {
+    const providerId = match.provider_id ?? match.providerId;
+    if (!providerId) return;
+    const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
+    if (!pageMatchId) return;
+    const percent = duration ? Math.min(100, Math.max(0, Math.round(((seconds - start) / duration) * 100))) : undefined;
+    const payload = {
+      provider_id: providerId,
+      page_match_id: pageMatchId,
+      knowledge_id: match.knowledge_id ?? match.knowledgeId,
+      page_url: match.page_url ?? match.pageUrl ?? window.location.href,
+      percent,
+    };
+    console.log("[admin-script] sending completion event", payload);
+    try {
+      await fetch(`${getApiOrigin()}/api/match-completion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("[admin-script] completion POST failed", error);
+    }
+  };
+
+  const startCompletionWatcher = async (match) => {
+    if (!playerState?.iframe) return;
+    stopCompletionWatcher();
+    const knowledgeId = match.knowledge_id ?? match.knowledgeId;
+    const metadata = await fetchKnowledgeMetadata(knowledgeId);
+    if (!metadata) return;
+    const start = Number(metadata.timestampStart ?? metadata.start ?? NaN);
+    const end = Number(metadata.timestampEnd ?? metadata.end ?? NaN);
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+      return;
+    }
+    const duration = end - start;
+    completionStart = start;
+    completionDuration = duration;
+    completionThreshold = start + duration * 0.7;
+    completionMatch = match;
+    const check = async () => {
+      if (!playerState?.iframe) return;
+      try {
+        const seconds = await requestIframeCurrentTime(playerState.iframe);
+        console.log("[admin-script] completion poll", {
+          seconds,
+          threshold: completionThreshold,
+        });
+        if (seconds >= completionThreshold) {
+          stopCompletionWatcher();
+          await sendCompletionEvent(match, seconds, duration, start);
+        }
+      } catch (error) {
+        console.error("[admin-script] completion poll failed", error);
+      }
+    };
+    check();
+    completionTimer = setInterval(check, 2000);
   };
 
   const buildNormalizedTextMap = (root) => {
@@ -506,6 +658,7 @@
       playerState.iframe.src = "";
     }
     playerState.container.classList.remove("visible");
+    stopCompletionWatcher();
   };
 
   const ensureVisitorPlayer = () => {
@@ -588,6 +741,7 @@
       });
     }
     showVisitorPlayer(match);
+    startCompletionWatcher(match);
     };
 
   const setupVisitorClicks = () => {
