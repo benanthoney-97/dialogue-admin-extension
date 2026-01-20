@@ -218,6 +218,7 @@
   };
 
   const startCompletionWatcher = async (match) => {
+    console.log("[admin-script] startCompletionWatcher", { matchId: getMatchIdentifier(match) });
     if (!playerState?.iframe) return;
     stopCompletionWatcher();
     const knowledgeId = match.knowledge_id ?? match.knowledgeId;
@@ -690,6 +691,7 @@
 
   const showVisitorPlayer = (match) => {
     if (!match) return;
+    console.log("[admin-script] showVisitorPlayer", { matchId: getMatchIdentifier(match) });
     const player = ensureVisitorPlayer();
     const iframe = player.iframe;
     if (iframe) {
