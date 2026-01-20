@@ -54,7 +54,13 @@ const getApiOrigin = () => {
   if (typeof window !== "undefined" && window.__SL_API_ORIGIN) {
     return window.__SL_API_ORIGIN.replace(/\/$/, "")
   }
-  return window.location.origin
+  const envOrigin =
+    process.env.PLASMO_PUBLIC_BACKEND_URL ||
+    (process.env.NODE_ENV === "development" ? "http://localhost:4173" : "")
+  if (envOrigin) {
+    return envOrigin.replace(/\/$/, "")
+  }
+  return "https://app.dialogue-ai.co"
 }
 
 const sendMatchClick = (matchIndex: number) => {
