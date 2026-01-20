@@ -1,5 +1,10 @@
 (function () {
-  const getApiOrigin = () => window.__SL_API_ORIGIN || "";
+  const getApiOrigin = () => {
+    if (window.__SL_API_ORIGIN) {
+      return window.__SL_API_ORIGIN.replace(/\/$/, "")
+    }
+    return window.location.origin
+  }
   const DEFAULT_MATCH_ENDPOINT = "/api/match-map";
   const MATCH_DATA_SCRIPT_ID = "sl-match-map-data";
   const HIGHLIGHT_STYLE_ID = "sl-smart-link-style";
@@ -58,13 +63,6 @@
     span.style.setProperty("cursor", "default", "important");
     span.style.setProperty("pointer-events", "none", "important");
   };
-
-  const getApiOrigin = () => {
-    if (window.__SL_API_ORIGIN) {
-      return window.__SL_API_ORIGIN.replace(/\/$/, "")
-    }
-    return window.location.origin
-  }
 
   const refreshSpanStyles = (span) => {
     if (!span) return;
