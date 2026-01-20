@@ -59,6 +59,13 @@
     span.style.setProperty("pointer-events", "none", "important");
   };
 
+  const getApiOrigin = () => {
+    if (window.__SL_API_ORIGIN) {
+      return window.__SL_API_ORIGIN.replace(/\/$/, "")
+    }
+    return window.location.origin
+  }
+
   const refreshSpanStyles = (span) => {
     if (!span) return;
     const status = span.dataset.matchStatus || "active";
@@ -557,7 +564,6 @@
       return;
     }
     if (match.status === "inactive") {
-
       return;
     }
     if (event.cancelable) {
@@ -565,7 +571,25 @@
     }
     event.stopImmediatePropagation();
     event.stopPropagation();
-      showVisitorPlayer(match);
+    const providerId = match.provider_id ?? match.providerId;
+    const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
+    if (providerId && pageMatchId) {
+      fetch(`${getApiOrigin()}/api/match-clicked`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider_id: providerId,
+          page_match_id: pageMatchId,
+          page_url: match.page_url ?? match.pageUrl ?? window.location.href,
+          knowledge_id: match.knowledge_id ?? match.knowledgeId,
+        }),
+      }).catch((error) => {
+        console.error("[admin-script] match-clicked log error", error);
+      });
+    }
+    showVisitorPlayer(match);
     };
 
   const setupVisitorClicks = () => {
