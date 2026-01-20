@@ -204,10 +204,12 @@ async function handler(req, res) {
       status,
       confidence,
       selected_timestamp,
+      source_provider_id,
     } = JSON.parse(rawBody || "{}")
 
     const docId = Number(document_id || 0)
     const providerId = Number(provider_id || 0)
+    const selectedProviderId = Number(source_provider_id || 0)
     const phraseText = (phrase || "").trim()
     const pageUrl = (url || "").toString().trim()
     const baseVideoUrl = normalizeSourceUrl(video_url || "")
@@ -229,6 +231,7 @@ async function handler(req, res) {
       return
     }
 
+    const knowledgeProviderId = selectedProviderId || providerId
     let knowledgeChunk = null
     let manualConfidence = null
 
@@ -237,7 +240,7 @@ async function handler(req, res) {
         .from("provider_knowledge")
         .select("id, embedding, metadata")
         .eq("document_id", docId)
-        .eq("provider_id", providerId)
+        .eq("provider_id", knowledgeProviderId)
         .limit(100)
       if (chunkError) {
         // silently ignore or log error if needed
@@ -253,7 +256,6 @@ async function handler(req, res) {
           manualConfidence = computeCosineSimilarity(queryEmbedding, knowledgeChunk.embedding)
         }
       } catch (err) {
-        console.warn("[create-page-match] embedding error", err.message || err)
       }
     }
 
@@ -261,8 +263,8 @@ async function handler(req, res) {
     const normalizedFirstSentence = normalizeText(extractFirstSentence(phraseText))
     const targetNormalizedPhrase = normalizedFirstSentence || normalizedPhraseText
     const matchedSiteContentId =
-      targetNormalizedPhrase && providerId
-        ? await findMatchingSiteContent(providerId, targetNormalizedPhrase)
+      targetNormalizedPhrase && knowledgeProviderId
+        ? await findMatchingSiteContent(knowledgeProviderId, targetNormalizedPhrase)
         : null
 
     const payload = {
@@ -284,17 +286,12 @@ async function handler(req, res) {
       payload.site_content_id = matchedSiteContentId
     }
 
-    console.log("[create-page-match] inserting page match payload", payload)
     const { data, error } = await supabase
       .from("page_matches")
       .insert(payload)
       .select()
       .maybeSingle()
 
-    console.log("[create-page-match] inserted page_match payload", {
-      payload,
-      matched: data,
-    })
 
     if (error) throw error
     if (!data) {
@@ -309,7 +306,6 @@ async function handler(req, res) {
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(JSON.stringify(normalized))
   } catch (err) {
-    console.error("[create-page-match] error", err)
     // CORS headers are already set, so browser will allow the frontend to read this error
     res.writeHead(500, { "Content-Type": "application/json" })
     res.end(JSON.stringify({ error: err.message }))

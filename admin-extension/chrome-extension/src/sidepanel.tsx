@@ -8,7 +8,7 @@ import { PageSummary } from "./components/page-summary"
 import { BottomNavigation } from "./components/bottom-navigation"
 import { SitemapView } from "./components/sitemap-view"
 import { TimestampView } from "./components/timestamp-view"
-import { NewMatchPrompt } from "./components/new-match-prompt"
+import { NewMatchPrompt, SelectedTextBlock } from "./components/new-match-prompt"
 import { ConfirmAction } from "./components/confirm-action"
 import { LoginForm } from "./components/login-form/login-form"
 import { LibraryDocumentsGrid } from "./components/library-documents-grid"
@@ -16,6 +16,8 @@ import type { LibraryDocument } from "./components/library-documents-grid"
 import { SingleViewVideo } from "./components/single-view-video"
 import type { SitemapFeed } from "./components/sitemap-feeds-table"
 import { LibraryProvidersGrid, type LibraryProvider } from "./components/library-providers-grid"
+import { AccountView } from "./components/account-view"
+import { AnalyticsView } from "./components/analytics-view"
 import { supabase } from "./lib/supabase"
 import {
   THRESHOLD_DEFAULT,
@@ -57,7 +59,7 @@ type MatchPayload = {
 
 type DecisionContext = "page" | "video"
 
-type NavSection = "page" | "sitemap" | "new-match" | "library"
+type NavSection = "page" | "sitemap" | "new-match" | "library" | "measure" | "account"
 
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
@@ -89,6 +91,7 @@ function SidePanel() {
   const [selectedLibraryProviderName, setSelectedLibraryProviderName] = useState<string | null>(null)
   const [libraryTab, setLibraryTab] = useState<"provider" | "marketplace">("provider")
   const [providerName, setProviderName] = useState<string | null>(null)
+  const [providerLogoUrl, setProviderLogoUrl] = useState<string | null>(null)
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
@@ -223,6 +226,7 @@ const newMatchModeRef = useRef(false)
   const handleManualLibraryProvidersBack = () => {
     setManualLibraryProviderId(null)
     setManualLibraryProviderName(null)
+    setManualLibraryTab("marketplace")
   }
 
   const resetManualFlow = () => {
@@ -311,6 +315,7 @@ const newMatchModeRef = useRef(false)
         body: JSON.stringify({
           document_id: docId,
           provider_id: resolveProviderId(),
+          source_provider_id: resolveProviderId(),
           phrase: selectedNewMatchText,
           url: pageUrl,
           video_url: normalizedUrl,
@@ -345,6 +350,7 @@ const newMatchModeRef = useRef(false)
   useEffect(() => {
     if (!providerId) {
       setProviderName(null)
+      setProviderLogoUrl(null)
       return
     }
     let canceled = false
@@ -352,7 +358,7 @@ const newMatchModeRef = useRef(false)
       try {
         const { data, error } = await supabase
           .from("providers")
-          .select("name")
+          .select("name, logo_url")
           .eq("id", providerId)
           .single()
         if (canceled) return
@@ -360,6 +366,7 @@ const newMatchModeRef = useRef(false)
           throw error
         }
         setProviderName(data?.name ?? null)
+        setProviderLogoUrl(data?.logo_url ?? null)
       } catch (err) {
         if (canceled) return
         console.error("[sidepanel] failed to load provider name", err)
@@ -396,6 +403,7 @@ const newMatchModeRef = useRef(false)
     }
     const videoUrl = buildVideoUrl(manualSelectedDoc.source_url, seconds)
     const endpoint = `${backendBase.replace(/\/+$/, "")}/api/create-page-match`
+    const selectedProviderForKnowledge = manualLibraryProviderId ?? resolveProviderId()
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -405,6 +413,7 @@ const newMatchModeRef = useRef(false)
         body: JSON.stringify({
           document_id: manualSelectedDoc.id,
           provider_id: resolveProviderId(),
+          source_provider_id: selectedProviderForKnowledge,
           phrase: selectedNewMatchText,
           url: pageUrl,
           video_url: videoUrl,
@@ -596,11 +605,11 @@ const newMatchModeRef = useRef(false)
   }
 
   useEffect(() => {
-    if (activeSection === "new-match") {
-      if (!newMatchModeRef.current) {
-        enterNewMatchMode()
-      }
-      return
+        if (activeSection === "new-match") {
+          if (!newMatchModeRef.current) {
+            enterNewMatchMode()
+          }
+          return
     }
     if (newMatchModeRef.current) {
       newMatchModeRef.current = false
@@ -631,6 +640,13 @@ const newMatchModeRef = useRef(false)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
     setPageNewMatchVisible(false)
+  }
+
+  const handleNewMatchPromptReset = () => {
+    setAutoMatchResults([])
+    setAutoMatchLoading(false)
+    setToastMessage("New match prompt reset")
+    openPageNewMatchPrompt()
   }
 
   const handleMatchSelect = async (pageMatchId: number, context: DecisionContext = "page") => {
@@ -847,14 +863,15 @@ const newMatchModeRef = useRef(false)
   const renderNewMatchFlow = () => {
     switch (manualStage) {
       case "documents": {
-        const providerTabLabel = providerName ?? "Your library"
+        const providerTabLabel = "Your Library"
         const resolvedProviderId = resolveProviderId()
         return (
           <div className="new-match-documents">
-            <div className="new-match-documents__header">Selected text</div>
-            {selectedNewMatchText && (
-              <div className="new-match-documents__phrase">{selectedNewMatchText}</div>
-            )}
+            <SelectedTextBlock
+              text={selectedNewMatchText}
+              onReset={handleNewMatchPromptReset}
+              className="new-match-documents__selection"
+            />
             <div className="new-match-documents__library">
               <div className="library-main-shell">
                 <div className="library-providers-shell">
@@ -865,19 +882,33 @@ const newMatchModeRef = useRef(false)
                           type="button"
                           className="library-documents-back"
                           onClick={handleManualLibraryProvidersBack}
+                          aria-label="Back to providers"
                         >
-                          ← Providers
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
+                            />
+                          </svg>
+                          <span className="sr-only">Back to providers</span>
                         </button>
                         <div>
                           <div className="library-documents-title">
                             {manualLibraryProviderName ?? "Provider library"}
                           </div>
-                          <div className="library-documents-subtitle">Library</div>
                         </div>
                       </div>
                       <LibraryDocumentsGrid
                         providerId={manualLibraryProviderId}
                         onDocumentSelect={handleManualDocumentSelect}
+                        showChooseTime
                       />
                     </div>
                   ) : (
@@ -903,6 +934,7 @@ const newMatchModeRef = useRef(false)
                           <LibraryDocumentsGrid
                             providerId={resolvedProviderId}
                             onDocumentSelect={handleManualDocumentSelect}
+                            showChooseTime
                           />
                         ) : (
                           <div className="panel__loading">
@@ -919,36 +951,6 @@ const newMatchModeRef = useRef(false)
                   )}
                 </div>
               </div>
-            </div>
-            <div className="new-match-documents__actions">
-              <button
-                type="button"
-                className="new-match-documents__button new-match-documents__button--primary"
-                onClick={handleStartOver}
-              >
-                <span aria-hidden="true" className="new-match-documents__start-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
-                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
-                  </svg>
-                </span>
-                Start over
-              </button>
-              <button
-                type="button"
-                className="new-match-documents__button new-match-documents__button--secondary"
-                onClick={() => {
-                  setManualStage("prompt")
-                  chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
-                }}
-              >
-                <span aria-hidden="true" className="new-match-prompt__star-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-stars" viewBox="0 0 16 16">
-                    <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
-                  </svg>
-                </span>
-                Best matches
-              </button>
             </div>
           </div>
         )
@@ -968,7 +970,7 @@ const newMatchModeRef = useRef(false)
           selectedText={selectedNewMatchText}
           onGetMatches={handleGetMatches}
           onChooseManually={handleChooseManually}
-          onReset={handleStartOver}
+          onReset={handleNewMatchPromptReset}
           matchResults={autoMatchResults}
           loadingMatches={autoMatchLoading}
           onSelectMatch={handleSelectMatchSuggestion}
@@ -997,7 +999,7 @@ const newMatchModeRef = useRef(false)
     )
     }
 
-    switch (activeSection) {
+      switch (activeSection) {
       case "page": {
         return decisionCardVisible && match ? (
           <div className="decision-card-shell">
@@ -1022,7 +1024,28 @@ const newMatchModeRef = useRef(false)
                 onNewMatch={openPageNewMatchPrompt}
               />
               {pageNewMatchVisible && (
-                <div className="page-new-match-overlay">{renderNewMatchFlow()}</div>
+                <div className="page-new-match-overlay">
+                  {manualStage === "prompt" && (
+                    <button
+                      type="button"
+                      className="page-new-match-overlay__close"
+                      onClick={handleStartOver}
+                      aria-label="Close new match"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        className="bi bi-x-lg"
+                        viewBox="0 0 16 16"
+                      >
+                        <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
+                      </svg>
+                    </button>
+                  )}
+                  {renderNewMatchFlow()}
+                </div>
               )}
             </div>
           </div>
@@ -1055,25 +1078,38 @@ const newMatchModeRef = useRef(false)
             </div>
           )
         }
-        const providerTabLabel = providerName ?? "Your library"
+        const providerTabLabel = "Your Library"
         if (selectedLibraryProviderId) {
           return (
             <div className="library-main-shell">
               <div className="library-documents-shell">
                 <div className="library-documents-header">
-                  <button
-                    type="button"
-                    className="library-documents-back"
-                    onClick={handleLibraryProvidersBack}
-                  >
-                    ← Providers
-                  </button>
-                  <div>
-                    <div className="library-documents-title">
-                      {selectedLibraryProviderName ?? "Provider library"}
-                    </div>
-                    <div className="library-documents-subtitle">Library</div>
-                  </div>
+                        <button
+                          type="button"
+                          className="library-documents-back"
+                          onClick={handleLibraryProvidersBack}
+                          aria-label="Back to providers"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
+                            />
+                          </svg>
+                          <span className="sr-only">Back to providers</span>
+                        </button>
+                        <div>
+                          <div className="library-documents-title">
+                            {selectedLibraryProviderName ?? "Provider library"}
+                          </div>
+                        </div>
                 </div>
                 <LibraryDocumentsGrid
                   providerId={selectedLibraryProviderId}
@@ -1128,6 +1164,12 @@ const newMatchModeRef = useRef(false)
       }
       case "new-match": {
         return renderNewMatchFlow()
+      }
+      case "account": {
+        return <AccountView email={authEmail} logoUrl={providerLogoUrl} />
+      }
+      case "measure": {
+        return <AnalyticsView />
       }
       default: {
         return null
@@ -1212,9 +1254,6 @@ const newMatchModeRef = useRef(false)
           active={activeSection}
           onSelect={(selection) => {
             setView(null)
-            if (selection === "new-match") {
-              enterNewMatchMode()
-            }
             setActiveSection(selection)
             if (selection !== "page") {
               setDecisionCardVisible(false)

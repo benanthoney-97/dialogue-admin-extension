@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { ConfidenceChip } from "../confidence-chip"
+import { HeaderCards } from "../header-cards"
 
 export interface PageSummaryProps {
   pageUrl: string
@@ -328,22 +329,24 @@ const pillStyle = (label?: string, color?: string) => {
           </>
         )}
         {pageSupported && (
-          <div className="page-summary__overview-row">
-            <div
-              className={`page-summary__overview-card page-summary__overview-card--status ${statusClass}`}
-            >
-              <strong className={statusClass}>{statusText}</strong>
-              <span className={`page-summary__overview-label ${statusClass}`}>Status</span>
-            </div>
-            <div className="page-summary__overview-card">
-              <strong>{matchesCount}</strong>
-              <span className="page-summary__overview-label">Matches</span>
-            </div>
-            <div className="page-summary__overview-card">
-              <strong>{videosCount}</strong>
-              <span className="page-summary__overview-label">Videos</span>
-            </div>
-          </div>
+          <HeaderCards
+            items={[
+              {
+                label: "Status",
+                value: statusText,
+                isStatus: true,
+                statusClass,
+              },
+              {
+                label: "Matches",
+                value: matchesCount,
+              },
+              {
+                label: "Videos",
+                value: videosCount,
+              },
+            ]}
+          />
         )}
         <div className="page-summary__matches-header">
           <div>Matches</div>
@@ -516,7 +519,7 @@ const pillStyle = (label?: string, color?: string) => {
           display: inline-flex;
           gap: 6px;
           align-items: center;
-          border-radius: 999px;
+          border-radius: 12px;
           border: 1px solid #0f1727;
           background: #0f1727;
           color: #f8fafc;
@@ -524,6 +527,18 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
+        }
+        .page-summary__new-match--icon-only {
+          background: transparent;
+          border-color: transparent;
+          padding: 6px;
+          color: #0f1727;
+        }
+        .page-summary__new-match--icon-only {
+          background: transparent;
+          border-color: transparent;
+          padding: 6px;
+          color: #0f1727;
         }
         .page-summary__new-match-icon {
           display: inline-flex;
@@ -533,6 +548,7 @@ const pillStyle = (label?: string, color?: string) => {
         .page-summary__new-match svg {
           width: 16px;
           height: 16px;
+          fill: currentColor;
         }
         .page-summary__matches {
           padding-top: 0;

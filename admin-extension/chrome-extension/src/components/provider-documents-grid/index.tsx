@@ -166,7 +166,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
 
         .provider-documents__grid-content {
           flex: 1;
-          padding: 12px 0px 8px;
+          padding: 0px 0px 8px;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
@@ -184,7 +184,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
 
         .provider-documents__grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(1, minmax(0, 1fr));
           gap: 12px;
         }
 

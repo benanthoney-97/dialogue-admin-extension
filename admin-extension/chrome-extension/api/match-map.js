@@ -1,21 +1,6 @@
-const path = require('path');
-const dotenv = require('dotenv');
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('./supabase-client');
 const { getProviderDocument } = require('./provider-documents-web-embed');
-
-dotenv.config({
-  path: path.resolve(__dirname, '..', '..', '.env')
-});
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.PLASMO_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing Supabase config');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
+const { logEngagementEvent } = require('./lib/engagement-events');
 const vimeoEmbedUrl = (originalUrl = '', timestamp = 0) => {
   if (!originalUrl) return originalUrl;
   const matches = [
@@ -56,7 +41,6 @@ const fetchProviderThreshold = async (providerId) => {
     .maybeSingle();
 
   if (error) {
-    console.error('[match-map] provider threshold fetch error', error);
     return null;
   }
 
@@ -122,13 +106,26 @@ const fetchMatches = async (providerId, limit = 50, pageUrl = '') => {
           match.cover_image_url = doc.cover_image_url || '';
         }
       } catch (err) {
-        console.error('[match-map] provider_document error', err);
       }
     }
 
     matches.push(match);
   }
 
+  if (matches.length > 0) {
+    console.log(
+      `[match-map] logging impression event provider=${providerId} page_url=${pageUrl} matches=${matches.length}`
+    );
+    await logEngagementEvent({
+      providerId,
+      eventType: 'impression',
+      pageUrl,
+      metadata: { match_count: matches.length },
+    });
+    console.log('[match-map] engagement event logged');
+  } else {
+    console.log(`[match-map] no matches returned for provider=${providerId}`);
+  }
   return matches;
 };
 
@@ -174,7 +171,6 @@ async function handler(req, res) {
     res.end(JSON.stringify(matches));
 
   } catch (err) {
-    console.error('[match-map] handler error', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: err.message }));
   }

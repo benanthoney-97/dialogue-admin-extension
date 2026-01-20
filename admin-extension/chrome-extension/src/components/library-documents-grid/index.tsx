@@ -13,11 +13,13 @@ export interface LibraryDocument {
 export interface LibraryDocumentsGridProps {
   providerId: number
   onDocumentSelect?: (doc: LibraryDocument) => void
+  showChooseTime?: boolean
 }
 
 export function LibraryDocumentsGrid({
   providerId,
   onDocumentSelect,
+  showChooseTime,
 }: LibraryDocumentsGridProps) {
   const resolvedProviderId = providerId
   const [documents, setDocuments] = useState<LibraryDocument[]>([])
@@ -111,6 +113,20 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
                   <div className="doc-content">
                     <h3 className="doc-title">{doc.title || "Untitled document"}</h3>
                   </div>
+                  {showChooseTime && (
+                    <div className="doc-card__overlay">
+                      <button
+                        type="button"
+                        className="doc-card__choose-time"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleSelect(doc)
+                        }}
+                      >
+                        Choose a starting point
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
@@ -122,6 +138,9 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           width: 100%;
           height: 100%;
           background: #f6f7fb;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
         }
 
         .provider-documents__grid-shell {
@@ -143,12 +162,13 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
         }
 
         .provider-documents__grid-content {
-          flex: 1;
-          padding: 12px 0px 16px;
-          overflow-y: auto;
+          flex: 1 1 auto;
+          min-height: 0;
+          padding: 4px 0px 0px;
           display: flex;
           flex-direction: column;
           gap: 12px;
+          overflow: hidden;
         }
 
         .provider-documents__search input {
@@ -161,10 +181,18 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
         }
 
         .provider-documents__grid {
+          flex: 1 1 auto;
+          min-height: 0;
+          height: 0;
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(1, minmax(0, 1fr));
           gap: 12px;
+          overflow-y: auto;
+          align-items: flex-start;
+          align-content: flex-start;
+          grid-auto-rows: minmax(auto, auto);
         }
+
 
         .doc-card {
           display: flex;
@@ -175,6 +203,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           background: white;
           min-height: 150px;
           cursor: pointer;
+          position: relative;
         }
         .doc-card:hover {
           box-shadow: 0 10px 20px rgba(15, 23, 42, 0.15);
@@ -191,6 +220,39 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           display: flex;
           flex-direction: column;
           gap: 6px;
+        }
+
+        .doc-card__overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.65);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+
+        .doc-card:hover .doc-card__overlay {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .doc-card__choose-time {
+          border-radius: 8px;
+          border: none;
+          background: #0f172a;
+          color: #fff;
+          padding: 8px 16px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .doc-card__choose-time:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
         }
 
         .doc-title {
