@@ -222,11 +222,25 @@
     if (!playerState?.iframe) return;
     stopCompletionWatcher();
     const knowledgeId = match.knowledge_id ?? match.knowledgeId;
+    if (!knowledgeId) {
+      console.log("[admin-script] startCompletionWatcher missing knowledgeId", {
+        matchId: getMatchIdentifier(match),
+      });
+      return;
+    }
+    console.log("[admin-script] startCompletionWatcher fetching knowledge metadata", {
+      matchId: getMatchIdentifier(match),
+      knowledgeId,
+    });
     const metadata = await fetchKnowledgeMetadata(knowledgeId);
     if (!metadata) return;
     const start = Number(metadata.timestampStart ?? metadata.start ?? NaN);
     const end = Number(metadata.timestampEnd ?? metadata.end ?? NaN);
     if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+      console.log("[admin-script] startCompletionWatcher invalid metadata", {
+        matchId: getMatchIdentifier(match),
+        metadata,
+      });
       return;
     }
     const duration = end - start;

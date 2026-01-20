@@ -32,7 +32,30 @@ async function handler(req, res) {
   }
 
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const knowledgeId = Number(requestUrl.searchParams.get('knowledge_id') || '');
+  const knowledgeIdParam = Number(requestUrl.searchParams.get('knowledge_id') || '');
+  const pageMatchId = Number(requestUrl.searchParams.get('page_match_id') || '');
+
+  let knowledgeId = knowledgeIdParam;
+
+  if (!knowledgeId && pageMatchId) {
+    try {
+      const { data: matchData, error: matchError } = await supabase
+        .from('page_matches')
+        .select('knowledge_id')
+        .eq('id', pageMatchId)
+        .maybeSingle();
+
+      if (matchError) throw matchError;
+      if (matchData?.knowledge_id) {
+        knowledgeId = matchData.knowledge_id;
+      }
+    } catch (err) {
+      console.error('[provider-knowledge] page_match lookup error', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
 
   if (!knowledgeId) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
