@@ -137,23 +137,6 @@
       return null;
     }
   };
-    try {
-      console.log("[admin-script] fetching knowledge metadata", { knowledgeId });
-      const response = await fetch(
-        `${getApiOrigin()}/api/provider-knowledge?knowledge_id=${encodeURIComponent(knowledgeId)}`
-      );
-      if (!response.ok) {
-        throw new Error(`failed to fetch knowledge metadata (${response.status})`);
-      }
-      const data = await response.json();
-      console.log("[admin-script] received knowledge metadata", { knowledgeId, data });
-      knowledgeCache.set(knowledgeId, data);
-      return data;
-    } catch (error) {
-      console.error("[admin-script] knowledge metadata fetch failed", error);
-      return null;
-    }
-  };
 
   const requestIframeCurrentTime = (iframe) => {
     if (!iframe?.contentWindow) {
