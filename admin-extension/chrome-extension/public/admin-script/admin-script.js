@@ -107,11 +107,36 @@
     return span;
   };
 
-  const fetchKnowledgeMetadata = async (knowledgeId) => {
-    if (!knowledgeId) return null;
-    if (knowledgeCache.has(knowledgeId)) {
-      return knowledgeCache.get(knowledgeId);
+  const fetchKnowledgeMetadata = async ({ knowledgeId, pageMatchId }) => {
+    const cacheKey = knowledgeId || `match-${pageMatchId}`;
+    if (!knowledgeId && !pageMatchId) return null;
+    if (knowledgeCache.has(cacheKey)) {
+      return knowledgeCache.get(cacheKey);
     }
+    try {
+      console.log("[admin-script] fetching knowledge metadata", { knowledgeId, pageMatchId });
+      const query = [];
+      if (knowledgeId) {
+        query.push(`knowledge_id=${encodeURIComponent(knowledgeId)}`);
+      }
+      if (pageMatchId) {
+        query.push(`page_match_id=${encodeURIComponent(pageMatchId)}`);
+      }
+      const response = await fetch(
+        `${getApiOrigin()}/api/provider-knowledge?${query.join("&")}`
+      );
+      if (!response.ok) {
+        throw new Error(`failed to fetch knowledge metadata (${response.status})`);
+      }
+      const data = await response.json();
+      console.log("[admin-script] received knowledge metadata", { knowledgeId, pageMatchId, data });
+      knowledgeCache.set(cacheKey, data);
+      return data;
+    } catch (error) {
+      console.error("[admin-script] knowledge metadata fetch failed", error);
+      return null;
+    }
+  };
     try {
       console.log("[admin-script] fetching knowledge metadata", { knowledgeId });
       const response = await fetch(
@@ -222,7 +247,8 @@
     if (!playerState?.iframe) return;
     stopCompletionWatcher();
     const knowledgeId = match.knowledge_id ?? match.knowledgeId;
-    if (!knowledgeId) {
+    const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
+    if (!knowledgeId && !pageMatchId) {
       console.log("[admin-script] startCompletionWatcher missing knowledgeId", {
         matchId: getMatchIdentifier(match),
       });
@@ -231,8 +257,9 @@
     console.log("[admin-script] startCompletionWatcher fetching knowledge metadata", {
       matchId: getMatchIdentifier(match),
       knowledgeId,
+      pageMatchId,
     });
-    const metadata = await fetchKnowledgeMetadata(knowledgeId);
+    const metadata = await fetchKnowledgeMetadata({ knowledgeId, pageMatchId });
     if (!metadata) return;
     const start = Number(metadata.timestampStart ?? metadata.start ?? NaN);
     const end = Number(metadata.timestampEnd ?? metadata.end ?? NaN);
