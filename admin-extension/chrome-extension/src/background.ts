@@ -143,6 +143,27 @@ const toVimeoPlayerUrl = (value: unknown) => {
   return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=0&title=0&byline=0${suffix}`
 }
 
+const logMatchClickEvent = async (match: MatchPayload) => {
+  const pageMatchId = resolvePageMatchId(match)
+  if (!pageMatchId) return
+  const pageUrl = toString(match.page_url ?? match.url ?? "")
+  const knowledgeId = toNumber(match.knowledge_id ?? match.knowledgeId ?? null)
+  const payload = {
+    provider_id: safeProviderId(),
+    page_match_id: pageMatchId,
+    page_url: pageUrl || undefined,
+    knowledge_id: knowledgeId || undefined,
+  }
+  try {
+    await fetch(`${API_ORIGIN}/api/match-clicked`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  } catch (error) {
+  }
+}
+
 const notifyThresholdData = (value: number, level: ThresholdLevel) => {
   chrome.runtime.sendMessage(
     { action: "thresholdData", thresholdValue: value, thresholdLevel: level },
@@ -557,6 +578,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
   if (message.action === "matchClicked") {
+    void logMatchClickEvent(message.match)
     lastMatchTabId = sender.tab?.id ?? lastMatchTabId
     const tabId = sender.tab?.id
     const windowId = sender.tab?.windowId

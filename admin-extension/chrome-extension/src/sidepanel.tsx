@@ -55,6 +55,8 @@ type MatchPayload = {
   status?: string
   url?: string
   source_url?: string
+  knowledge_metadata?: Record<string, unknown>
+  page_url?: string
 }
 
 type DecisionContext = "page" | "video"
@@ -187,6 +189,9 @@ const newMatchModeRef = useRef(false)
     confidenceLabel: match?.confidence_label,
     confidenceColor: match?.confidence_color,
     knowledgeId: match?.knowledge_id ?? null,
+    knowledgeMetadata: match?.knowledge_metadata ?? null,
+    providerId: match?.provider_id ?? null,
+    pageUrl: match?.url ?? match?.page_url ?? null,
     pageMatchId: match?.page_match_id ?? null,
   }
 

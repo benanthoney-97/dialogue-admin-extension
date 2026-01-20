@@ -18,6 +18,9 @@ export interface DecisionCardProps {
   phrase?: string
   videoUrl?: string
   knowledgeId?: number | null
+  knowledgeMetadata?: Record<string, unknown> | null
+  providerId?: number | null
+  pageUrl?: string | null
   pageMatchId?: number | null
   onDecisionSelect?: (action: string) => void
   onBack?: () => void
@@ -67,6 +70,12 @@ export function DecisionCard({
     if (phrase !== undefined) element.setAttribute("data-phrase", phrase)
     if (confidenceLabel !== undefined) element.setAttribute("data-confidence-label", confidenceLabel)
     if (confidenceColor !== undefined) element.setAttribute("data-confidence-color", confidenceColor)
+    if (providerId !== undefined && providerId !== null) {
+      element.setAttribute("data-provider-id", String(providerId))
+    }
+    if (pageUrl !== undefined && pageUrl !== null) {
+      element.setAttribute("data-page-url", pageUrl)
+    }
     if (backLabel !== undefined) {
       element.setAttribute("data-back-label", backLabel)
     } else {
@@ -80,6 +89,11 @@ export function DecisionCard({
     if (knowledgeId !== undefined && knowledgeId !== null) {
       element.setAttribute("data-knowledge-id", String(knowledgeId))
     }
+    if (knowledgeMetadata !== undefined && knowledgeMetadata !== null) {
+      element.setAttribute("data-knowledge-metadata", JSON.stringify(knowledgeMetadata))
+    } else {
+      element.removeAttribute("data-knowledge-metadata")
+    }
     if (pageMatchId !== undefined && pageMatchId !== null) {
       element.setAttribute("data-page-match-id", String(pageMatchId))
     }
@@ -92,6 +106,9 @@ export function DecisionCard({
     phrase,
     videoUrl,
     knowledgeId,
+    knowledgeMetadata,
+    providerId,
+    pageUrl,
     pageMatchId,
     backLabel,
     backAriaLabel,

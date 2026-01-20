@@ -381,6 +381,9 @@ class DecisionCard extends HTMLElement {
       "data-confidence-label",
       "data-confidence-color",
       "data-page-match-id",
+      "data-provider-id",
+      "data-page-url",
+      "data-knowledge-metadata",
       "data-back-label",
       "data-back-aria-label"
     ];
@@ -405,6 +408,15 @@ class DecisionCard extends HTMLElement {
     this.rawConfidenceValue = null;
     this.confidenceLabelValue = "";
     this.confidenceColorValue = "";
+    this.providerId = null;
+    this.pageUrl = null;
+    this.knowledgeMetadata = null;
+    this.completionThreshold = null;
+    this.completionStart = null;
+    this.completionDuration = null;
+    this.completionTimer = null;
+    this.completionLogged = false;
+    this.requestId = 0;
   }
 
   connectedCallback() {
@@ -431,6 +443,7 @@ class DecisionCard extends HTMLElement {
     if (this.backButton) {
       this.backButton.removeEventListener("click", this.handleBackClick);
     }
+    this.stopCompletionWatcher();
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -444,6 +457,9 @@ class DecisionCard extends HTMLElement {
     if (name === "data-confidence-label") this.updateConfidenceLabel(newValue);
     if (name === "data-confidence-color") this.updateConfidenceColor(newValue);
     if (name === "data-page-match-id") this.updatePageMatchId(newValue);
+    if (name === "data-provider-id") this.updateProviderId(newValue);
+    if (name === "data-page-url") this.updatePageUrl(newValue);
+    if (name === "data-knowledge-metadata") this.updateKnowledgeMetadata(newValue);
     if (name === "data-back-label") this.updateBackLabel(newValue);
     if (name === "data-back-aria-label") this.updateBackAriaLabel(newValue);
   }
@@ -451,6 +467,58 @@ class DecisionCard extends HTMLElement {
   updatePageMatchId(value) {
     const id = Number(value);
     this.pageMatchId = Number.isNaN(id) ? null : id;
+  }
+
+  updateProviderId(value) {
+    const id = Number(value);
+    this.providerId = Number.isNaN(id) ? null : id;
+  }
+
+  updatePageUrl(value) {
+    this.pageUrl = value || null;
+  }
+
+  updateKnowledgeMetadata(value) {
+    this.stopCompletionWatcher();
+    if (!value) {
+      this.knowledgeMetadata = null;
+      this.completionThreshold = null;
+      this.completionStart = null;
+      this.completionDuration = null;
+      this.completionLogged = false;
+      return;
+    }
+    try {
+      this.knowledgeMetadata = JSON.parse(value);
+    } catch (error) {
+      this.knowledgeMetadata = null;
+    }
+    this.completionLogged = false;
+    this.prepareCompletionThreshold();
+  }
+
+  prepareCompletionThreshold() {
+    const metadata = this.knowledgeMetadata;
+    if (!metadata) {
+      this.completionThreshold = null;
+      this.completionStart = null;
+      this.completionDuration = null;
+      return;
+    }
+    const start = Number(metadata.timestampStart ?? metadata.start ?? NaN);
+    const end = Number(metadata.timestampEnd ?? metadata.end ?? NaN);
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+      this.completionThreshold = null;
+      this.completionStart = null;
+      this.completionDuration = null;
+      return;
+    }
+    this.completionStart = start;
+    this.completionDuration = end - start;
+    this.completionThreshold = start + this.completionDuration * 0.7;
+    if (this.videoEl?.classList?.contains("open")) {
+      this.startCompletionWatcher();
+    }
   }
 
   updateBackLabel(value) {
@@ -567,9 +635,143 @@ class DecisionCard extends HTMLElement {
     this.videoEl.classList.toggle("open", Boolean(url));
     if (!url) {
       this.iframeContainer.innerHTML = "";
+      this.stopCompletionWatcher();
       return;
     }
-    this.iframeContainer.innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen"></iframe>`;
+    const decoratedUrl = this.decorateVideoUrl(url);
+    this.iframeContainer.innerHTML = `<iframe src="${decoratedUrl}" allow="autoplay; fullscreen"></iframe>`;
+    this.stopCompletionWatcher();
+    this.startCompletionWatcher();
+  }
+
+  decorateVideoUrl(value) {
+    try {
+      const parsed = new URL(value);
+      parsed.searchParams.set("autoplay", "1");
+      parsed.searchParams.set("muted", "0");
+      parsed.searchParams.set("title", "0");
+      parsed.searchParams.set("byline", "0");
+      parsed.searchParams.set("api", "1");
+      parsed.searchParams.set("player_id", "dialogue-decision-player");
+      return parsed.toString();
+    } catch {
+      return value;
+    }
+  }
+
+  getIframeWindow() {
+    const iframe = this.iframeContainer?.querySelector("iframe");
+    return iframe?.contentWindow ?? null;
+  }
+
+  requestCurrentTime() {
+    const iframe = this.iframeContainer?.querySelector("iframe");
+    const iframeWindow = iframe?.contentWindow;
+    if (!iframe || !iframeWindow) {
+      return Promise.reject(new Error("Iframe not available"));
+    }
+    const expectedOrigin = "https://player.vimeo.com";
+    const requestId = ++this.requestId;
+    return new Promise((resolve, reject) => {
+      const listener = (event) => {
+        if (event.source !== iframeWindow) return;
+        if (!String(event.origin).startsWith(expectedOrigin)) return;
+        let payload = event.data;
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            return;
+          }
+        }
+        if (!payload || (payload.method && payload.method !== "getCurrentTime")) return;
+        const reported =
+          payload.value ??
+          payload.seconds ??
+          payload.currentTime ??
+          payload.data?.currentTime ??
+          payload.data?.seconds;
+        if (reported === undefined || reported === null) return;
+        const seconds = Number(reported);
+        if (Number.isNaN(seconds)) return;
+        window.removeEventListener("message", listener);
+        clearTimeout(timeout);
+        resolve(Math.max(0, seconds));
+      };
+      const timeout = window.setTimeout(() => {
+        window.removeEventListener("message", listener);
+        reject(new Error("Timed out waiting for current time"));
+      }, 2000);
+      window.addEventListener("message", listener);
+      iframeWindow.postMessage(
+        {
+          method: "getCurrentTime",
+          value: "",
+          player_id: "dialogue-decision-player",
+          request_id: requestId,
+        },
+        "*"
+      );
+    });
+  }
+
+  startCompletionWatcher() {
+    this.stopCompletionWatcher();
+    if (!this.completionThreshold) return;
+    const check = () => {
+      this.requestCurrentTime()
+        .then((seconds) => {
+          if (!this.completionLogged && seconds >= this.completionThreshold) {
+            this.completionLogged = true;
+            this.sendCompletionEvent(seconds);
+            this.stopCompletionWatcher();
+          }
+        })
+        .catch(() => {});
+    };
+    check();
+    this.completionTimer = window.setInterval(check, 2000);
+  }
+
+  stopCompletionWatcher() {
+    if (this.completionTimer) {
+      window.clearInterval(this.completionTimer);
+      this.completionTimer = null;
+    }
+  }
+
+  async sendCompletionEvent(currentTime) {
+    if (!this.providerId) return;
+    const percent = this.completionDuration
+      ? Math.min(100, Math.max(0, Math.round(((currentTime - this.completionStart) / this.completionDuration) * 100)))
+      : null;
+    const payload = {
+      provider_id: this.providerId,
+      page_match_id: this.pageMatchId || undefined,
+      knowledge_id: this.knowledgeId || undefined,
+      page_url: this.pageUrl || undefined,
+      percent: percent ?? undefined,
+    };
+    try {
+      await fetch(`${this.getApiOrigin()}/api/match-completion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+    }
+  }
+
+  getApiOrigin() {
+    if (typeof window !== "undefined" && window.__SL_API_ORIGIN) {
+      return window.__SL_API_ORIGIN.replace(/\/$/, "");
+    }
+    if (typeof process !== "undefined" && process.env.API_ORIGIN) {
+      return process.env.API_ORIGIN.replace(/\/$/, "");
+    }
+    return `${window.location.protocol}//${window.location.host}`;
   }
 
   handleBackClick() {
