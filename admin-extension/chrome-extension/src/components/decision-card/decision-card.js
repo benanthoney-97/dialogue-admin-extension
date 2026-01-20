@@ -672,6 +672,7 @@ class DecisionCard extends HTMLElement {
     }
     const expectedOrigin = "https://player.vimeo.com";
     const requestId = ++this.requestId;
+    console.log("[decision-card] requestCurrentTime poll start");
     return new Promise((resolve, reject) => {
       const listener = (event) => {
         if (event.source !== iframeWindow) return;
@@ -696,6 +697,7 @@ class DecisionCard extends HTMLElement {
         if (Number.isNaN(seconds)) return;
         window.removeEventListener("message", listener);
         clearTimeout(timeout);
+        console.log("[decision-card] currentTime reported", seconds);
         resolve(Math.max(0, seconds));
       };
       const timeout = window.setTimeout(() => {
@@ -721,13 +723,22 @@ class DecisionCard extends HTMLElement {
     const check = () => {
       this.requestCurrentTime()
         .then((seconds) => {
+          console.log(
+            "[decision-card] completion poll",
+            "seconds=",
+            seconds,
+            "threshold=",
+            this.completionThreshold
+          );
           if (!this.completionLogged && seconds >= this.completionThreshold) {
             this.completionLogged = true;
             this.sendCompletionEvent(seconds);
             this.stopCompletionWatcher();
           }
         })
-        .catch(() => {});
+        .catch((error) => {
+          console.error("[decision-card] completion poll failed", error);
+        });
     };
     check();
     this.completionTimer = window.setInterval(check, 2000);
@@ -752,6 +763,7 @@ class DecisionCard extends HTMLElement {
       page_url: this.pageUrl || undefined,
       percent: percent ?? undefined,
     };
+    console.log("[decision-card] sending completion event", payload);
     try {
       await fetch(`${this.getApiOrigin()}/api/match-completion`, {
         method: "POST",
