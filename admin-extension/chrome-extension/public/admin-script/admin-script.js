@@ -129,9 +129,10 @@
         throw new Error(`failed to fetch knowledge metadata (${response.status})`);
       }
       const data = await response.json();
-      console.log("[admin-script] received knowledge metadata", { knowledgeId, pageMatchId, data });
-      knowledgeCache.set(cacheKey, data);
-      return data;
+      const normalized = (data.metadata && typeof data.metadata === "object") ? { ...data.metadata, content: data.content ?? "" } : data;
+      console.log("[admin-script] received knowledge metadata", { knowledgeId, pageMatchId, data: normalized });
+      knowledgeCache.set(cacheKey, normalized);
+      return normalized;
     } catch (error) {
       console.error("[admin-script] knowledge metadata fetch failed", error);
       return null;
