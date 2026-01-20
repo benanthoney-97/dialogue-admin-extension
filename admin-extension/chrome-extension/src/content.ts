@@ -50,6 +50,13 @@ const getMatchMap = () => {
   return parseMatchMapFromScript()
 }
 
+const getApiOrigin = () => {
+  if (typeof window !== "undefined" && window.__SL_API_ORIGIN) {
+    return window.__SL_API_ORIGIN.replace(/\/$/, "")
+  }
+  return window.location.origin
+}
+
 const sendMatchClick = (matchIndex: number) => {
   console.log("[content] preparing match click", matchIndex)
   const match = getMatchMap()[matchIndex]
@@ -70,6 +77,24 @@ const sendMatchClick = (matchIndex: number) => {
     page_match_id: match.page_match_id ?? match.id ?? null
   }
   console.log("[content] dispatching match click payload", payload)
+  const providerId = payload.provider_id ?? payload.providerId
+  const pageMatchId = payload.page_match_id ?? payload.pageMatchId ?? payload.id
+  if (providerId && pageMatchId) {
+    fetch(`${getApiOrigin()}/api/match-clicked`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider_id: providerId,
+        page_match_id: pageMatchId,
+        page_url: payload.page_url ?? payload.pageUrl ?? window.location.href,
+        knowledge_id: payload.knowledge_id ?? payload.knowledgeId,
+      }),
+    }).catch((error) => {
+      console.error("[content] match-clicked log error", error)
+    })
+  }
   console.log("[content] sending matchClicked to extension", match)
   chrome.runtime.sendMessage({ action: "matchClicked", match }, (response) => {
     const err = chrome.runtime.lastError
