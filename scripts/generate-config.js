@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const envPath = path.resolve(process.cwd(), '.env');
-const outputPath = path.resolve(process.cwd(), 'web-embed', 'config.json');
+const outputPath = path.resolve(process.cwd(), 'web-platform', 'config.json');
 
 function parseDotenv(envFile) {
   if (!fs.existsSync(envFile)) {

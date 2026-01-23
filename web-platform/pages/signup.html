@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dialogue Sign Up</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <section class="auth-card">
+        <div class="auth-card__title">Sign Up</div>
+        <p class="auth-card__subtitle">
+          Request access to Dialogue by verifying your email with a one-time password. Someone from
+          our team will confirm the next steps for your provider.
+        </p>
+        <form id="signup-form" class="auth-form">
+          <label class="auth-form__label">
+            Email
+            <input type="email" name="email" autocomplete="email" spellcheck="false" />
+          </label>
+          <div class="auth-form__otp-group">
+            <label class="auth-form__label auth-form__label--otp">
+              OTP
+              <input type="text" name="otp" autocomplete="one-time-code" inputmode="numeric" />
+            </label>
+          </div>
+          <div class="auth-form__messages">
+            <div class="auth-form__error" data-role="error"></div>
+            <div class="auth-form__info" data-role="info"></div>
+          </div>
+          <div class="auth-form__actions">
+            <button type="button" class="auth-button" data-action="send-otp">Send OTP</button>
+            <button
+              type="button"
+              class="auth-button auth-button--secondary hidden"
+              data-action="verify-otp"
+            >
+              Verify OTP
+            </button>
+          </div>
+        </form>
+        <p class="auth-cta">
+          Already have an account? <a href="./login.html">Sign in</a> directly to the admin tools.
+        </p>
+        <p class="auth-hero">Dialogue Web Platform</p>
+      </section>
+    </div>
+    <script type="module">
+      import { setupOtpForm } from "../auth-form.js"
+
+      setupOtpForm({
+        formId: "signup-form",
+        successCopy:
+          "OTP verified! We'll follow up shortly with your onboarding link and next steps.",
+      })
+    </script>
+  </body>
+</html>

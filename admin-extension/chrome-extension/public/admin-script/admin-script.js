@@ -114,7 +114,6 @@
       return knowledgeCache.get(cacheKey);
     }
     try {
-      console.log("[admin-script] fetching knowledge metadata", { knowledgeId, pageMatchId });
       const query = [];
       if (knowledgeId) {
         query.push(`knowledge_id=${encodeURIComponent(knowledgeId)}`);
@@ -130,7 +129,6 @@
       }
       const data = await response.json();
       const normalized = (data.metadata && typeof data.metadata === "object") ? { ...data.metadata, content: data.content ?? "" } : data;
-      console.log("[admin-script] received knowledge metadata", { knowledgeId, pageMatchId, data: normalized });
       knowledgeCache.set(cacheKey, normalized);
       return normalized;
     } catch (error) {
@@ -212,7 +210,6 @@
       page_url: match.page_url ?? match.pageUrl ?? window.location.href,
       percent,
     };
-    console.log("[admin-script] sending completion event", payload);
     try {
       await fetch(`${getApiOrigin()}/api/match-completion`, {
         method: "POST",
@@ -227,31 +224,18 @@
   };
 
   const startCompletionWatcher = async (match) => {
-    console.log("[admin-script] startCompletionWatcher", { matchId: getMatchIdentifier(match) });
     if (!playerState?.iframe) return;
     stopCompletionWatcher();
     const knowledgeId = match.knowledge_id ?? match.knowledgeId;
     const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
     if (!knowledgeId && !pageMatchId) {
-      console.log("[admin-script] startCompletionWatcher missing knowledgeId", {
-        matchId: getMatchIdentifier(match),
-      });
       return;
     }
-    console.log("[admin-script] startCompletionWatcher fetching knowledge metadata", {
-      matchId: getMatchIdentifier(match),
-      knowledgeId,
-      pageMatchId,
-    });
     const metadata = await fetchKnowledgeMetadata({ knowledgeId, pageMatchId });
     if (!metadata) return;
     const start = Number(metadata.timestampStart ?? metadata.start ?? NaN);
     const end = Number(metadata.timestampEnd ?? metadata.end ?? NaN);
     if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-      console.log("[admin-script] startCompletionWatcher invalid metadata", {
-        matchId: getMatchIdentifier(match),
-        metadata,
-      });
       return;
     }
     const duration = end - start;
@@ -263,10 +247,7 @@
       if (!playerState?.iframe) return;
       try {
         const seconds = await requestIframeCurrentTime(playerState.iframe);
-        console.log("[admin-script] completion poll", {
-          seconds,
-          threshold: completionThreshold,
-        });
+        // polling check runs silently
         if (seconds >= completionThreshold) {
           stopCompletionWatcher();
           await sendCompletionEvent(match, seconds, duration, start);
@@ -716,7 +697,6 @@
 
   const showVisitorPlayer = (match) => {
     if (!match) return;
-    console.log("[admin-script] showVisitorPlayer", { matchId: getMatchIdentifier(match) });
     const player = ensureVisitorPlayer();
     const iframe = player.iframe;
     if (iframe) {

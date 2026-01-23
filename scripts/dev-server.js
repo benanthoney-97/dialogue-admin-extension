@@ -20,8 +20,10 @@ const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/ap
 const matchSuggestionsHandler = require('../admin-extension/chrome-extension/api/match-suggestions');
 const authRequestOtpHandler = require('../admin-extension/chrome-extension/api/auth/request-otp');
 const authVerifyOtpHandler = require('../admin-extension/chrome-extension/api/auth/verify-otp');
+const matchClickedHandler = require('../admin-extension/chrome-extension/api/match-clicked');
+const matchCompletionHandler = require('../admin-extension/chrome-extension/api/match-completion');
 
-const WEB_ROOT = path.join(__dirname, '..', 'web-embed');
+const WEB_ROOT = path.join(__dirname, '..', 'web-platform');
 const HTTP_PORT = 4173;
 const SSE_PATH = '/reload';
 
@@ -112,6 +114,14 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/match-suggestions') {
       await matchSuggestionsHandler(req, res);
+      return;
+    }
+    if (parsedUrl.pathname === '/api/match-clicked') {
+      await matchClickedHandler(req, res);
+      return;
+    }
+    if (parsedUrl.pathname === '/api/match-completion') {
+      await matchCompletionHandler(req, res);
       return;
     }
 

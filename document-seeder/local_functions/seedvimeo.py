@@ -18,14 +18,12 @@ openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 supabase: Client = create_client(url, key)
 embed_model = OpenAIEmbedding(model="text-embedding-3-small")
 
-# 2. CONFIG
-PROVIDER_ID = 12  
-
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-def process_video(video_url, manual_title=None, existing_doc=None):
-    print(f"\n🚀 Starting processing for: {video_url}")
+# Updated signature to accept provider_id
+def process_video(video_url, provider_id, manual_title=None, existing_doc=None):
+    print(f"\n🚀 Starting processing for: {video_url} (Provider: {provider_id})")
     
     audio_path = ""
     detected_title = ""
@@ -43,7 +41,7 @@ def process_video(video_url, manual_title=None, existing_doc=None):
         'postprocessor_args': ['-ac', '1'], # Mono
         'quiet': True,
         'no_warnings': True,
-        'cookiesfrombrowser': ('chrome',), # Keeps your Vimeo access
+        'cookiesfrombrowser': ('chrome',), 
     }
 
     success = False
@@ -61,41 +59,42 @@ def process_video(video_url, manual_title=None, existing_doc=None):
         final_title = manual_title if manual_title else detected_title
         print(f"   📝 Using Title: {final_title}")
 
-        # B. TRANSCRIBE WITH TIMESTAMPS
+        # B. TRANSCRIBE
         print("   🎙️  Transcribing (Verbose Mode)...")
         with open(audio_path, "rb") as audio_file:
             transcript = openai_client.audio.transcriptions.create(
                 model="whisper-1", 
                 file=audio_file,
-                response_format="verbose_json",  # <--- CRITICAL CHANGE
+                response_format="verbose_json",
                 timestamp_granularities=["segment"]
             )
         
         segments = transcript.segments
         print(f"   ✅ Transcription complete ({len(segments)} segments).")
 
-        # C. SAVE PARENT DOC
+        # C. SAVE/UPDATE PARENT DOC
         print("   💾 Saving to Supabase...")
         if existing_doc:
             doc_id = existing_doc.get("id")
-            final_title = manual_title or existing_doc.get("title") or final_title
+            # We don't need to update title here necessarily, but we could
         else:
+            # Fallback for manual runs (not used in current flow)
             existing = supabase.table('provider_documents').select("id").eq("source_url", video_url).execute()
             if existing.data:
-                print(f"      ⚠️ Document already exists (ID: {existing.data[0]['id']}). Reusing row.")
                 doc_id = existing.data[0]['id']
             else:
                 data, count = supabase.table('provider_documents').insert({
-                    "provider_id": PROVIDER_ID,
+                    "provider_id": provider_id, # Use the dynamic ID
                     "title": final_title,
                     "source_url": video_url,
                     "media_type": "video" 
                 }).execute()
                 
-            if hasattr(data, 'data') and len(data.data) > 0:
-                 doc_id = data.data[0]['id']
-            else:
-                 doc_id = data[1][0]['id']
+                # Handle different supabase-py return shapes
+                if hasattr(data, 'data') and len(data.data) > 0:
+                     doc_id = data.data[0]['id']
+                else:
+                     doc_id = data[1][0]['id']
 
         # D. CHUNK WITH TIMESTAMPS
         print("   ⚡ Processing segments...")
@@ -105,7 +104,6 @@ def process_video(video_url, manual_title=None, existing_doc=None):
         chunk_start_time = 0
         
         for i, seg in enumerate(segments):
-            # Handle Object vs Dict access
             text = seg.text if hasattr(seg, 'text') else seg['text']
             start = seg.start if hasattr(seg, 'start') else seg['start']
             end = seg.end if hasattr(seg, 'end') else seg['end']
@@ -121,13 +119,13 @@ def process_video(video_url, manual_title=None, existing_doc=None):
                 vec = embed_model.get_text_embedding(current_chunk_text)
                 
                 rows.append({
-                    "provider_id": PROVIDER_ID,
+                    "provider_id": provider_id, # <--- IMPORTANT: Uses correct provider
                     "document_id": doc_id,
                     "content": current_chunk_text.strip(),
                     "embedding": vec,
                     "metadata": {
                         "source": video_url,
-                        "timestampStart": int(chunk_start_time), # <--- THE FIX
+                        "timestampStart": int(chunk_start_time),
                         "timestampEnd": int(end)
                     }
                 })
@@ -135,24 +133,28 @@ def process_video(video_url, manual_title=None, existing_doc=None):
 
         # Batch Insert
         if rows:
-            print(f"   💾 Inserting {len(rows)} chunks...")
+            print(f"   💾 Inserting {len(rows)} chunks for Provider {provider_id}...")
             batch_size = 20
             for i in range(0, len(rows), batch_size):
                 supabase.table('provider_knowledge').insert(rows[i:i+batch_size]).execute()
-            print(f"   ✨ SUCCESS! '{final_title}' has been ingested with timestamps.")
+            print(f"   ✨ SUCCESS! '{final_title}' ingested.")
         success = True
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
     finally:
         if audio_path and os.path.exists(audio_path):
-            os.remove(audio_path)
+            try:
+                os.remove(audio_path)
+            except:
+                pass
     return success, doc_id
 
 def fetch_next_pending_document():
+    # Fetch provider_id along with other fields
     response = (
         supabase.table("provider_documents")
-        .select("id,title,source_url")
+        .select("id, title, source_url, provider_id") 
         .eq("is_active", False)
         .limit(1)
         .maybe_single()
@@ -164,26 +166,47 @@ def fetch_next_pending_document():
         raise error
     return data
 
-
 def mark_document_active(document_id):
     supabase.table("provider_documents").update({"is_active": True}).eq("id", document_id).execute()
 
-
 def main():
+    # Print for debugging in Cloud Run
+    print("🔎 Checking for pending documents...", flush=True)
+    
     pending = fetch_next_pending_document()
     if not pending:
-        print("🎉 Nothing pending.")
+        print("🎉 Nothing pending.", flush=True)
         return
+
     while pending:
         video_url = pending.get("source_url")
+        provider_id = pending.get("provider_id")
+        
+        # Validation
         if not video_url:
-            print("⚠️  Pending document missing source_url")
+            print("⚠️ Pending document missing source_url", flush=True)
+            # Mark it active (or delete it) so we don't get stuck in a loop? 
+            # For now, let's just break to avoid infinite error loop
             break
-        success, doc_id = process_video(video_url, manual_title=pending.get("title"), existing_doc=pending)
+            
+        if not provider_id:
+            print(f"⚠️ Document {pending.get('id')} missing provider_id. Skipping.", flush=True)
+            break
+
+        # Process with the CORRECT provider_id
+        success, doc_id = process_video(
+            video_url, 
+            provider_id, 
+            manual_title=pending.get("title"), 
+            existing_doc=pending
+        )
+        
         if success and doc_id:
             mark_document_active(doc_id)
+            print(f"✅ Marked document {doc_id} as active.", flush=True)
+        
+        # Fetch next
         pending = fetch_next_pending_document()
-
 
 if __name__ == "__main__":
     main()

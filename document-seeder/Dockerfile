@@ -26,3 +26,6 @@ COPY main.py .
 # 4. Start the web server
 # Timeout set to 0 (infinite) because Cloud Run manages the hard timeout
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "0", "main:app"]
+
+# Forces Python to log to console immediately (no buffering)
+ENV PYTHONUNBUFFERED=1

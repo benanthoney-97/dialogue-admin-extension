@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dialogue Connections</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+<body>
+  <div class="app-shell">
+    <div id="sidebar-slot"></div>
+    <main class="connections-main">
+      <div id="topbar-slot" data-page-title="Connections"></div>
+      <section class="connections-card">
+        <div>
+          <h1 class="connections-card__title">Connections</h1>
+          <p class="connections-card__subtitle">This workspace is empty—no connections are configured yet.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module">
+    import { loadSidebar } from "../components/sidebar.js"
+    import { loadTopbar } from "../components/topbar.js"
+
+    loadTopbar("#topbar-slot", { title: "Connections" })
+    loadSidebar("#sidebar-slot")
+  </script>
+</body>
+</html>

@@ -35,6 +35,8 @@ dist/
 # bpp - http://bpp.browser.market/
 keys.json
 
+admin-extension/chrome-extension/src/lib/admin-config.generated.ts
+
 # typescript
 .tsbuildinfo
 node_modules

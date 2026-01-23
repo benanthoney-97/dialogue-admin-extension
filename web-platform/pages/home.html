@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dialogue | Home</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div id="sidebar-slot"></div>
+      <main class="connections-main">
+        <div id="topbar-slot" data-page-title="Home"></div>
+        <section class="hero-section">
+          <div id="hero-cards-slot" class="hero-cards"></div>
+          <div class="usage-row">
+            <div id="usage-graph-slot"></div>
+            <div id="top-videos-slot"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module">
+      import { loadSidebar } from "../components/sidebar.js"
+      import { loadTopbar } from "../components/topbar.js"
+      import { mountHeroCards } from "../components/hero-cards.js"
+      import { mountUsageGraph } from "../components/usage-graph.js"
+      import { mountTopVideos } from "../components/top-videos.js"
+
+      loadTopbar("#topbar-slot", { title: "Home" })
+      loadSidebar("#sidebar-slot")
+      mountHeroCards("#hero-cards-slot")
+      mountUsageGraph("#usage-graph-slot")
+      mountTopVideos("#top-videos-slot")
+    </script>
+  </body>
+</html>

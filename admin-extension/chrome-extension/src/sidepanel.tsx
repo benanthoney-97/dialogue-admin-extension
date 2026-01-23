@@ -1171,7 +1171,7 @@ const newMatchModeRef = useRef(false)
         return renderNewMatchFlow()
       }
       case "account": {
-        return <AccountView email={authEmail} logoUrl={providerLogoUrl} />
+        return <AccountView email={authEmail} logoUrl={providerLogoUrl} providerId={providerId} />
       }
       case "measure": {
         return <AnalyticsView />
