@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
-import { ConfidenceChip } from "../confidence-chip"
 import { HeaderCards } from "../header-cards"
+import { MatchCard } from "../match-card"
 
 export interface PageSummaryProps {
   pageUrl: string
@@ -374,12 +374,14 @@ const pillStyle = (label?: string, color?: string) => {
         )}
         <div className="page-summary__match-list">
           {matches.map((match) => (
-            <article
+            <MatchCard
               key={match.page_match_id}
-              className="page-summary__match-card"
-              role="button"
-              tabIndex={0}
-              aria-label="Open match decision card"
+              phrase={previewPhrase(match.phrase)}
+              coverImageUrl={match.cover_image_url}
+              documentTitle={match.document_title}
+              confidenceLabel={match.confidence_label}
+              confidenceColor={match.confidence_color}
+              pillText={formatMatchLabel(match)}
               onClick={() => onMatchSelect?.(match.page_match_id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -387,40 +389,11 @@ const pillStyle = (label?: string, color?: string) => {
                   onMatchSelect?.(match.page_match_id)
                 }
               }}
-            onMouseEnter={() => sendHoverMessage(match, true)}
-            onMouseLeave={() => sendHoverMessage(match, false)}
-            onFocus={() => sendHoverMessage(match, true)}
-            onBlur={() => sendHoverMessage(match, false)}
-          >
-              <div className="page-summary__match-title">
-                <p className="page-summary__match-phrase">{previewPhrase(match.phrase)}</p>
-              </div>
-                <div className="page-summary__match-row">
-                  <div className="page-summary__match-arrow" aria-hidden="true">
-                    <span>▼</span>
-                  </div>
-                <ConfidenceChip
-                  className="page-summary__match-pill"
-                  label={match.confidence_label}
-                  color={match.confidence_color}
-                  text={formatMatchLabel(match)}
-                />
-                </div>
-              <div className="page-summary__match-video">
-                <div className="page-summary__match-video-thumb">
-                  {match.cover_image_url ? (
-                    <img src={match.cover_image_url} alt="" loading="lazy" decoding="async" />
-                  ) : (
-                    <span className="page-summary__match-video-placeholder">▶</span>
-                  )}
-                </div>
-                <div className="page-summary__match-video-details">
-                  <span className="page-summary__match-video-title">
-                    {match.document_title || "Untitled video"}
-                  </span>
-                </div>
-              </div>
-            </article>
+              onMouseEnter={() => sendHoverMessage(match, true)}
+              onMouseLeave={() => sendHoverMessage(match, false)}
+              onFocus={() => sendHoverMessage(match, true)}
+              onBlur={() => sendHoverMessage(match, false)}
+            />
           ))}
         </div>
       <style>{`

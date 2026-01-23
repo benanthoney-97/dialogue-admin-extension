@@ -29,9 +29,7 @@ async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from("provider_analytics_summary")
-      .select(
-        "total_impressions, total_plays, completion_rate, impressions_mom_pct, plays_mom_pct, completion_rate_mom_pct, top_5_most_played, top_5_most_completed"
-      )
+      .select("*")
       .eq("provider_id", providerId)
       .maybeSingle()
 
@@ -41,6 +39,14 @@ async function handler(req, res) {
       total_impressions: data?.total_impressions ?? 0,
       total_plays: data?.total_plays ?? 0,
       completion_rate: data?.completion_rate ?? 0,
+      impressions_mom_pct: data?.impressions_mom_pct ?? null,
+      plays_mom_pct: data?.plays_mom_pct ?? null,
+      completion_rate_mom_pct: data?.completion_rate_mom_pct ?? null,
+      best_performing_matches: data?.best_performing_matches ?? null,
+      needs_attention_matches: data?.needs_attention_matches ?? null,
+      low_value_matches: data?.low_value_matches ?? null,
+      top_5_most_played: data?.top_5_most_played ?? null,
+      top_5_most_completed: data?.top_5_most_completed ?? null,
     }
 
     res.setHeader("Content-Type", "application/json")

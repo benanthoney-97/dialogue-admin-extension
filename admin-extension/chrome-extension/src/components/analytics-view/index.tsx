@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { HeaderCards } from "../header-cards"
+import { MatchCard } from "../match-card"
 
 export interface AnalyticsViewProps {
   providerId?: number | null
@@ -13,11 +14,20 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
     impressions_mom_pct?: number | string
     plays_mom_pct?: number | string
     completion_rate_mom_pct?: number | string
+    best_performing_matches?: string | null
     top_5_most_played?: string | null
     top_5_most_completed?: string | null
   } | null>(null)
   const [topPlayedMatches, setTopPlayedMatches] = useState<
-    { page_match_id: number; count: number; phrase?: string; video_url?: string }[]
+    {
+      page_match_id: number
+      count: number
+      phrase?: string
+      video_url?: string
+      document_id?: number
+      cover_image_url?: string
+      documentTitle?: string | null
+    }[]
   >([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,16 +84,17 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
       })
       .then((data) => {
         if (canceled) return
-    setMetrics({
-      total_impressions: data?.total_impressions ?? 0,
-      total_plays: data?.total_plays ?? 0,
-      completion_rate: data?.completion_rate ?? 0,
-      impressions_mom_pct: data?.impressions_mom_pct ?? null,
-      plays_mom_pct: data?.plays_mom_pct ?? null,
-      completion_rate_mom_pct: data?.completion_rate_mom_pct ?? null,
-      top_5_most_played: data?.top_5_most_played ?? null,
-      top_5_most_completed: data?.top_5_most_completed ?? null,
-    })
+      setMetrics({
+        total_impressions: data?.total_impressions ?? 0,
+        total_plays: data?.total_plays ?? 0,
+        completion_rate: data?.completion_rate ?? 0,
+        impressions_mom_pct: data?.impressions_mom_pct ?? null,
+        plays_mom_pct: data?.plays_mom_pct ?? null,
+        completion_rate_mom_pct: data?.completion_rate_mom_pct ?? null,
+        best_performing_matches: data?.best_performing_matches ?? null,
+        top_5_most_played: data?.top_5_most_played ?? null,
+        top_5_most_completed: data?.top_5_most_completed ?? null,
+      })
   })
       .catch((err) => {
         console.error("[analytics-view] fetch failed", err)
@@ -168,21 +179,18 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
   )
 
   useEffect(() => {
-    if (!resolvedProviderId || !metrics?.top_5_most_played) {
+    if (!resolvedProviderId || !metrics?.best_performing_matches) {
       setTopPlayedMatches([])
       return
     }
-    console.log("[analytics-view] top played effect running", {
-      providerId: resolvedProviderId,
-      raw: metrics.top_5_most_played,
-    })
+
     let canceled = false
-    let list = []
-    if (Array.isArray(metrics.top_5_most_played)) {
-      list = metrics.top_5_most_played
-    } else if (typeof metrics.top_5_most_played === "string") {
+    let list: any[] = []
+    if (Array.isArray(metrics.best_performing_matches)) {
+      list = metrics.best_performing_matches
+    } else if (typeof metrics.best_performing_matches === "string") {
       try {
-        const parsed = JSON.parse(metrics.top_5_most_played)
+        const parsed = JSON.parse(metrics.best_performing_matches)
         if (Array.isArray(parsed)) {
           list = parsed
         }
@@ -190,7 +198,6 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
         console.error("[analytics-view] parsing top played failed", error)
       }
     }
-    console.log("[analytics-view] parsed top played list", { list, raw: metrics.top_5_most_played })
     if (!list.length) {
       setTopPlayedMatches([])
       return
@@ -203,22 +210,40 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
       if (!response.ok) throw new Error("Failed to load page match")
       return response.json()
     }
+    const fetchDocument = async (documentId) => {
+      if (!documentId) return null
+      const response = await fetch(
+        `${backendBase.replace(/\/+$/, "")}/api/provider-document?provider_id=${resolvedProviderId}&document_id=${documentId}`
+      )
+      if (!response.ok) return null
+      return response.json()
+    }
 
     Promise.all(
-      list.map(async (item) => {
-        try {
-          const match = await fetchMatch(item.page_match_id)
-          if (canceled) return null
-          return {
-            page_match_id: item.page_match_id,
-            count: item.count,
-            phrase: match?.phrase,
-            video_url: match?.video_url,
-          }
-        } catch (error) {
-          console.error("[analytics-view] top match fetch failed", error)
-          return null
-        }
+          list.map(async (item) => {
+            try {
+              const match = await fetchMatch(item.page_match_id)
+              if (canceled) return null
+              let cover_image_url = null
+              let documentTitle = match?.document_title ?? null
+              if (match?.document_id) {
+                const doc = await fetchDocument(match.document_id)
+                cover_image_url = doc?.cover_image_url || null
+                documentTitle = documentTitle || doc?.title ?? null
+              }
+              return {
+                page_match_id: item.page_match_id,
+                count: item.plays ?? item.count ?? 0,
+                phrase: item.highlight_text || match?.phrase,
+                video_url: match?.video_url,
+                document_id: match?.document_id,
+                cover_image_url,
+                documentTitle,
+              }
+            } catch (error) {
+              console.error("[analytics-view] top match fetch failed", error)
+              return null
+            }
       })
     ).then((results) => {
       if (canceled) return
@@ -230,7 +255,7 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
     return () => {
       canceled = true
     }
-  }, [metrics?.top_5_most_played, backendBase, resolvedProviderId])
+  }, [metrics?.best_performing_matches, backendBase, resolvedProviderId])
 
   return (
     <div className="analytics-view">
@@ -246,24 +271,33 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
         <div className="analytics-view__most-clicked">
           <div className="analytics-view__section-title">Most clicked</div>
           <div className="analytics-view__most-clicked-grid">
-            {topPlayedMatches.map((match) => (
-              <div className="analytics-view__most-clicked-card" key={match.page_match_id}>
-                <div className="analytics-view__most-clicked-body">
-                  <p className="analytics-view__most-clicked-phrase">{match.phrase || "Untitled"}</p>
-                  {match.video_url && (
-                    <a
-                      href={match.video_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="analytics-view__most-clicked-link"
-                    >
-                      View video preview
-                    </a>
-                  )}
-                </div>
-                <span className="analytics-view__most-clicked-count">×{match.count}</span>
-              </div>
-            ))}
+            {topPlayedMatches.map((match) => {
+              const playIcon =
+                match.count != null ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                    aria-hidden="true"
+                  >
+                    <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                  </svg>
+                ) : null
+              return (
+                <MatchCard
+                  key={match.page_match_id}
+                  phrase={match.phrase || "Untitled"}
+                  coverImageUrl={match.cover_image_url || undefined}
+                  documentTitle={match.documentTitle}
+                  confidenceLabel={undefined}
+                  confidenceColor={undefined}
+                  pillText={match.count ? String(match.count) : undefined}
+                  pillIcon={playIcon || undefined}
+                />
+              )
+            })}
           </div>
         </div>
       )}
@@ -289,10 +323,11 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
           margin-top: 16px;
         }
         .analytics-view__section-title {
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #94a3b8;
+          font-size: 14px;
+          font-weight: 600;
+          color: #0f172a;
+          text-transform: none;
+          letter-spacing: normal;
           margin-bottom: 8px;
         }
         .analytics-view__most-clicked-grid {
@@ -308,11 +343,43 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
           display: flex;
           justify-content: space-between;
           gap: 12px;
+          align-items: stretch;
+        }
+        .analytics-view__most-clicked-body {
+          display: flex;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+        }
+        .analytics-view__most-clicked-image {
+          width: 48px;
+          height: 48px;
+          object-fit: cover;
+          border-radius: 8px;
+          flex-shrink: 0;
+        }
+        .analytics-view__most-clicked-copy {
+          flex: 1;
+          min-width: 0;
         }
         .analytics-view__most-clicked-phrase {
-          font-size: 14px;
+          margin: 0;
+          font-weight: 400;
+          font-size: 12px;
+          color: #0f172a;
           line-height: 1.4;
-          margin: 0 0 6px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .analytics-view__phrase-label {
+          font-weight: 600;
+          margin-right: 4px;
+        }
+        .analytics-view__phrase-copy {
+          font-weight: 400;
         }
         .analytics-view__most-clicked-link {
           font-size: 12px;
