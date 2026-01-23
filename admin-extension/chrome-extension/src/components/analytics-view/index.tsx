@@ -172,16 +172,25 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
       setTopPlayedMatches([])
       return
     }
+    console.log("[analytics-view] top played effect running", {
+      providerId: resolvedProviderId,
+      raw: metrics.top_5_most_played,
+    })
     let canceled = false
-    const list = []
-    try {
-      const parsed = JSON.parse(metrics.top_5_most_played)
-      if (Array.isArray(parsed)) {
-        list.push(...parsed)
+    let list = []
+    if (Array.isArray(metrics.top_5_most_played)) {
+      list = metrics.top_5_most_played
+    } else if (typeof metrics.top_5_most_played === "string") {
+      try {
+        const parsed = JSON.parse(metrics.top_5_most_played)
+        if (Array.isArray(parsed)) {
+          list = parsed
+        }
+      } catch (error) {
+        console.error("[analytics-view] parsing top played failed", error)
       }
-    } catch (error) {
-      console.error("[analytics-view] parsing top played failed", error)
     }
+    console.log("[analytics-view] parsed top played list", { list, raw: metrics.top_5_most_played })
     if (!list.length) {
       setTopPlayedMatches([])
       return
@@ -213,7 +222,9 @@ export function AnalyticsView({ providerId }: AnalyticsViewProps) {
       })
     ).then((results) => {
       if (canceled) return
-      setTopPlayedMatches(results.filter(Boolean) as any)
+      const filtered = results.filter(Boolean) as any
+      console.log("[analytics-view] top played matches resolved", filtered)
+      setTopPlayedMatches(filtered)
     })
 
     return () => {
