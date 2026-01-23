@@ -1,7 +1,7 @@
 import React from "react"
 
 export interface HeaderCardItem {
-  label: string
+  label: React.ReactNode
   value: React.ReactNode
   isStatus?: boolean
   statusClass?: string

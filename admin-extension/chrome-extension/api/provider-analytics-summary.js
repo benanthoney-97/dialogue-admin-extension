@@ -29,7 +29,9 @@ async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from("provider_analytics_summary")
-      .select("total_impressions, total_plays, completion_rate")
+      .select(
+        "total_impressions, total_plays, completion_rate, impressions_mom_pct, plays_mom_pct, completion_rate_mom_pct, top_5_most_played, top_5_most_completed"
+      )
       .eq("provider_id", providerId)
       .maybeSingle()
 
