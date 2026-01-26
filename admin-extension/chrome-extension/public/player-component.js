@@ -134,7 +134,12 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
     setVisible(true)
   }
 
-  const hide = () => setVisible(false)
+  const hide = () => {
+    setVisible(false)
+    if (iframe) {
+      iframe.src = ""
+    }
+  }
 
   let isResizing = false
 
