@@ -733,6 +733,7 @@
     event.stopPropagation();
     const providerId = match.provider_id ?? match.providerId;
     const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
+    const rect = matchEl.getBoundingClientRect();
     if (providerId && pageMatchId) {
       console.log("[admin-script] sending match-clicked", {
         providerId,
@@ -754,7 +755,7 @@
         console.error("[admin-script] match-clicked log error", error);
       });
     }
-    showVisitorPlayer(match);
+    showVisitorPlayer(match, rect);
     startCompletionWatcher(match);
     };
 
