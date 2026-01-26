@@ -73,7 +73,11 @@ const TEMPLATE_HTML = `
 const buildPlayerNode = () => {
   const template = document.createElement("template")
   template.innerHTML = TEMPLATE_HTML
-  return template.content.firstElementChild
+  const styleElement = template.content.querySelector("style")
+  if (styleElement) {
+    document.head.appendChild(styleElement)
+  }
+  return template.content.querySelector("#dialogue-nano-player")
 }
 
 function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
