@@ -37,12 +37,16 @@
 
   let visitorPlayerInstance = null
   const ensureVisitorPlayer = async () => {
+    console.log("[admin-script] ensureVisitorPlayer start")
     if (visitorPlayerInstance) {
+      console.log("[admin-script] visitor player cached instance")
       return visitorPlayerInstance
     }
     const module = await loadPlayerComponent()
+    console.log("[admin-script] loadPlayerComponent result", module)
     if (module?.initVisitorPlayer) {
       visitorPlayerInstance = module.initVisitorPlayer()
+      console.log("[admin-script] visitor player initialized")
       return visitorPlayerInstance
     }
     console.warn("[admin-script] visitor player not available")
@@ -59,10 +63,12 @@
 
   const showVisitorPlayer = async (match, rect) => {
     if (!match) return
+    console.log("[admin-script] showVisitorPlayer start", { matchId: getMatchIdentifier(match), rect })
     const player = await ensureVisitorPlayer()
     if (!player) return
     player.size(320, 16 / 9)
     const url = toVimeoPlayerUrl(match.video_url)
+    console.log("[admin-script] player show data", { rect, url })
     player.show({ rect, width: 320, ratio: 16 / 9, url })
   }
 
