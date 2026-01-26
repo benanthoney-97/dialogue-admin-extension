@@ -18,22 +18,22 @@ export function ConfidenceChip({ label, color, text, className = "", icon }: Con
       {text ?? label ?? "Match"}
       <style>{`
         .confidence-chip {
-          padding: 4px 12px;
+          padding: 4px 0px;
           border-radius: 999px;
           font-size: 10px;
           font-weight: 600;
           letter-spacing: 0.02em;
           border: 1px solid transparent;
           display: inline-flex;
-          align-items: center;
+          align-items: left;
           gap: 4px;
-          justify-content: center;
+          justify-content: left;
           transition: background 0.2s ease, color 0.2s ease, border 0.2s ease;
         }
         .confidence-chip__icon {
           display: inline-flex;
-          align-items: center;
-          justify-content: center;
+          align-items: left;
+          justify-content: left;
           line-height: 0;
         }
       `}</style>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { ConfidenceChip } from "../confidence-chip"
 import { HeaderCards } from "../header-cards"
 import { MatchCard } from "../match-card"
 
@@ -206,9 +207,9 @@ const parseHexColor = (value?: string) => {
 }
 
 const tierBackgroundMap: Record<string, string> = {
-  "Great Match": "#ede9fe",
-  "Good Match": "#dcfce7",
-  "Match": "#f1f5f9",
+  "Great Match": "none",
+  "Good Match": "none",
+  "Match": "none",
 };
 
 const tierColorMap: Record<
@@ -216,7 +217,7 @@ const tierColorMap: Record<
   { color: string; borderColor: string }
 > = {
   "Great Match": { color: "#7c3aed", borderColor: "rgba(124,58,237,0.35)" },
-  "Good Match": { color: "#166534", borderColor: "rgba(16,185,129,0.55)" },
+  "Good Match": { color: "#16a34a", borderColor: "#16a34a" },
   "Match": { color: "#334155", borderColor: "rgba(15,23,42,0.35)" },
 }
 
@@ -234,7 +235,7 @@ const formatMatchLabel = (match: PageMatchSummary) => {
 }
 
 const pillStyle = (label?: string, color?: string) => {
-  const defaultText = "#047857"
+  const defaultText = "#16a34a"
   const textColor = color || defaultText
   const normalizedLabel = label?.trim()
 
@@ -281,8 +282,13 @@ const pillStyle = (label?: string, color?: string) => {
           <>
             <div className="page-summary__header-row">
               <div className="page-summary__header">
-                <div className="page-summary__header-title">
-                  {formatTitleFromPath(formatPagePath(pageUrl))}
+                <div className="page-summary__header-main">
+                  <div className="page-summary__header-title">
+                    {formatTitleFromPath(formatPagePath(pageUrl))}
+                  </div>
+                  <div className="page-summary__header-path" title={pageUrl}>
+                    <strong>Path:</strong> {formatPagePath(pageUrl)}
+                  </div>
                 </div>
                 <div className="page-summary__header-chips">
                   {!pageSupported && (
@@ -292,39 +298,36 @@ const pillStyle = (label?: string, color?: string) => {
                   )}
                 </div>
               </div>
-          <button
-            type="button"
-            className="page-summary__new-match"
-            onClick={() => {
-              console.log("[page-summary] new match button clicked")
-              if (onNewMatch) {
-                onNewMatch()
-              } else {
-                onRefresh?.()
-                setRefreshKey((prev) => prev + 1)
-              }
-            }}
-          >
-            <span className="page-summary__new-match-icon" aria-hidden="true">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                fill="currentColor"
-                className="bi bi-plus-lg"
-                viewBox="0 0 16 16"
+              <button
+                type="button"
+                className="page-summary__new-match"
+                onClick={() => {
+                  console.log("[page-summary] new match button clicked")
+                  if (onNewMatch) {
+                    onNewMatch()
+                  } else {
+                    onRefresh?.()
+                    setRefreshKey((prev) => prev + 1)
+                  }
+                }}
               >
-                <path
-                  fillRule="evenodd"
-                  d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
-                />
-              </svg>
-            </span>
-            <span>New match</span>
-          </button>
-            </div>
-            <div className="page-summary__full-url" title={pageUrl}>
-              {formatPagePath(pageUrl)}
+                <span className="page-summary__new-match-icon" aria-hidden="true">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    className="bi bi-plus-lg"
+                    viewBox="0 0 16 16"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+                    />
+                  </svg>
+                </span>
+                <span>New match</span>
+              </button>
             </div>
           </>
         )}
@@ -449,12 +452,22 @@ const pillStyle = (label?: string, color?: string) => {
           gap: 12px;
           flex-wrap: wrap;
         }
+        .page-summary__header-main {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
         .page-summary__header-title {
           font-size: 14px;
           font-weight: 600;
           color: #0f172a;
           text-transform: none;
           letter-spacing: normal;
+        }
+        .page-summary__header-path {
+          font-size: 10px;
+          color: #475467;
+          word-break: keep-all;
         }
         .page-summary__header-chips {
           display: flex;
@@ -471,21 +484,6 @@ const pillStyle = (label?: string, color?: string) => {
           font-size: 10px;
           font-weight: 600;
           text-transform: uppercase;
-        }
-        .page-summary__full-url {
-          font-size: 10px;
-          color: #475467;
-          word-break: keep-all;
-          white-space: normal;
-          width: 100%;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          hyphens: none;
-          overflow-wrap: normal;
-          margin-top: -8px;
         }
         .page-summary__new-match {
           margin-left: auto;

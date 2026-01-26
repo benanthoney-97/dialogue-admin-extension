@@ -11,6 +11,8 @@ import { TimestampView } from "./components/timestamp-view"
 import { NewMatchPrompt, SelectedTextBlock } from "./components/new-match-prompt"
 import { ConfirmAction } from "./components/confirm-action"
 import { LoginForm } from "./components/login-form/login-form"
+import { SignUpForm } from "./components/signup-form/signup-form"
+import { LandingPage } from "./components/landing-page/landing-page"
 import { LibraryDocumentsGrid } from "./components/library-documents-grid"
 import type { LibraryDocument } from "./components/library-documents-grid"
 import { SingleViewVideo } from "./components/single-view-video"
@@ -63,6 +65,9 @@ type DecisionContext = "page" | "video"
 
 type NavSection = "page" | "sitemap" | "new-match" | "library" | "measure" | "account"
 
+const logoUrl =
+  "https://lmnoftavsxqvkpcleehi.supabase.co/storage/v1/object/public/platform_logos/694fab5082d1c37ac311541c_Untitled_design__9_-removebg-preview%20(1).png"
+
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
   const [view, setView] = useState<"documents" | "timestamp" | null>(null)
@@ -110,6 +115,20 @@ const newMatchModeRef = useRef(false)
     return providerId
   }
   const [authLoading, setAuthLoading] = useState(false)
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login")
+  const [landingActive, setLandingActive] = useState(true)
+  const showLanding = () => {
+    setLandingActive(true)
+    setAuthMode("login")
+  }
+  const handleLandingLogin = () => {
+    setLandingActive(false)
+    setAuthMode("login")
+  }
+  const handleLandingSignup = () => {
+    setLandingActive(false)
+    setAuthMode("signup")
+  }
 
   useEffect(() => {
     const port = chrome.runtime.connect({ name: "admin-mode" })
@@ -1171,7 +1190,14 @@ const newMatchModeRef = useRef(false)
         return renderNewMatchFlow()
       }
       case "account": {
-        return <AccountView email={authEmail} logoUrl={providerLogoUrl} providerId={providerId} />
+        return (
+          <AccountView
+            email={authEmail}
+            logoUrl={providerLogoUrl}
+            providerId={providerId}
+            onLogout={handleLogout}
+          />
+        )
       }
       case "measure": {
         return <AnalyticsView />
@@ -1203,41 +1229,108 @@ const newMatchModeRef = useRef(false)
     })
   }
 
+  const handleLogout = () => {
+    setAuthToken(null)
+    setAuthEmail(null)
+    setProviderId(null)
+    setActiveSection("page")
+    setAuthMode("login")
+    chrome.storage?.local?.set?.({ authToken: null, authEmail: null, providerId: null })
+    setLandingActive(true)
+  }
+
+  const requestOtp = async (email: string) => {
+    setAuthLoading(true)
+    try {
+      await fetch(`${backendBase}/api/auth/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const verifyLoginOtp = async (email: string, otp: string) => {
+    setAuthLoading(true)
+    try {
+      const response = await fetch(`${backendBase}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      })
+      if (!response.ok) throw new Error("Invalid OTP")
+      const data = await response.json()
+      saveAuth(data.token, data.email, toNumber(data.provider_id))
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const verifySignupOtp = async (email: string, otp: string, displayName: string) => {
+    setAuthLoading(true)
+    try {
+      const response = await fetch(`${backendBase}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, display_name: displayName }),
+      })
+      if (!response.ok) throw new Error("OTP verification failed")
+      const data = await response.json()
+      saveAuth(data.token, data.email, toNumber(data.provider_id))
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
   const renderContent = () => {
     if (!authToken) {
+      if (landingActive) {
+        return (
+          <LandingPage onLogin={handleLandingLogin} onSignUp={handleLandingSignup} />
+        )
+      }
       return (
         <div className="login-panel">
-          <LoginForm
-          onRequestOtp={async (email) => {
-            setAuthLoading(true)
-            try {
-              await fetch(`${backendBase}/api/auth/request-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-              })
-            } finally {
-              setAuthLoading(false)
-            }
-          }}
-          onVerifyOtp={async (email, otp) => {
-            setAuthLoading(true)
-            try {
-              const response = await fetch(`${backendBase}/api/auth/verify-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp }),
-              })
-              if (!response.ok) throw new Error("Invalid OTP")
-              const data = await response.json()
-              if (process.env.NODE_ENV !== "production") {
-              }
-              saveAuth(data.token, data.email, toNumber(data.provider_id))
-            } finally {
-              setAuthLoading(false)
-            }
-          }}
-          />
+          <div className="login-panel__logo-row">
+            <button
+              type="button"
+              className="login-panel__logo-wrapper"
+              onClick={() => {
+                showLanding()
+              }}
+            >
+              <img src={logoUrl} alt="Dialogue logo" className="login-panel__logo dialogue-logo" />
+            </button>
+          </div>
+          <div className="login-panel__form-shell">
+            {authMode === "login" ? (
+              <LoginForm
+                onRequestOtp={requestOtp}
+                onVerifyOtp={verifyLoginOtp}
+                onSwitchAuthMode={(mode) => setAuthMode(mode)}
+              />
+            ) : (
+              <SignUpForm
+                onRequestOtp={requestOtp}
+                onVerifyOtp={verifySignupOtp}
+                onSwitchAuthMode={(mode) => setAuthMode(mode)}
+              />
+            )}
+          </div>
+          {authMode === "login" && (
+            <div className="login-panel__footer-text">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                className="login-panel__footer-link"
+                onClick={() => setAuthMode("signup")}
+              >
+                Sign up
+              </button>
+            </div>
+          )}
         </div>
       )
     }

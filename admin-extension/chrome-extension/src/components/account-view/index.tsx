@@ -4,9 +4,10 @@ export interface AccountViewProps {
   email: string | null
   logoUrl: string | null
   providerId?: number | null
+  onLogout: () => void
 }
 
-export function AccountView({ email, logoUrl, providerId }: AccountViewProps) {
+export function AccountView({ email, logoUrl, providerId, onLogout }: AccountViewProps) {
   return (
     <div className="account-view">
       <div className="account-view__avatar">
@@ -28,6 +29,9 @@ export function AccountView({ email, logoUrl, providerId }: AccountViewProps) {
         </button>
         <button type="button" className="account-view__button">
           Billing
+        </button>
+        <button type="button" className="account-view__button" onClick={onLogout}>
+          Logout
         </button>
       </div>
     </div>

@@ -8,10 +8,10 @@ export interface MatchCardProps {
   documentTitle?: string | null
   confidenceLabel?: string
   confidenceColor?: string
+  chipText?: string
   pillText?: string
-  count?: number
   showArrow?: boolean
-  pillIcon?: React.ReactNode
+  chipIcon?: React.ReactNode
   onClick?: () => void
   onKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void
   onMouseEnter?: () => void
@@ -26,9 +26,9 @@ export function MatchCard({
   documentTitle,
   confidenceLabel,
   confidenceColor,
+  chipText,
   pillText,
-  count,
-  pillIcon,
+  chipIcon,
   showArrow = true,
   onClick,
   onKeyDown,
@@ -56,21 +56,25 @@ export function MatchCard({
           <span className="match-card__phrase-copy">{phrase}</span>
         </p>
       </div>
-      <div className="match-card__row">
-        {showArrow && (
-          <div className="match-card__arrow" aria-hidden="true">
-            <span>▼</span>
-          </div>
-        )}
-        <ConfidenceChip
-          className="match-card__pill"
-          label={confidenceLabel}
-          color={confidenceColor}
-          text={pillText}
-          icon={pillIcon}
-        />
-      </div>
       <div className="match-card__video">
+        <div className="match-card__video-details">
+          <span className="match-card__video-title">
+            <strong className="match-card__video-label">Video:</strong>{" "}
+            {documentTitle || "Untitled video"}
+          </span>
+          {(chipText ?? pillText) && (
+            <div className="match-card__stats">
+              <div className="match-card__chip match-card__chip--footer">
+                <ConfidenceChip
+                  label={confidenceLabel}
+                  color={confidenceColor}
+                  text={chipText ?? pillText}
+                  icon={chipIcon}
+                />
+              </div>
+            </div>
+          )}
+        </div>
         <div className="match-card__video-thumb">
           {coverImageUrl ? (
             <img src={coverImageUrl} alt="" loading="lazy" decoding="async" />
@@ -78,16 +82,7 @@ export function MatchCard({
             <span className="match-card__video-placeholder">▶</span>
           )}
         </div>
-        <div className="match-card__video-details">
-          <span className="match-card__video-title">
-            <strong className="match-card__video-label">Video:</strong>{" "}
-            {documentTitle || "Untitled video"}
-          </span>
-        </div>
       </div>
-      {typeof count === "number" && (
-        <span className="analytics-view__most-clicked-count">×{count}</span>
-      )}
     </article>
   )
 }

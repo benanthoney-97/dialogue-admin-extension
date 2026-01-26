@@ -1,14 +1,15 @@
 import { useState } from "react"
-import "./login-form.css"
+import "../login-form/login-form.css"
 
-type LoginFormProps = {
+type SignUpFormProps = {
   onRequestOtp: (email: string) => Promise<void>
-  onVerifyOtp: (email: string, otp: string) => Promise<void>
+  onVerifyOtp: (email: string, otp: string, displayName: string) => Promise<void>
   onSwitchAuthMode: (mode: "login" | "signup") => void
 }
 
-export function LoginForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: LoginFormProps) {
+export function SignUpForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: SignUpFormProps) {
   const [email, setEmail] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [otp, setOtp] = useState("")
   const [stage, setStage] = useState<"email" | "otp">("email")
   const [error, setError] = useState<string | null>(null)
@@ -20,10 +21,14 @@ export function LoginForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: Login
       setError("Enter your email")
       return
     }
+    if (!displayName) {
+      setError("Add a name so we can personalize your experience")
+      return
+    }
     try {
       await onRequestOtp(email)
       setStage("otp")
-      setInfo("OTP sent—check your inbox")
+      setInfo("OTP sent—check your inbox to finish signing up")
     } catch (err: any) {
       setError(err?.message || "Unable to request OTP")
     }
@@ -36,7 +41,7 @@ export function LoginForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: Login
       return
     }
     try {
-      await onVerifyOtp(email, otp)
+      await onVerifyOtp(email, otp, displayName)
     } catch (err: any) {
       setError(err?.message || "OTP verification failed")
     }
@@ -44,7 +49,19 @@ export function LoginForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: Login
 
   return (
     <div className="login-form">
-      <div className="login-form__header">Dashboard</div>
+      <div className="login-form__header">Sign up</div>
+      <div className="login-form__subtitle">
+        Enter your details to get started.
+      </div>
+      <label className="login-form__label">
+        Display name
+        <input
+          type="text"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          disabled={stage === "otp"}
+        />
+      </label>
       <label className="login-form__label">
         Email
         <input
@@ -74,9 +91,19 @@ export function LoginForm({ onRequestOtp, onVerifyOtp, onSwitchAuthMode }: Login
           </button>
         ) : (
           <button type="button" onClick={handleVerify}>
-            Verify OTP
+            Verify OTP &amp; create account
           </button>
         )}
+      </div>
+      <div className="login-form__footer">
+        <span>Already have an account?</span>
+        <button
+          type="button"
+          className="login-form__link"
+          onClick={() => onSwitchAuthMode("login")}
+        >
+          Log in
+        </button>
       </div>
     </div>
   )

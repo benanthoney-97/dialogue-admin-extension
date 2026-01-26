@@ -35,6 +35,14 @@ async function handler(req, res) {
 
     if (error) throw error
 
+    const { data: groupData, error: groupError } = await supabase
+      .from("analytics_groups")
+      .select("group_key, title, description")
+      .in("group_key", ["best_performing", "needs_attention", "low_value"])
+      .order("id", { ascending: true })
+
+    if (groupError) throw groupError
+
     const payload = {
       total_impressions: data?.total_impressions ?? 0,
       total_plays: data?.total_plays ?? 0,
@@ -47,6 +55,7 @@ async function handler(req, res) {
       low_value_matches: data?.low_value_matches ?? null,
       top_5_most_played: data?.top_5_most_played ?? null,
       top_5_most_completed: data?.top_5_most_completed ?? null,
+      analytics_groups: groupData ?? [],
     }
 
     res.setHeader("Content-Type", "application/json")

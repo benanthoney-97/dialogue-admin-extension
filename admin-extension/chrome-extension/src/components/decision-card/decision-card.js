@@ -92,20 +92,20 @@ template.innerHTML = `
       font-size: 11px;
       font-weight: 600;
       color: #0b7c55;
-      background: rgba(4, 120, 87, 0.08);
       border-radius: 999px;
-      padding: 4px 14px;
+      padding: 4px 0px;
       width: fit-content;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid rgba(4, 120, 87, 0.2);
+      background: transparent;
+      border: none;
     }
 
     .decision-card-phrase-container {
       border: 1px solid #e2e8f0;
       border-radius: 16px;
-      background: #ffffff;
+      background: transparent;
       padding: 12px;
       display: flex;
       flex-direction: column;
@@ -116,11 +116,11 @@ template.innerHTML = `
     .decision-card-phrase-box {
       width: 100%;
       margin: 0;
-      background: #f2f4f7;
       border-radius: 10px;
-      padding: 10px;
+      padding: 0;
       box-sizing: border-box;
       overflow: hidden;
+      background: transparent;
     }
 
     .decision-card-phrase {
@@ -135,13 +135,17 @@ template.innerHTML = `
       word-break: break-word;
     }
 
-    .decision-card-divider-arrow {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 18px;
-      color: #9ca3af;
-      line-height: 1;
+    .decision-card-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #0b0c0d;
+      margin-right: 6px;
+    }
+
+    .decision-card-phrase-text,
+    .decision-card-content-text {
+      display: inline;
+      color: inherit;
     }
 
     .decision-card-content-wrapper {
@@ -151,17 +155,17 @@ template.innerHTML = `
     .decision-card-content {
       font-size: 13px;
       color: #0b0c0d;
-      background: #F3E8FF;
       border: 1px solid transparent;
       padding: 0;
       line-height: 1.5;
-      white-space: pre-wrap;
+      white-space: normal;
       word-break: break-word;
       max-height: calc(1.5em * 4);
       overflow-y: auto;
       padding-right: 6px;
       display: block;
       border-radius: 10px;
+      background: transparent;
     }
 
     .decision-card-chip-row {
@@ -220,7 +224,6 @@ template.innerHTML = `
       padding-top: 12px;
       padding-bottom: 12px;
       background: #fff;
-      border-top: 1px solid #e5e7f0;
       margin-top: auto;
       width: 100%;
       max-width: 100%;
@@ -229,8 +232,7 @@ template.innerHTML = `
       right: 0;
       padding-left: 0;
       padding-right: 0;
-      box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.06);
-      background: #f6f7fb;
+      background: transparent;
       overflow: hidden;
     }
 
@@ -270,8 +272,8 @@ template.innerHTML = `
     }
 
     .action svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       fill: currentColor;
     }
 
@@ -284,7 +286,6 @@ template.innerHTML = `
       background: #047857;
       border-color: #047857;
       color: #ffffff;
-      box-shadow: 0 6px 14px rgba(4, 120, 87, 0.35);
     }
 
     .remove {
@@ -329,19 +330,16 @@ template.innerHTML = `
       </div>
     </div>
   <div class="decision-card-phrase-container">
-    <div class="decision-card-chip-row decision-card-chip-row--top" aria-hidden="true">
-      <span class="decision-card-chip decision-card-chip--phrase">Site text</span>
-    </div>
     <div class="decision-card-phrase-box">
-      <p class="decision-card-phrase" aria-live="polite"></p>
+      <p class="decision-card-phrase" aria-live="polite">
+        <span class="decision-card-label">Site text:</span>
+        <span class="decision-card-phrase-text"></span>
+      </p>
     </div>
-    <div class="decision-card-divider-arrow" aria-hidden="true">
-      <span>▼</span>
+    <div class="decision-card-content" aria-live="polite">
+      <span class="decision-card-label">Video match:</span>
+      <span class="decision-card-content-text"></span>
     </div>
-      <div class="decision-card-chip-row" aria-hidden="true">
-        <span class="decision-card-chip decision-card-chip--content">Video match</span>
-      </div>
-    <div class="decision-card-content" aria-live="polite"></div>
     </div>
   </div>
   <div class="decision-card-footer">
@@ -397,6 +395,8 @@ class DecisionCard extends HTMLElement {
     this.contentEl = null;
     this.videoMatchChipEl = null;
     this.phraseEl = null;
+    this.phraseTextEl = null;
+    this.contentTextEl = null;
     this.backButton = null;
     this.backLabelEl = null;
     this.handleBackClick = this.handleBackClick.bind(this);
@@ -415,9 +415,11 @@ class DecisionCard extends HTMLElement {
     this.videoEl = this.shadowRoot.querySelector(".decision-card-video");
     this.iframeContainer = this.shadowRoot.querySelector(".sl-iframe-container");
     this.phraseEl = this.shadowRoot.querySelector(".decision-card-phrase");
+    this.phraseTextEl = this.shadowRoot.querySelector(".decision-card-phrase-text");
     this.backButton = this.shadowRoot.querySelector(".decision-card-back");
     this.backLabelEl = this.shadowRoot.querySelector(".decision-card-back-label");
     this.videoMatchChipEl = this.shadowRoot.querySelector(".decision-card-chip--content");
+    this.contentTextEl = this.shadowRoot.querySelector(".decision-card-content-text");
     this.syncAttributes();
     this.updateBackLabel(this.getAttribute("data-back-label"));
     this.updateBackAriaLabel(this.getAttribute("data-back-aria-label"));
@@ -507,14 +509,14 @@ class DecisionCard extends HTMLElement {
 
   applyConfidenceStyling() {
     if (!this.confidenceEl) return;
-    const { background, borderColor, color } = computeConfidenceChipStyle(
+    const chipStyle = computeConfidenceChipStyle(
       this.confidenceLabelValue,
       this.confidenceColorValue
     );
-    this.confidenceEl.style.background = background;
-    this.confidenceEl.style.borderColor = borderColor;
-    this.confidenceEl.style.color = color;
-    this.applyMatchColorStyling({ background, borderColor, color });
+    this.confidenceEl.style.background = "transparent";
+    this.confidenceEl.style.borderColor = "transparent";
+    this.confidenceEl.style.color = chipStyle.color;
+    this.applyMatchColorStyling(chipStyle);
   }
 
   applyMatchColorStyling({ background, borderColor, color }) {
@@ -526,17 +528,23 @@ class DecisionCard extends HTMLElement {
       this.videoMatchChipEl.style.borderWidth = "1px";
     }
     if (this.contentEl) {
-      this.contentEl.style.background = background;
-      this.contentEl.style.color = color;
-      this.contentEl.style.borderColor = borderColor;
-      this.contentEl.style.borderStyle = "solid";
-      this.contentEl.style.borderWidth = "1px";
+      this.contentEl.style.background = "transparent";
+      this.contentEl.style.borderColor = "transparent";
+      this.contentEl.style.borderStyle = "none";
+      this.contentEl.style.borderWidth = "0";
     }
   }
 
   updatePhrase(value) {
-    if (!this.phraseEl) return;
-    this.phraseEl.textContent = value || "";
+    if (!this.phraseEl || !this.phraseTextEl) return;
+    const raw = (value || "").trim();
+    if (!raw) {
+      this.phraseTextEl.textContent = "";
+      this.phraseEl.style.display = "none";
+      return;
+    }
+    this.phraseTextEl.textContent = raw;
+    this.phraseEl.style.display = "block";
   }
 
     formatConfidence(value) {
@@ -548,17 +556,15 @@ class DecisionCard extends HTMLElement {
   }
 
   updateContent(value) {
-    if (!this.contentEl) return;
+    if (!this.contentEl || !this.contentTextEl) return;
     const raw = (value || "").trim();
     if (!raw) {
-      this.contentEl.textContent = "";
+      this.contentTextEl.textContent = "";
       this.contentEl.style.display = "none";
       return;
     }
-    const start = raw.startsWith("...") ? "" : "..."
-    const end = raw.endsWith("...") ? "" : "..."
-    this.contentEl.textContent = `${start}${raw}${end}`;
-    this.contentEl.style.display = raw ? "block" : "none";
+    this.contentTextEl.textContent = raw;
+    this.contentEl.style.display = "block";
   }
 
   updateVideo(value) {
