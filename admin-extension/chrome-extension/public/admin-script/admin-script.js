@@ -734,6 +734,11 @@
     const providerId = match.provider_id ?? match.providerId;
     const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
     if (providerId && pageMatchId) {
+      console.log("[admin-script] sending match-clicked", {
+        providerId,
+        pageMatchId,
+        videoUrl: match.video_url || match.page_url,
+      });
       fetch(`${getApiOrigin()}/api/match-clicked`, {
         method: "POST",
         headers: {
