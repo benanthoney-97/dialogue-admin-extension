@@ -283,14 +283,12 @@ const pillStyle = (label?: string, color?: string) => {
         {pageSupported && (
           <>
             <div className="page-summary__header-row">
-              <div className="page-summary__header">
-                <div className="page-summary__header-main">
-                  <div className="page-summary__header-title">
-                    {formatTitleFromPath(formatPagePath(pageUrl))}
-                  </div>
-                  <div className="page-summary__header-path" title={pageUrl}>
-                    <strong>Path:</strong> {formatPagePath(pageUrl)}
-                  </div>
+              <div className="page-summary__header-content">
+                <div className="page-summary__header-title">
+                  {formatTitleFromPath(formatPagePath(pageUrl))}
+                </div>
+                <div className="page-summary__header-path" title={pageUrl}>
+                  <strong>Path:</strong> {formatPagePath(pageUrl)}
                 </div>
                 <div className="page-summary__header-chips">
                   {!pageSupported && (
@@ -300,36 +298,38 @@ const pillStyle = (label?: string, color?: string) => {
                   )}
                 </div>
               </div>
-              <button
-                type="button"
-                className="page-summary__new-match"
-                onClick={() => {
-                  console.log("[page-summary] new match button clicked")
-                  if (onNewMatch) {
-                    onNewMatch()
-                  } else {
-                    onRefresh?.()
-                    setRefreshKey((prev) => prev + 1)
-                  }
-                }}
-              >
-                <span className="page-summary__new-match-icon" aria-hidden="true">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    className="bi bi-plus-lg"
-                    viewBox="0 0 16 16"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
-                    />
-                  </svg>
-                </span>
-                <span>New match</span>
-              </button>
+              <div className="page-summary__new-match-container">
+                <button
+                  type="button"
+                  className="page-summary__new-match"
+                  onClick={() => {
+                    console.log("[page-summary] new match button clicked")
+                    if (onNewMatch) {
+                      onNewMatch()
+                    } else {
+                      onRefresh?.()
+                      setRefreshKey((prev) => prev + 1)
+                    }
+                  }}
+                >
+                  <span className="page-summary__new-match-icon" aria-hidden="true">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      className="bi bi-plus-lg"
+                      viewBox="0 0 16 16"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+                      />
+                    </svg>
+                  </span>
+                  <span>New match</span>
+                </button>
+              </div>
             </div>
           </>
         )}

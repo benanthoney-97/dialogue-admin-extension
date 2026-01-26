@@ -489,42 +489,7 @@
   height: 16px;
   fill: currentColor;
 }
-.page-summary__header-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.page-summary__header {
-  flex: 1;
-  min-width: 0;
-}
-.page-summary__full-url {
-  font-size: 12px;
-  color: #475467;
-  margin-top: 4px;
-  min-height: 16px;
-}
-.page-summary__overview-row {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-  margin-top: 18px;
-}
-.page-summary__overview-card {
-  flex: 1;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  min-height: 96px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
+
 .page-summary__overview-label {
   font-size: 12px;
   color: #475467;

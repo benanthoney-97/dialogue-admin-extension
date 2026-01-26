@@ -230,6 +230,25 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.page-summary__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.page-summary__header-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-summary__new-match-container {
+  flex-shrink: 0;
+}
 .page-summary__new-match--icon-only {
   background: transparent;
   border-color: transparent;
@@ -319,6 +338,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 14px;
+  width: 100%;
 }
 .page-summary__overview-card {
   flex: 1;
@@ -489,6 +509,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  width: 100%
 }
 .page-summary-panel__container .page-summary {
   flex: 1;
