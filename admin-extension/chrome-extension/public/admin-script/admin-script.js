@@ -420,6 +420,8 @@
       .sl-admin-mode .sl-smart-link:hover,
       body.sl-visitor-mode .sl-smart-link:hover {
         text-decoration-color: #6366F1 !important;
+        background-color: rgba(99, 102, 241, 0.1) !important;
+        box-shadow: none !important;
       }
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
