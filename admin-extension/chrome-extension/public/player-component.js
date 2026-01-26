@@ -31,6 +31,13 @@ const TEMPLATE_HTML = `
       background: #000;
       position: relative;
     }
+    #dialogue-player-iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
     .d-meta {
       height: 40px;
       background: #fff;
