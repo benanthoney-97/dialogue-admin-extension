@@ -2,11 +2,7 @@ import type { PlasmoCSConfig } from "plasmo"
 
 export const config: PlasmoCSConfig = {
   matches: [
-"https://*.seedlegals.com/*",
-    "https://seedlegals.com/*",
-    "https://*.wpcomstaging.com/*",
-    "https://*.dialogue-ai.co/*",   
-    "https://dialogue-ai.co/*"
+"https://*/*"
   ]
 }
 

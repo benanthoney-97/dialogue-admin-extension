@@ -2,9 +2,11 @@ import React, { useCallback, useMemo, useState } from "react"
 
 export interface CodeInjectionSnippetProps {
   providerId?: number | null
+  onCopy?: () => void
+  showHeader?: boolean
 }
 
-export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) {
+export function CodeInjectionSnippet({ providerId, onCopy, showHeader = true }: CodeInjectionSnippetProps) {
   const [copied, setCopied] = useState(false)
   const snippet = useMemo(() => {
     const idPart = providerId ?? "YOUR_PROVIDER_ID"
@@ -35,6 +37,7 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
       }
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1800)
+      onCopy?.()
     } catch (error) {
       console.error("[code-injection-snippet] copy failed", error)
     }
@@ -43,10 +46,8 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
   const ariaLabel = useMemo(() => (copied ? "Snippet copied" : "Copy snippet to clipboard"), [copied])
 
   return (
-    <div className="code-injection-snippet">
-      <div className="code-injection-snippet__header">
-        <span>For your website header</span>
-      </div>
+      <div className="code-injection-snippet">
+
       <div className="code-injection-snippet__container">
         <button type="button" className="code-injection-snippet__copy" onClick={handleCopy} aria-label={ariaLabel}>
           {copied ? "Copied" : "Copy"}
@@ -58,10 +59,13 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
       <style>
         {`
         .code-injection-snippet {
-          background: transparent;
+          background: #ffffff;
           color: #0f172a;
+          border: 1px solid #e2e8f0;
           border-radius: 16px;
           padding: 16px 0;
+          width: 100%;
+          box-sizing: border-box;
         }
         .code-injection-snippet__header {
           display: flex;
@@ -75,8 +79,8 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
           border: none;
           border-radius: 8px;
           padding: 6px 12px;
-          background: #f8fafc;
-          color: #0f172a;
+          background: #0f1727;
+          color: #ffffff;
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
@@ -89,10 +93,9 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
           transform: translateY(1px);
         }
         .code-injection-snippet__container {
-          background: rgba(15, 23, 42, 0.35);
           border: 1px solid rgba(248, 250, 252, 0.4);
           border-radius: 12px;
-          padding: 12px;
+          padding: 6px 12px;
           white-space: pre-wrap;
           word-break: break-word;
           font-size: 13px;
@@ -100,6 +103,8 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
           margin: 0;
           text-align: left;
           position: relative;
+          width: 100%;
+          box-sizing: border-box;
         }
         .code-injection-snippet__code {
           font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
@@ -108,6 +113,8 @@ export function CodeInjectionSnippet({ providerId }: CodeInjectionSnippetProps) 
           padding-right: 12px;
           max-height: 160px;
           overflow: auto;
+          width: 100%;
+          box-sizing: border-box;
         }
         `}
       </style>

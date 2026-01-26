@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react"
 import { ConfidenceChip } from "../confidence-chip"
 import { HeaderCards } from "../header-cards"
 import { MatchCard } from "../match-card"
+import { InactivePage } from "./inactive-page"
+import "./page-summary.css"
 
 export interface PageSummaryProps {
   pageUrl: string
@@ -351,439 +353,50 @@ const pillStyle = (label?: string, color?: string) => {
             ]}
           />
         )}
-        <div className="page-summary__matches-header">
-          <div>Matches</div>
-          {error && <span className="page-summary__matches-error">{error}</span>}
-        </div>
-      </div>
-        {loading && <div className="page-summary__matches-state">Loading matches…</div>}
-        {!loading && !matches.length && !error && pageSupported && (
-          <div className="page-summary__matches-state">No matches for this page yet.</div>
-        )}
-        {!pageSupported && (
-          <div className="page-summary__unsupported-state">
-            <p>
-              This page is outside your registered site. The summary will update once you return
-              to a supported URL.
-            </p>
-            <button
-              type="button"
-              className="page-summary__button"
-              onClick={() => setRefreshKey((prev) => prev + 1)}
-            >
-              Check again
-            </button>
+        {pageSupported ? (
+          <div className="page-summary__matches-section">
+            <div className="page-summary__matches-header">
+              <div>Matches</div>
+              {error && <span className="page-summary__matches-error">{error}</span>}
+            </div>
+            {loading && <div className="page-summary__matches-state">Loading matches…</div>}
+            {!loading && !matches.length && !error && (
+              <div className="page-summary__matches-state">No matches for this page yet.</div>
+            )}
+            <div className="page-summary__match-list">
+              {matches.map((match) => (
+                <MatchCard
+                  key={match.page_match_id}
+                  phrase={previewPhrase(match.phrase)}
+                  coverImageUrl={match.cover_image_url}
+                  documentTitle={match.document_title}
+                  confidenceLabel={match.confidence_label}
+                  confidenceColor={match.confidence_color}
+                  pillText={formatMatchLabel(match)}
+                  onClick={() => onMatchSelect?.(match.page_match_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      onMatchSelect?.(match.page_match_id)
+                    }
+                  }}
+                  onMouseEnter={() => sendHoverMessage(match, true)}
+                  onMouseLeave={() => sendHoverMessage(match, false)}
+                  onFocus={() => sendHoverMessage(match, true)}
+                  onBlur={() => sendHoverMessage(match, false)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="page-summary__inactive-wrapper">
+            <InactivePage
+              providerId={providerId}
+              onRefresh={() => setRefreshKey((prev) => prev + 1)}
+            />
           </div>
         )}
-        <div className="page-summary__match-list">
-          {matches.map((match) => (
-            <MatchCard
-              key={match.page_match_id}
-              phrase={previewPhrase(match.phrase)}
-              coverImageUrl={match.cover_image_url}
-              documentTitle={match.document_title}
-              confidenceLabel={match.confidence_label}
-              confidenceColor={match.confidence_color}
-              pillText={formatMatchLabel(match)}
-              onClick={() => onMatchSelect?.(match.page_match_id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault()
-                  onMatchSelect?.(match.page_match_id)
-                }
-              }}
-              onMouseEnter={() => sendHoverMessage(match, true)}
-              onMouseLeave={() => sendHoverMessage(match, false)}
-              onFocus={() => sendHoverMessage(match, true)}
-              onBlur={() => sendHoverMessage(match, false)}
-            />
-          ))}
-        </div>
-      <style>{`
-        .page-summary {
-          padding: 14px 16px;
-          border-radius: 14px;
-          margin-bottom: 12px;
-          background: #f6f7fb;
-          color: #0f172a;
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          min-height: 0;
-        }
-        .page-summary__summary {
-          position: sticky;
-          top: 0;
-          background: #f6f7fb;
-          z-index: 2;
-          padding-top: 0;
-          padding-bottom: 0px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .page-summary__breadcrumb {
-          align-self: flex-end;
-          border: none;
-          background: transparent;
-          color: #0f172a;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          padding: 0;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .page-summary__breadcrumb-icon {
-          width: 16px;
-          height: 16px;
-        }
-        .page-summary__header-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .page-summary__header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .page-summary__header-main {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .page-summary__header-title {
-          font-size: 14px;
-          font-weight: 600;
-          color: #0f172a;
-          text-transform: none;
-          letter-spacing: normal;
-        }
-        .page-summary__header-path {
-          font-size: 10px;
-          color: #475467;
-          word-break: keep-all;
-        }
-        .page-summary__header-chips {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .page-summary__unsupported-chip {
-          background: rgba(148, 163, 184, 0.16);
-          color: #475467;
-          border: 1px solid rgba(148, 163, 184, 0.4);
-          margin-left: 4px;
-          padding: 2px 8px;
-          border-radius: 12px;
-          font-size: 10px;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-        .page-summary__new-match {
-          margin-left: auto;
-          display: inline-flex;
-          gap: 6px;
-          align-items: center;
-          border-radius: 12px;
-          border: 1px solid #0f1727;
-          background: #0f1727;
-          color: #f8fafc;
-          padding: 6px 12px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .page-summary__new-match--icon-only {
-          background: transparent;
-          border-color: transparent;
-          padding: 6px;
-          color: #0f1727;
-        }
-        .page-summary__new-match--icon-only {
-          background: transparent;
-          border-color: transparent;
-          padding: 6px;
-          color: #0f1727;
-        }
-        .page-summary__new-match-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .page-summary__new-match svg {
-          width: 16px;
-          height: 16px;
-          fill: currentColor;
-        }
-        .page-summary__matches {
-          padding-top: 0;
-        }
-        .page-summary__matches-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 14px;
-          color: #0f172a;
-          margin-bottom: 6px;
-          font-weight: 600;
-          letter-spacing: normal;
-          text-transform: none;
-        }
-        .page-summary__matches-error {
-          color: #e11d48;
-          font-size: 11px;
-        }
-        .page-summary__matches-state {
-          font-size: 12px;
-          color: #475467;
-          margin-bottom: 8px;
-        }
-        .page-new-match-overlay {
-          position: absolute;
-          inset: 0;
-          border-radius: 0;
-          background: rgba(246, 247, 251, 0.98);
-          border: none;
-          box-shadow: none;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          z-index: 2;
-        }
-        .page-new-match-overlay .new-match-prompt {
-          height: 100%;
-        }
-        .page-summary__unsupported-state {
-          padding: 12px;
-          border-radius: 12px;
-          background: #fef3c7;
-          color: #92400e;
-          font-size: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          border: 1px solid rgba(113, 63, 18, 0.35);
-        }
-        .page-summary__button {
-          align-self: flex-start;
-          padding: 6px 12px;
-          border: none;
-          border-radius: 8px;
-          background: #6366f1;
-          color: white;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .page-summary__match-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          flex: 1;
-          overflow-y: auto;
-          padding-right: 4px;
-          min-height: 0;
-        }
-        .page-summary__overview-row {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 14px;
-        }
-        .page-summary__overview-card {
-          flex: 1;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
-          background: #ffffff;
-          padding: 8px 0;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          min-height: 72px;
-          justify-content: center;
-        }
-        .page-summary__overview-card--status {
-          justify-content: center;
-          position: relative;
-        }
-        .page-summary__overview-card strong {
-          font-size: 18px;
-          color: #0f172a;
-        }
-        .page-summary__overview-card--status strong.page-summary__status-showing {
-          color: #15803d;
-        }
-        .page-summary__overview-card--status strong.page-summary__status-hidden {
-          color: #dc2626;
-        }
-        .page-summary__overview-label {
-          font-size: 11px;
-          color: #475467;
-          letter-spacing: 0.08em;
-          text-transform: none;
-          margin-top: 0;
-        }
-        .page-summary__status-showing {
-          color: #15803d;
-        }
-        .page-summary__status-hidden {
-          color: #dc2626;
-        }
-        .page-summary__status-unknown {
-          color: #475467;
-        }
-        .page-summary__overview-card--status.page-summary__status-showing {
-          background: #ecfdf5;
-          border-color: rgba(34, 197, 94, 0.4);
-        }
-        .page-summary__overview-card--status.page-summary__status-hidden {
-          background: #fef2f2;
-          border-color: rgba(220, 38, 38, 0.35);
-        }
-        .page-summary__overview-card--status.page-summary__status-unknown {
-          background: #f3f4f6;
-          border-color: rgba(148, 163, 184, 0.35);
-        }
-        .page-summary__overview-card--status strong {
-          font-size: 14px;
-        }
-        .page-summary__match-card {
-          padding: 16px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.95);
-          border: 1px solid #e2e8f0;
-          transition: border-color 0.2s ease;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .page-summary__match-card:hover {
-          border-color: #94a3b8;
-        }
-        .page-summary__match-phrase {
-          margin: 0;
-          font-weight: 600;
-          font-size: 12px;
-          color: #0f172a;
-          line-height: 1.4;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .page-summary__match-title {
-          padding-right: 4px;
-        }
-        .page-summary__match-row {
-          position: relative;
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-        }
-        .page-summary__match-pill {
-          font-size: 10px;
-          font-weight: 600;
-          border-radius: 999px;
-          padding: 0 10px;
-          white-space: nowrap;
-          line-height: 1;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 20px;
-          margin-left: 18px;
-          border: 1px solid transparent;
-        }
-        .page-summary__match-arrow {
-          text-align: center;
-          color: #9ca3af;
-          font-size: 18px;
-          line-height: 1;
-          position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
-        }
-        .page-summary__match-video {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          border-radius: 12px;
-          padding: 10px;
-          background: #f4f6fb;
-        }
-        .page-summary__match-video-thumb {
-          width: 64px;
-          height: 44px;
-          border-radius: 10px;
-          background: #e5e7eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-        .page-summary__match-video-thumb img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .page-summary__match-video-placeholder {
-          font-size: 18px;
-          color: #9ca3af;
-        }
-        .page-summary__match-video-details {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          text-align: left;
-        }
-        .page-summary__match-video-title {
-          font-size: 12px;
-          font-weight: 600;
-          color: #0f172a;
-        }
-        .page-summary-panel {
-          position: relative;
-          overflow: hidden;
-          flex: 1;
-          min-height: 0;
-          display: flex;
-        }
-        .page-summary-panel__container {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          min-height: 0;
-        }
-        .page-summary-panel__container .page-summary {
-          flex: 1;
-          min-height: 0;
-          transition: transform 0.35s ease, opacity 0.35s ease;
-        }
-        .page-summary-panel--animate .page-summary {
-          animation: page-summary-slide-up 0.35s ease forwards;
-        }
-        @keyframes page-summary-slide-up {
-          from {
-            transform: translateY(24px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
+      </div>
     </div>
   )
 }

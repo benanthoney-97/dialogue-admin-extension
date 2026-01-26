@@ -50,11 +50,7 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*.seedlegals.com/*",
-      "https://seedlegals.com/*",
-      "https://*.wpcomstaging.com/*",
-      "https://*.dialogue-ai.co/*",
-      "https://dialogue-ai.co/*"
+"https://*/*"
     ],
     "permissions": [
       "sidePanel",

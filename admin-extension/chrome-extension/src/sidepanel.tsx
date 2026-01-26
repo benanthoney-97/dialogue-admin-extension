@@ -12,6 +12,7 @@ import { NewMatchPrompt, SelectedTextBlock } from "./components/new-match-prompt
 import { ConfirmAction } from "./components/confirm-action"
 import { LoginForm } from "./components/login-form/login-form"
 import { SignUpForm } from "./components/signup-form/signup-form"
+import { CompanyOnboarding } from "./components/company-onboarding/company-onboarding"
 import { LandingPage } from "./components/landing-page/landing-page"
 import { LibraryDocumentsGrid } from "./components/library-documents-grid"
 import type { LibraryDocument } from "./components/library-documents-grid"
@@ -117,6 +118,7 @@ const newMatchModeRef = useRef(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "signup">("login")
   const [landingActive, setLandingActive] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const showLanding = () => {
     setLandingActive(true)
     setAuthMode("login")
@@ -1239,10 +1241,23 @@ const newMatchModeRef = useRef(false)
     setLandingActive(true)
   }
 
-  const requestOtp = async (email: string) => {
+  const requestLoginOtp = async (email: string) => {
     setAuthLoading(true)
     try {
       await fetch(`${backendBase}/api/auth/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const requestSignupOtp = async (email: string) => {
+    setAuthLoading(true)
+    try {
+      await fetch(`${backendBase}/api/auth/signup-request-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -1271,7 +1286,7 @@ const newMatchModeRef = useRef(false)
   const verifySignupOtp = async (email: string, otp: string, displayName: string) => {
     setAuthLoading(true)
     try {
-      const response = await fetch(`${backendBase}/api/auth/signup`, {
+    const response = await fetch(`${backendBase}/api/auth/signup-verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, display_name: displayName }),
@@ -1279,9 +1294,40 @@ const newMatchModeRef = useRef(false)
       if (!response.ok) throw new Error("OTP verification failed")
       const data = await response.json()
       saveAuth(data.token, data.email, toNumber(data.provider_id))
+      setShowOnboarding(true)
     } finally {
       setAuthLoading(false)
     }
+  }
+
+  const handleOnboardingNext = async (websiteUrl: string) => {
+    if (!providerId) {
+      setToastMessage("Unable to save site without a provider")
+      return
+    }
+    fetch(`${backendBase}/api/provider-update-website`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider_id: providerId, website_url: websiteUrl }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to save website")
+        }
+        return response.json()
+      })
+      .then(() => {
+        setToastMessage(`Website ${websiteUrl} saved. You're all set!`)
+      })
+      .catch((error) => {
+        console.error("[onboarding] update website failed", error)
+        setToastMessage("Unable to save website")
+    })
+  }
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false)
+    setToastMessage("Dialogue is now live on your site.")
   }
 
   const renderContent = () => {
@@ -1306,31 +1352,19 @@ const newMatchModeRef = useRef(false)
           </div>
           <div className="login-panel__form-shell">
             {authMode === "login" ? (
-              <LoginForm
-                onRequestOtp={requestOtp}
-                onVerifyOtp={verifyLoginOtp}
-                onSwitchAuthMode={(mode) => setAuthMode(mode)}
-              />
-            ) : (
-              <SignUpForm
-                onRequestOtp={requestOtp}
-                onVerifyOtp={verifySignupOtp}
-                onSwitchAuthMode={(mode) => setAuthMode(mode)}
-              />
+            <LoginForm
+              onRequestOtp={requestLoginOtp}
+              onVerifyOtp={verifyLoginOtp}
+              onSwitchAuthMode={(mode) => setAuthMode(mode)}
+            />
+          ) : (
+            <SignUpForm
+              onRequestOtp={requestSignupOtp}
+              onVerifyOtp={verifySignupOtp}
+              onSwitchAuthMode={(mode) => setAuthMode(mode)}
+            />
             )}
           </div>
-          {authMode === "login" && (
-            <div className="login-panel__footer-text">
-              Don't have an account?{" "}
-              <button
-                type="button"
-                className="login-panel__footer-link"
-                onClick={() => setAuthMode("signup")}
-              >
-                Sign up
-              </button>
-            </div>
-          )}
         </div>
       )
     }
@@ -1339,6 +1373,17 @@ const newMatchModeRef = useRef(false)
       return (
         <div className="panel__loading">
           <span>Loading provider data…</span>
+        </div>
+      )
+    }
+    if (showOnboarding) {
+      return (
+        <div className="login-panel">
+          <CompanyOnboarding
+            providerId={providerId}
+            onNext={handleOnboardingNext}
+            onComplete={handleOnboardingComplete}
+          />
         </div>
       )
     }

@@ -85,6 +85,7 @@ async function handler(req, res) {
     return;
   }
 
+  console.log('[signup-request] payload', { email, displayName });
   const { data: otpEntry, error } = await supabase
     .from('auth_otps')
     .select('*')
@@ -108,6 +109,7 @@ async function handler(req, res) {
 
   const computedHash = hashCode(otp, otpEntry.salt);
   if (computedHash !== otpEntry.otp_hash) {
+    console.warn('[signup] otp mismatch', { email, otp });
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'OTP mismatch' }));
     return;
@@ -137,6 +139,7 @@ async function handler(req, res) {
   }
 
   const token = crypto.randomBytes(32).toString('hex');
+  console.log('[signup] success', { email, providerId: admin.provider_id });
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({ token, email, provider_id: admin.provider_id }));
 }
