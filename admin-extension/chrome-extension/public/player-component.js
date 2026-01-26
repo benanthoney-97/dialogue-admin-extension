@@ -82,6 +82,7 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
   const iframe = playerNode.querySelector("#dialogue-player-iframe")
   const resizeHandle = playerNode.querySelector(".resize-handle")
   document.body.appendChild(playerNode)
+  console.log("[player-component] appended player node", playerNode)
 
   const setVisible = (visible) => {
     playerNode.classList.toggle("visible", visible)
