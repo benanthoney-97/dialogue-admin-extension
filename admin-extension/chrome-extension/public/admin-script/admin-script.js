@@ -21,8 +21,51 @@
     visitorListenerAttached: false,
     config: null,
   };
-  const visitorPlayer =
-    window.DialoguePlayer?.initVisitorPlayer && window.DialoguePlayer.initVisitorPlayer()
+  const loadPlayerComponent = () => {
+    if (window.DialoguePlayer) {
+      return Promise.resolve(window.DialoguePlayer)
+    }
+    if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+      return new Promise((resolve) => {
+        const script = document.createElement("script")
+        script.src = chrome.runtime.getURL("player-component.js")
+        script.onload = () => resolve(window.DialoguePlayer)
+        document.head.appendChild(script)
+      })
+    }
+    return Promise.resolve(null)
+  }
+
+  let visitorPlayerInstance = null
+  const ensureVisitorPlayer = async () => {
+    if (visitorPlayerInstance) {
+      return visitorPlayerInstance
+    }
+    const module = await loadPlayerComponent()
+    if (module?.initVisitorPlayer) {
+      visitorPlayerInstance = module.initVisitorPlayer()
+      return visitorPlayerInstance
+    }
+    console.warn("[admin-script] visitor player not available")
+    return null
+  }
+
+  const hideVisitorPlayer = async () => {
+    const player = await ensureVisitorPlayer()
+    if (!player) return
+    player.hide()
+    player.loadVideo("")
+    stopCompletionWatcher()
+  }
+
+  const showVisitorPlayer = async (match, rect) => {
+    if (!match) return
+    const player = await ensureVisitorPlayer()
+    if (!player) return
+    player.size(320, 16 / 9)
+    const url = toVimeoPlayerUrl(match.video_url)
+    player.show({ rect, width: 320, ratio: 16 / 9, url })
+  }
 
   const getMatchIdentifier = (match) =>
     match?.page_match_id ??
@@ -661,29 +704,6 @@
     const timestampMatch = value.match(/#t=(\d+)/);
     const suffix = timestampMatch ? `#t=${timestampMatch[1]}s` : "";
     return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=0&title=0&byline=0${suffix}`;
-  };
-
-  const hideVisitorPlayer = () => {
-    if (!visitorPlayer) return;
-    visitorPlayer.hide();
-    visitorPlayer.loadVideo("");
-    stopCompletionWatcher();
-  };
-
-  const ensureVisitorPlayer = () => {
-    if (!visitorPlayer) {
-      console.warn("[admin-script] visitor player not initialized");
-    }
-    return visitorPlayer;
-  };
-
-  const showVisitorPlayer = (match, rect) => {
-    if (!match) return;
-    const player = ensureVisitorPlayer();
-    if (!player) return;
-    player.size(320, 16 / 9);
-    const url = toVimeoPlayerUrl(match.video_url);
-    player.show({ rect, width: 320, ratio: 16 / 9, url });
   };
 
     const handleVisitorClick = (event) => {
