@@ -94,6 +94,7 @@
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
     span.style.setProperty("display", "inline-block", "important");
+    span.style.setProperty("padding", "0 6px", "important");
   };
 
   const setInactiveInlineStyles = (span) => {
@@ -443,6 +444,7 @@
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%236366F1" d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>');
         background-size: contain;
         background-repeat: no-repeat;
+        background-position: center;
       }
       .sl-smart-link.sl-smart-link--inactive,
       .sl-admin-mode .sl-smart-link.sl-smart-link--inactive,
