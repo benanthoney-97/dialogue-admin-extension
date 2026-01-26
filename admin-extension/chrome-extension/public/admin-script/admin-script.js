@@ -94,6 +94,7 @@
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
     span.style.setProperty("display", "inline", "important");
+    span.style.setProperty("background-color", "transparent", "important");
   };
 
   const setInactiveInlineStyles = (span) => {
@@ -425,8 +426,8 @@
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
         text-decoration-color: #6366F1 !important;
-        background-color: rgba(76, 29, 149, 0.9) !important;
-        box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4) !important;
+        background-color: rgba(99, 102, 241, 0.1) !important;
+        box-shadow: none !important;
       }
       .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
       .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
