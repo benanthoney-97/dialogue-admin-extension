@@ -94,9 +94,6 @@ export function InactivePage({ providerId, feedId, onRefresh }: InactivePageProp
           <div className="inactive-page__message">No supported sites available.</div>
         )}
       </div>
-      <div className="inactive-page__link" role="button" tabIndex={0} onClick={onRefresh}>
-        + Register this domain
-      </div>
     </div>
   )
 }

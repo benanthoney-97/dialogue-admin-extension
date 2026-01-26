@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { ConnectVideoLibrary } from "../company-onboarding/connect-video-library"
 
 export interface LibraryDocument {
   id: number
@@ -26,6 +27,7 @@ export function LibraryDocumentsGrid({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
+  const [hasDocuments, setHasDocuments] = useState(false)
 
   useEffect(() => {
     let canceled = false
@@ -49,6 +51,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           throw new Error("Unexpected payload")
         }
         setDocuments(data)
+        setHasDocuments(data.length > 0)
       })
       .catch((err) => {
         if (canceled) return
@@ -97,6 +100,11 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           )}
           {!loading && !error && documents.length > 0 && filteredDocs.length === 0 && (
             <div className="provider-documents__empty">No documents match your search.</div>
+          )}
+          {!loading && !error && !hasDocuments && (
+            <div className="provider-documents__overlay">
+              <ConnectVideoLibrary onNext={() => setHasDocuments(true)} />
+            </div>
           )}
           {!loading && !error && filteredDocs.length > 0 && (
             <div className="provider-documents__grid">
@@ -150,6 +158,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           display: flex;
           flex-direction: column;
           padding: 0 0px;
+          position: relative;
         }
 
         .provider-documents__grid-header {
@@ -191,6 +200,17 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           align-items: flex-start;
           align-content: flex-start;
           grid-auto-rows: minmax(auto, auto);
+        }
+        .provider-documents__overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(246, 247, 251, 0.95);
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
         }
 
 
