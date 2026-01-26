@@ -25,15 +25,14 @@
     if (window.DialoguePlayer) {
       return Promise.resolve(window.DialoguePlayer)
     }
-    if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-      return new Promise((resolve) => {
-        const script = document.createElement("script")
-        script.src = chrome.runtime.getURL("player-component.js")
-        script.onload = () => resolve(window.DialoguePlayer)
-        document.head.appendChild(script)
-      })
-    }
-    return Promise.resolve(null)
+    return new Promise((resolve) => {
+      const script = document.createElement("script")
+      script.src = `${getApiOrigin().replace(/\/+$/, "")}/player-component.js`
+      script.async = true
+      script.onload = () => resolve(window.DialoguePlayer)
+      script.onerror = () => resolve(null)
+      document.head.appendChild(script)
+    })
   }
 
   let visitorPlayerInstance = null
