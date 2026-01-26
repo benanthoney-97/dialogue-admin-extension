@@ -136,6 +136,33 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
 
   const hide = () => setVisible(false)
 
+  let isResizing = false
+
+  const handleDocumentClick = (event) => {
+    if (isResizing) return
+    const target = event.target
+    if (playerNode.contains(target)) return
+    hide()
+  }
+
+  const handleResizeStart = () => {
+    isResizing = true
+  }
+
+  const handleResizeEnd = () => {
+    isResizing = false
+  }
+
+  document.addEventListener("mousedown", handleDocumentClick)
+  document.addEventListener("touchstart", handleDocumentClick)
+  document.addEventListener("mouseup", handleResizeEnd)
+  document.addEventListener("touchend", handleResizeEnd)
+
+  if (resizeHandle) {
+    resizeHandle.addEventListener("mousedown", handleResizeStart)
+    resizeHandle.addEventListener("touchstart", handleResizeStart)
+  }
+
   return {
     show,
     hide,

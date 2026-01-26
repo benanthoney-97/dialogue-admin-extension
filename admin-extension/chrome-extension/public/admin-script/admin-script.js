@@ -408,27 +408,24 @@
       body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed) {
         border-bottom: none !important;
         cursor: pointer !important;
-        color: #5f61fb !important;
         font-weight: 500 !important;
         transition: border-color 0.2s ease, color 0.2s ease !important;
         line-height: 1.2 !important;
         display: inline !important;
         text-decoration-line: underline !important;
-        text-decoration-color: #5f61fb !important;
+        text-decoration-color: #6366F1 !important;
         text-decoration-thickness: 2px !important;
         text-decoration-skip-ink: none !important;
       }
       .sl-smart-link:hover,
       .sl-admin-mode .sl-smart-link:hover,
       body.sl-visitor-mode .sl-smart-link:hover {
-        text-decoration-color: #5f61fb !important;
-        color: #5f61fb !important;
+        text-decoration-color: #6366F1 !important;
       }
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
-        text-decoration-color: #ede9fe !important;
-        color: #ede9fe !important;
+        text-decoration-color: #6366F1 !important;
         background-color: rgba(76, 29, 149, 0.9) !important;
         box-shadow: 0 2px 10px rgba(76, 29, 149, 0.4) !important;
       }
@@ -442,7 +439,7 @@
         margin-left: 0.15em;
         margin-bottom: 0.25em;
         vertical-align: middle;
-        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="%235f61fb"/><path fill="%23fff" d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814z"/></svg>');
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%236366F1" d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>');
         background-size: contain;
         background-repeat: no-repeat;
       }
