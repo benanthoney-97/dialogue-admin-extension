@@ -90,7 +90,6 @@
 
   const setActiveInlineStyles = (span) => {
     span.style.setProperty("cursor", "pointer", "important");
-    span.style.setProperty("color", "#5f61fb", "important");
     span.style.setProperty("font-weight", "500", "important");
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
