@@ -94,7 +94,6 @@
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
     span.style.setProperty("display", "inline-block", "important");
-    span.style.setProperty("background-color", "transparent", "important");
   };
 
   const setInactiveInlineStyles = (span) => {
