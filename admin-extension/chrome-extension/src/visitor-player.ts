@@ -1,9 +1,27 @@
+type MatchMetadata = Record<string, unknown>
+export type RectLike = Pick<DOMRect, "left" | "bottom" | "width" | "height"> & Partial<Pick<DOMRect, "right" | "top">>
+
+type PlayerOptions = {
+  rect?: RectLike | DOMRect
+  width?: number
+  ratio?: number
+  url?: string
+  metadata?: MatchMetadata
+}
+
+export type VisitorPlayer = {
+  show: (options: PlayerOptions) => void
+  hide: () => void
+  size: (width?: number, ratio?: number) => void
+  node: HTMLElement
+}
+
 const TEMPLATE_HTML = `
   <style>
     #dialogue-nano-player {
       position: absolute;
       width: 320px;
-      background: #ffffff;
+      background: #fff;
       border-radius: 12px;
       box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
       overflow: hidden;
@@ -58,7 +76,7 @@ const TEMPLATE_HTML = `
       <iframe id="dialogue-player-iframe" allow="autoplay; fullscreen"></iframe>
     </div>
     <div class="d-meta">
-      <span style="font-weight:600;color:#111;">Preview</span>
+      <span style="font-weight: 600; color: #111;">Preview</span>
       <div class="resize-handle"></div>
     </div>
   </div>
@@ -74,26 +92,26 @@ const buildPlayerNode = () => {
   return template.content.querySelector("#dialogue-nano-player")
 }
 
-function initVisitorPlayer() {
+export function initVisitorPlayer(): VisitorPlayer | null {
   const playerNode = buildPlayerNode()
   if (!playerNode) {
-    console.warn("[dialogue-player] unable to build player node")
+    console.warn("[visitor-player] failed to build node")
     return null
   }
   const container = playerNode.querySelector(".d-media-container")
   const iframe = playerNode.querySelector("#dialogue-player-iframe")
   document.body.appendChild(playerNode)
 
-  const setVisible = (visible) => {
+  const setVisible = (visible: boolean) => {
     playerNode.classList.toggle("visible", visible)
   }
 
-  const loadVideo = (url) => {
+  const loadVideo = (url?: string) => {
     if (!iframe) return
     iframe.src = url || ""
   }
 
-  const position = (rect) => {
+  const position = (rect?: DOMRect) => {
     if (!rect) return
     const offsetY = 12
     const playerWidth = playerNode.offsetWidth || 320
@@ -114,7 +132,7 @@ function initVisitorPlayer() {
     }
   }
 
-  const show = ({ rect, width, ratio, url }) => {
+  const show = ({ rect, width, ratio, url, metadata }: PlayerOptions) => {
     size(width, ratio)
     position(rect)
     if (url) {
@@ -125,15 +143,14 @@ function initVisitorPlayer() {
 
   const hide = () => {
     setVisible(false)
-    if (iframe) {
-      iframe.src = ""
-    }
+    loadVideo("")
   }
 
-  document.addEventListener("mousedown", (event) => {
-    if (playerNode.contains(event.target)) return
+  const handleDocumentClick = (event: MouseEvent) => {
+    if (playerNode.contains(event.target as Node)) return
     hide()
-  })
+  }
+  document.addEventListener("mousedown", handleDocumentClick)
 
   return {
     show,
@@ -141,12 +158,4 @@ function initVisitorPlayer() {
     size,
     node: playerNode,
   }
-}
-
-const exported = { initVisitorPlayer }
-if (typeof window !== "undefined") {
-  window.DialoguePlayer = exported
-}
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = exported
 }

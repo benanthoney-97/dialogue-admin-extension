@@ -66,14 +66,6 @@
         "matches": [
           "<all_urls>"
         ]
-      },
-      {
-        "resources": [
-          "player-component.js"
-        ],
-        "matches": [
-          "<all_urls>"
-        ]
       }
     ],
     "action": {

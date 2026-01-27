@@ -1,33 +1,12 @@
 import type { PlasmoCSConfig } from "plasmo"
+import { initVisitorPlayer } from "./visitor-player"
+import type { VisitorPlayer, RectLike } from "./visitor-player"
 
-type PreviewPlayerRect = {
-  left: number
-  bottom: number
-  width: number
-  height: number
-}
-
-type DialoguePlayerModule = {
-  initVisitorPlayer: () => {
-    show: (payload: {
-      rect?: PreviewPlayerRect
-      width?: number
-      ratio?: number
-      url?: string
-    }) => void
-  }
-}
-
-declare global {
-  interface Window {
-    DialoguePlayer?: DialoguePlayerModule
-  }
-}
+type PreviewPlayerRect = RectLike | DOMRect
+type PreviewPlayerMetadata = Record<string, unknown>
 
 export const config: PlasmoCSConfig = {
-  matches: [
-"https://*/*"
-  ]
+  matches: ["https://*/*"],
 }
 
 type MatchPayload = Record<string, unknown>
@@ -36,63 +15,19 @@ console.log("[content] script executing on", window.location.href)
 
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
 let cachedMatchMap: MatchPayload[] | null = null
-const PLAYER_SCRIPT_ID = "dialogue-player-component"
-let playerModulePromise: Promise<typeof window.DialoguePlayer> | null = null
-let activeVisitorPlayer: ReturnType<typeof window.DialoguePlayer["initVisitorPlayer"]> | null = null
+let activeVisitorPlayer: VisitorPlayer | null = null
+let lastNewMatchRect: RectLike | null = null
+let lastPreviewMetadata: PreviewPlayerMetadata | null = null
 
-const loadPlayerComponent = () => {
-  if (window.DialoguePlayer) {
-    return Promise.resolve(window.DialoguePlayer)
-  }
-  if (playerModulePromise) {
-    return playerModulePromise
-  }
-  playerModulePromise = new Promise((resolve) => {
-    const existing = document.getElementById(PLAYER_SCRIPT_ID) as HTMLScriptElement | null
-    if (existing) {
-      existing.addEventListener(
-        "load",
-        () => resolve(window.DialoguePlayer),
-        { once: true }
-      )
-      existing.addEventListener(
-        "error",
-        () => resolve(window.DialoguePlayer),
-        { once: true }
-      )
-      return
-    }
-  const script = document.createElement("script")
-  script.id = PLAYER_SCRIPT_ID
-    script.src = chrome.runtime.getURL("static/player.js")
-  script.async = true
-  script.onload = () => {
-    console.log("[content] player script loaded")
-    resolve(window.DialoguePlayer)
-  }
-  script.onerror = (error) => {
-    console.error("[content] player script failed to load", error)
-    resolve(window.DialoguePlayer)
-  }
-  document.head.appendChild(script)
-  })
-  return playerModulePromise
-}
-
-const ensureVisitorPlayer = async () => {
+const ensureVisitorPlayer = () => {
   if (activeVisitorPlayer) {
     return activeVisitorPlayer
   }
-  const module = await loadPlayerComponent()
-  if (!module) {
-    console.warn("[content] player module unavailable")
+  activeVisitorPlayer = initVisitorPlayer()
+  if (!activeVisitorPlayer) {
+    console.warn("[content] visitor player initialization failed")
     return null
   }
-  if (!module.initVisitorPlayer) {
-    console.warn("[content] player module missing initVisitorPlayer")
-    return null
-  }
-  activeVisitorPlayer = module.initVisitorPlayer()
   return activeVisitorPlayer
 }
 
@@ -103,18 +38,34 @@ const DEFAULT_PREVIEW_RECT = () => ({
   height: 0,
 })
 
-const previewLibraryVideo = async (__url?: string, rect?: PreviewPlayerRect | null, width?: number, ratio?: number) => {
+const previewLibraryVideo = (
+  __url?: string,
+  rect?: PreviewPlayerRect | null,
+  width?: number,
+  ratio?: number,
+  metadata?: PreviewPlayerMetadata | null
+) => {
   const url = __url || ""
   if (!url) return
-  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio })
-  const player = await ensureVisitorPlayer()
+  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
+  const player = ensureVisitorPlayer()
   if (!player) return
   console.log("[content] visitor player ready, showing preview")
+  const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
+  lastPreviewMetadata = metadata ?? null
   player.show({
-    rect: rect ?? DEFAULT_PREVIEW_RECT(),
+    rect: resolvedRect instanceof DOMRect
+      ? resolvedRect
+      : new DOMRect(
+          resolvedRect.left ?? DEFAULT_PREVIEW_RECT().left,
+          resolvedRect.bottom ?? DEFAULT_PREVIEW_RECT().bottom,
+          resolvedRect.width ?? DEFAULT_PREVIEW_RECT().width,
+          resolvedRect.height ?? DEFAULT_PREVIEW_RECT().height
+        ),
     width: width ?? 320,
     ratio: ratio ?? 16 / 9,
     url,
+    metadata: lastPreviewMetadata ?? undefined,
   })
   console.log("[content] visitor player show invoked")
 }
@@ -187,6 +138,15 @@ const handleNewMatchSelection = () => {
   const selection = window.getSelection()
   const text = selection?.toString().trim()
   if (!text) return
+  if (selection?.rangeCount) {
+    const rect = selection.getRangeAt(0).getBoundingClientRect()
+    lastNewMatchRect = {
+      left: rect.left,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    }
+  }
   chrome.runtime.sendMessage({ action: "newMatchSelection", text })
   disableNewMatchSelection()
 }
@@ -236,8 +196,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false
   }
   if (request.action === "previewLibraryVideo") {
-  console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId })
-    previewLibraryVideo(request.videoUrl)
+    lastPreviewMetadata = request.metadata ?? null
+    console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId, metadata: request.metadata })
+    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata)
     return false
   }
 
@@ -258,6 +219,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // 3. If it's a message we don't recognize, return false to close the channel immediately.
   return false 
 })
+
+const handleCreateMatchEvent = (event: Event) => {
+  const detail = (event as CustomEvent).detail
+  console.log("[content] preview create match event", detail)
+  chrome.runtime.sendMessage({ action: "previewCreateMatch", payload: detail })
+}
+window.addEventListener("dialogueCreateMatch", handleCreateMatchEvent)
 
 const invokePageScriptRemoval = (matchId: number | string | undefined | null) => {
   if (!matchId) return

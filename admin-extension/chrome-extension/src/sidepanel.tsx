@@ -450,7 +450,15 @@ const newMatchModeRef = useRef(false)
     if (!embedUrl) return
     try {
       console.log("[sidepanel] previewLibraryVideo request", { sourceUrl: doc?.source_url, embedUrl })
-      chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl })
+      const metadata = {
+        document_id: doc?.id,
+        document_title: doc?.title,
+        provider_id: doc?.provider_id ?? resolveProviderId(),
+        source_provider_id: manualLibraryProviderId ?? resolveProviderId(),
+        phrase: selectedNewMatchText ?? undefined,
+        page_url: pageUrl,
+      }
+      chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl, metadata })
     } catch (error) {
       console.error("[sidepanel] previewLibraryVideo message failed", error)
     }
