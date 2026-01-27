@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 export interface TimestampPickerProps {
   videoUrl: string
@@ -6,6 +6,8 @@ export interface TimestampPickerProps {
   onTimestampChange?: (seconds: number) => void
   onConfirm?: (seconds: number) => void | Promise<void>
   showActions?: boolean
+  originUrl?: string | null
+  forceHardcodedEmbed?: boolean
 }
 
 const parseHashTimestamp = (hash?: string) => {
@@ -77,43 +79,98 @@ const buildVimeoEmbedUrl = (parsed: URL, startSeconds: number) => {
   return embedUrl.toString()
 }
 
-const buildYouTubeEmbedUrl = (parsed: URL, startSeconds: number) => {
+const buildYouTubeEmbedUrl = (
+  parsed: URL,
+  startSeconds: number,
+  originOverride?: string
+) => {
   const videoId = parseYouTubeId(parsed)
   if (!videoId) return ""
+  
   const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`)
   embedUrl.searchParams.set("autoplay", "1")
   embedUrl.searchParams.set("mute", "1")
   embedUrl.searchParams.set("rel", "0")
-  const origin = window.location.origin || ""
-  if (origin) {
-    embedUrl.searchParams.set("origin", origin)
+  embedUrl.searchParams.set("modestbranding", "1")
+
+  // ✅ CRITICAL CHANGE: Trust the override. 
+  // Only fallback to window.location if override is missing.
+  // Only clear it if it's an extension AND we have no override.
+  let targetOrigin = originOverride;
+
+  if (!targetOrigin) {
+    // Fallback for dev/web mode
+    if (typeof window !== "undefined" && !window.location.origin.startsWith("chrome-extension")) {
+      targetOrigin = window.location.origin;
+    } else {
+      // If we are in an extension and have no override, we are stuck.
+      // Better to default to a known safe origin or leave blank.
+      console.warn("[timestamp-picker] No originOverride provided in Extension context.");
+    }
   }
-  embedUrl.searchParams.set("enablejsapi", "1")
+
+  if (targetOrigin) {
+    embedUrl.searchParams.set("origin", targetOrigin)
+  }
+
+  embedUrl.searchParams.set("enablejsapi", "1") 
+
   if (startSeconds) {
     embedUrl.searchParams.set("start", String(startSeconds))
   }
   return embedUrl.toString()
 }
 
-const toEmbeddedPlayerUrl = (value: string | undefined) => {
+const resolveOriginFromUrl = (value?: string) => {
+  if (!value) return ""
+  try {
+    return new URL(value).origin
+  } catch {
+    return ""
+  }
+}
+
+const HARD_CODED_YOUTUBE_EMBED =
+  "https://www.youtube.com/embed/z4x9fkbe8SI?si=Cmug6F-_iHP9bjjL"
+
+const toEmbeddedPlayerUrl = (
+  value: string | undefined,
+  originOverride?: string,
+  forceHardcoded?: boolean
+) => {
+  if (forceHardcoded) return HARD_CODED_YOUTUBE_EMBED
   if (!value) return ""
   try {
     const parsed = new URL(value, window.location.href)
     const startSeconds = parseHashTimestamp(parsed.hash)
     const host = parsed.hostname.toLowerCase()
+    console.log("[timestamp-picker] toEmbeddedPlayerUrl", {
+      source: value,
+      host,
+      startSeconds,
+      originOverride,
+    })
     if (host.includes("vimeo.com")) {
-      return buildVimeoEmbedUrl(parsed, startSeconds) || value
+      const embed = buildVimeoEmbedUrl(parsed, startSeconds)
+      console.log("[timestamp-picker] vimeo embed resolved", { embed })
+      return embed || value
     }
     if (
       host.includes("youtube.com") ||
       host.includes("youtu.be") ||
       host.includes("youtube-nocookie.com")
     ) {
-      const embed = buildYouTubeEmbedUrl(parsed, startSeconds)
+      const embed = buildYouTubeEmbedUrl(parsed, startSeconds, originOverride)
+      console.log("[timestamp-picker] youtube embed resolved", {
+        embed,
+        originOverride,
+        parsedHost: parsed.hostname,
+      })
       if (embed) return embed
     }
     return value
-  } catch {
+  } catch (error) {
+    console.warn("[timestamp-picker] failed to resolve embed url", value, error)
     return value
   }
 }
@@ -130,6 +187,8 @@ export function TimestampPicker({
   onTimestampChange,
   onConfirm,
   showActions = true,
+  originUrl,
+  forceHardcodedEmbed = false,
 }: TimestampPickerProps) {
   const [currentValue, setCurrentValue] = useState(() => {
     return Math.max(0, initialTimestamp)
@@ -137,6 +196,11 @@ export function TimestampPicker({
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const requestIdRef = useRef(0)
   const [isCreating, setIsCreating] = useState(false)
+  const originOverride = useMemo(() => resolveOriginFromUrl(originUrl ?? undefined), [originUrl])
+  const embeddedPlayerUrl = useMemo(
+    () => toEmbeddedPlayerUrl(videoUrl, originOverride, forceHardcodedEmbed),
+    [forceHardcodedEmbed, originOverride, videoUrl]
+  )
 
   useEffect(() => {
     setCurrentValue((prev) => {
@@ -211,6 +275,15 @@ export function TimestampPicker({
   }, [videoUrl, onTimestampChange, requestCurrentTime])
 
   useEffect(() => {
+    if (!videoUrl) return
+    console.log("[timestamp-picker] video URL transformed", {
+      sourceUrl: videoUrl,
+      embedUrl: embeddedPlayerUrl,
+      origin: originOverride,
+    })
+  }, [videoUrl, embeddedPlayerUrl])
+
+  useEffect(() => {
     const intervalId = window.setInterval(() => {
       requestCurrentTime()
         .then((seconds) => {
@@ -243,12 +316,14 @@ export function TimestampPicker({
   return (
     <div className="timestamp-picker">
       <div className="timestamp-picker__player">
-        <iframe
-          ref={iframeRef}
-          title="preview"
-          src={toEmbeddedPlayerUrl(videoUrl)}
-          allow="autoplay; fullscreen"
-        ></iframe>
+<iframe
+  ref={iframeRef}
+  title="preview"
+  src={embeddedPlayerUrl}
+  allow="autoplay; fullscreen"
+  referrerPolicy="no-referrer" 
+  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+></iframe>
       </div>
       {showActions && (
         <div className="timestamp-picker__actions">

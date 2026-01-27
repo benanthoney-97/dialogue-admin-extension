@@ -1101,6 +1101,7 @@ const newMatchModeRef = useRef(false)
             <SingleViewVideo
               document={libraryDocument}
               providerId={providerId ?? 0}
+              pageUrl={resolvedPageUrl}
               onBack={handleLibraryDocumentClose}
             />
           )

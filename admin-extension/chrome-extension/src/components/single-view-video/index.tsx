@@ -40,6 +40,14 @@ export function SingleViewVideo({
   onConfirm,
   onMatchSelect,
 }: SingleViewVideoProps) {
+  useEffect(() => {
+    if (!document) return
+    console.log("[SingleViewVideo] opening document", {
+      id: document.id,
+      title: document.title,
+      sourceUrl: document.source_url,
+    })
+  }, [document])
   const initialTimestamp = extractTimestamp(videoUrl)
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -116,6 +124,8 @@ export function SingleViewVideo({
         initialTimestamp={initialTimestamp}
         onConfirm={onConfirm}
         showActions={false}
+        originUrl={pageUrl}
+        forceHardcodedEmbed
       />
         <div className="single-view-video__matches">
           <div className="single-view-video__matches-header">
