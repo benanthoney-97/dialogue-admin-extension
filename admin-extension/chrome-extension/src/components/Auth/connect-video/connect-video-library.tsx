@@ -5,69 +5,117 @@ type ConnectVideoLibraryProps = {
   onNext: (libraryUrl: string) => void
 }
 
+type LibrarySource =
+  | { provider: "youtube"; channelId?: string; username?: string }
+  | { provider: "vimeo"; user?: string; channel?: string }
+
+const parseYouTube = (parsed: URL): LibrarySource | null => {
+  const pathname = parsed.pathname || ""
+  const segments = pathname.split("/").filter(Boolean)
+  if (segments.length > 0) {
+    const first = segments[0]
+    if (first === "channel" && segments[1]) {
+      return { provider: "youtube", channelId: segments[1] }
+    }
+    if (first === "user" && segments[1]) {
+      return { provider: "youtube", username: segments[1] }
+    }
+    if (first === "c" && segments[1]) {
+      return { provider: "youtube", username: segments[1] }
+    }
+    if (first.startsWith("@")) {
+      return { provider: "youtube", username: first.slice(1) }
+    }
+  }
+  const channelId = parsed.searchParams.get("channel_id")
+  if (channelId) {
+    return { provider: "youtube", channelId }
+  }
+  return null
+}
+
+const parseVimeo = (parsed: URL): LibrarySource | null => {
+  const pathname = parsed.pathname || ""
+  const segments = pathname.split("/").filter(Boolean)
+  if (segments.length === 0) return null
+  if (segments[0] === "channels" && segments[1]) {
+    return { provider: "vimeo", channel: segments[1] }
+  }
+  if (segments[0] === "users" && segments[1]) {
+    return { provider: "vimeo", user: segments[1] }
+  }
+  return { provider: "vimeo", user: segments[0] }
+}
+
+const parseLibrarySource = (value: string): LibrarySource | null => {
+  try {
+    const normalized = value.trim()
+    const parsed = new URL(normalized)
+    const host = parsed.hostname.toLowerCase()
+    if (host.includes("youtube.com") || host === "youtu.be") {
+      return parseYouTube(parsed)
+    }
+    if (host.includes("vimeo.com")) {
+      return parseVimeo(parsed)
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+const isValidUrl = (value: string) => {
+  try {
+    const parsed = new URL(value.trim())
+    return !!parsed.protocol && !!parsed.hostname
+  } catch {
+    return false
+  }
+}
+
 export function ConnectVideoLibrary({ onNext }: ConnectVideoLibraryProps) {
   const [libraryUrl, setLibraryUrl] = useState("")
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const isValidUrl = () => {
-    try {
-      const parsed = new URL(libraryUrl.trim())
-      return !!parsed.protocol && !!parsed.hostname
-    } catch {
-      return false
-    }
-  }
-
-  const parseYoutubeChannelParams = (value: string) => {
-    try {
-      const normalized = value.trim()
-      const parsed = new URL(normalized)
-      const pathname = parsed.pathname || ""
-      const segments = pathname.split("/").filter(Boolean)
-      if (segments.length > 0) {
-        const first = segments[0]
-        if (first === "channel" && segments[1]) {
-          return { channel_id: segments[1] }
-        }
-        if (first === "user" && segments[1]) {
-          return { username: segments[1] }
-        }
-        if (first === "c" && segments[1]) {
-          return { username: segments[1] }
-        }
-        if (first.startsWith("@")) {
-          return { username: first.slice(1) }
-        }
-      }
-      const channelId = parsed.searchParams.get("channel_id")
-      if (channelId) {
-        return { channel_id: channelId }
-      }
-      return null
-    } catch {
-      return null
-    }
-  }
-
   const handleNext = async () => {
-    if (!isValidUrl()) {
+    if (!isValidUrl(libraryUrl)) {
       setInfo("Enter a valid video library URL.")
       return
     }
+    const source = parseLibrarySource(libraryUrl)
+    if (!source) {
+      setInfo("Unable to determine the video library provider from that URL.")
+      return
+    }
+
     setInfo(null)
     setSubmitting(true)
     try {
-      const params = parseYoutubeChannelParams(libraryUrl)
-      if (!params) {
-        setInfo("Unable to determine the YouTube channel from that URL.")
-        return
-      }
-
       const base =
         (process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co").replace(/\/+$/, "")
-      const channelUrl = new URL("/api/youtube-channel-videos", base)
-      channelUrl.searchParams.set(params.channel_id ? "channel_id" : "username", params.channel_id ?? params.username ?? "")
+      const endpoint =
+        source.provider === "youtube" ? "/api/youtube-channel-videos" : "/api/vimeo-channel-videos"
+      const channelUrl = new URL(endpoint, base)
+
+      if (source.provider === "youtube") {
+        if (!source.channelId && !source.username) {
+          throw new Error("Unable to determine the YouTube channel identifier.")
+        }
+        channelUrl.searchParams.set(
+          source.channelId ? "channel_id" : "username",
+          source.channelId ?? source.username!
+        )
+      } else {
+        if (!source.user && !source.channel) {
+          throw new Error("Unable to determine the Vimeo channel identifier.")
+        }
+        channelUrl.searchParams.set(
+          source.user ? "user" : "channel",
+          source.user ?? source.channel!
+        )
+      }
+
       const response = await fetch(channelUrl.toString())
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
@@ -101,7 +149,7 @@ export function ConnectVideoLibrary({ onNext }: ConnectVideoLibraryProps) {
       <div className="login-form__actions login-form__actions--full">
         <button
           type="button"
-          disabled={!isValidUrl() || submitting}
+          disabled={!isValidUrl(libraryUrl) || submitting}
           className="login-form__cta login-form__cta--full"
           onClick={handleNext}
         >
