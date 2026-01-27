@@ -24,6 +24,18 @@ const fetchJson = async (url, options = {}) => {
   return response.json()
 }
 
+const fetchSourceInfo = async (token, type, identifier) => {
+  const endpoint =
+    type === "user"
+      ? `https://api.vimeo.com/users/${encodeURIComponent(identifier)}`
+      : `https://api.vimeo.com/channels/${encodeURIComponent(identifier)}`
+  return fetchJson(endpoint, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}
+
 const getAuthToken = async () => {
   if (!VIMEO_CLIENT_ID || !VIMEO_CLIENT_SECRET) {
     throw new Error("Missing Vimeo API credentials")
@@ -98,10 +110,21 @@ async function handler(req, res) {
     }
 
     const token = await getAuthToken()
+    const sourceIdentifier = user ?? channel
     const baseUrl = user
       ? `https://api.vimeo.com/users/${encodeURIComponent(user)}/videos`
       : `https://api.vimeo.com/channels/${encodeURIComponent(channel)}/videos`
     const videos = await fetchVideos(token, baseUrl)
+    let sourceInfo = null
+    try {
+      sourceInfo = await fetchSourceInfo(
+        token,
+        user ? "user" : "channel",
+        sourceIdentifier
+      )
+    } catch (error) {
+      console.warn("[vimeo-channel-videos] unable to fetch source info", error)
+    }
 
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(
@@ -110,6 +133,7 @@ async function handler(req, res) {
           type: user ? "user" : "channel",
           id: user ?? channel,
         },
+        sourceInfo,
         videos,
       })
     )
