@@ -95,8 +95,10 @@ const DEFAULT_PREVIEW_RECT = () => ({
 const previewLibraryVideo = async (__url?: string, rect?: PreviewPlayerRect | null, width?: number, ratio?: number) => {
   const url = __url || ""
   if (!url) return
+  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio })
   const player = await ensureVisitorPlayer()
   if (!player) return
+  console.log("[content] visitor player ready, showing preview")
   player.show({
     rect: rect ?? DEFAULT_PREVIEW_RECT(),
     width: width ?? 320,
@@ -222,6 +224,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false
   }
   if (request.action === "previewLibraryVideo") {
+    console.log("[content] previewLibraryVideo message received", request.videoUrl)
     previewLibraryVideo(request.videoUrl)
     return false
   }

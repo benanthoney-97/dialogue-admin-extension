@@ -653,6 +653,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
+  if (message.action === "previewLibraryVideo") {
+    sendMessageToActiveTab(message)
+    return false
+  }
+
   if (message.action === "setMatchHover") {
     const matchId = toNumber(message.page_match_id ?? message.match?.page_match_id ?? message.match?.id)
     const hovered = Boolean(message.hovered)
