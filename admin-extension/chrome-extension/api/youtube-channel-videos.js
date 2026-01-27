@@ -17,6 +17,27 @@ const fetchJson = async (url) => {
   return response.json()
 }
 
+const fetchPlaylists = async (channelId) => {
+  const playlists = []
+  let nextPageToken = undefined
+  do {
+    const url = new URL("https://www.googleapis.com/youtube/v3/playlists")
+    url.searchParams.set("part", "snippet,contentDetails")
+    url.searchParams.set("channelId", channelId)
+    url.searchParams.set("maxResults", "50")
+    url.searchParams.set("key", YOUTUBE_API_KEY)
+    if (nextPageToken) {
+      url.searchParams.set("pageToken", nextPageToken)
+    }
+    const payload = await fetchJson(url.toString())
+    nextPageToken = payload.nextPageToken
+    if (Array.isArray(payload.items)) {
+      playlists.push(...payload.items)
+    }
+  } while (nextPageToken)
+  return playlists
+}
+
 async function handler(req, res) {
   setCorsHeaders(res)
   if (req.method === "OPTIONS") {
@@ -37,6 +58,7 @@ async function handler(req, res) {
     return
   }
 
+  const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`)
   const channelId = requestUrl.searchParams.get("channel_id")
   const username = requestUrl.searchParams.get("username")
   if (!channelId && !username) {
@@ -113,10 +135,46 @@ async function handler(req, res) {
             description: item.snippet?.description,
             publishedAt: item.snippet?.publishedAt,
             thumbnails: item.snippet?.thumbnails ?? null,
+            playlistId: item.snippet?.playlistId ?? null,
+            playlistTitle: item.snippet?.playlistTitle ?? null,
+            position: item.snippet?.position,
           }))
         )
       }
     } while (nextPageToken)
+
+    const playlistIds = new Set(
+      videos.map((video) => video.playlistId).filter(Boolean)
+    )
+    const playlists = playlistIds.size > 0 ? await fetchPlaylists(channel.id) : []
+    const playlistMeta = playlists
+      .filter((pl) => playlistIds.has(pl.id))
+      .map((pl) => ({
+        id: pl.id,
+        title: pl.snippet?.title ?? null,
+        description: pl.snippet?.description ?? null,
+        thumbnails: pl.snippet?.thumbnails ?? null,
+        itemCount: pl.contentDetails?.itemCount ?? null,
+      }))
+
+    if (uploadsPlaylistId && !playlistMeta.find((entry) => entry.id === uploadsPlaylistId)) {
+      playlistMeta.unshift({
+        id: uploadsPlaylistId,
+        title: "Uploads",
+        description: null,
+        thumbnails: null,
+        itemCount: null,
+      })
+    }
+
+    const videosByPlaylist = {}
+    videos.forEach((video) => {
+      const pid = video.playlistId ?? uploadsPlaylistId ?? "uploads"
+      if (!videosByPlaylist[pid]) {
+        videosByPlaylist[pid] = []
+      }
+      videosByPlaylist[pid].push(video)
+    })
 
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(
@@ -128,6 +186,8 @@ async function handler(req, res) {
           thumbnails: channel.snippet?.thumbnails ?? null,
         },
         videos,
+        playlists: playlistMeta,
+        videosByPlaylist,
       })
     )
   } catch (error) {
