@@ -14,11 +14,12 @@ import { LoginForm } from "./components/login-form/login-form"
 import { SignUpForm } from "./components/signup-form/signup-form"
 import { CompanyOnboarding } from "./components/company-onboarding/company-onboarding"
 import { LandingPage } from "./components/landing-page/landing-page"
-import { LibraryDocumentsGrid } from "./components/library-documents-grid"
-import type { LibraryDocument } from "./components/library-documents-grid"
+import { LibraryDocumentsGrid } from "./components/LibraryPage/library-documents-grid"
+import type { LibraryDocument } from "./components/LibraryPage/library-documents-grid"
 import { SingleViewVideo } from "./components/single-view-video"
 import type { SitemapFeed } from "./components/sitemap-feeds-table"
-import { LibraryProvidersGrid, type LibraryProvider } from "./components/library-providers-grid"
+import { LibraryProvidersGrid, type LibraryProvider } from "./components/LibraryPage/library-providers-grid"
+import { LibraryView } from "./components/LibraryPage/library-view"
 import { AccountView } from "./components/account-view"
 import { AnalyticsView } from "./components/analytics-view"
 import { supabase } from "./lib/supabase"
@@ -109,6 +110,7 @@ const newMatchModeRef = useRef(false)
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
   const [providerId, setProviderId] = useState<number | null>(null)
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0)
 
   const resolveProviderId = () => {
     if (process.env.NODE_ENV !== "production") {
@@ -1091,101 +1093,26 @@ const newMatchModeRef = useRef(false)
         )
       }
       case "library": {
-        if (decisionCardVisible && match) {
-          return (
-            <div className="decision-card-shell">
-              <DecisionCard
-                {...cardProps}
-                backLabel={decisionCardBackLabel}
-                backAriaLabel={decisionCardBackAriaLabel}
-                onDecisionSelect={handleDecisionSelect}
-                onBack={handleDecisionBack}
-              />
-            </div>
-          )
-        }
-        const providerTabLabel = "Your Library"
-        if (selectedLibraryProviderId) {
-          return (
-            <div className="library-main-shell">
-              <div className="library-documents-shell">
-                <div className="library-documents-header">
-                        <button
-                          type="button"
-                          className="library-documents-back"
-                          onClick={handleLibraryProvidersBack}
-                          aria-label="Back to providers"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                            aria-hidden="true"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"
-                            />
-                          </svg>
-                          <span className="sr-only">Back to providers</span>
-                        </button>
-                        <div>
-                          <div className="library-documents-title">
-                            {selectedLibraryProviderName ?? "Provider library"}
-                          </div>
-                        </div>
-                </div>
-                <LibraryDocumentsGrid
-                  providerId={selectedLibraryProviderId}
-                  onDocumentSelect={handleLibraryDocumentSelect}
-                />
-              </div>
-            </div>
-          )
-        }
         return (
-          <div className="library-main-shell">
-            <div className="library-providers-shell">
-              <div className="library-providers-shell__header">
-                <div className="library-providers-shell__title">Video library</div>
-                <p className="library-providers-shell__subtitle">
-                  Pick a provider to explore its video library.
-                </p>
-              </div>
-              <div className="library-tabs-pill">
-                <button
-                  type="button"
-                  className={`library-tabs-pill__button${libraryTab === "provider" ? " library-tabs-pill__button--active" : ""}`}
-                  onClick={() => handleLibraryTabChange("provider")}
-                >
-                  {providerTabLabel}
-                </button>
-                <button
-                  type="button"
-                  className={`library-tabs-pill__button${libraryTab === "marketplace" ? " library-tabs-pill__button--active" : ""}`}
-                  onClick={() => handleLibraryTabChange("marketplace")}
-                >
-                  Marketplace
-                </button>
-              </div>
-              {libraryTab === "provider" ? (
-                providerId ? (
-                  <LibraryDocumentsGrid providerId={providerId} onDocumentSelect={handleLibraryDocumentSelect} />
-                ) : (
-                  <div className="panel__loading">
-                    <span>Loading provider data…</span>
-                  </div>
-                )
-              ) : (
-                <LibraryProvidersGrid
-                  excludeProviderId={providerId ?? undefined}
-                  onSelect={handleLibraryProviderSelect}
-                />
-              )}
-            </div>
-          </div>
+          <LibraryView
+            showDecisionCard={decisionCardVisible && !!match}
+            cardProps={cardProps}
+            decisionCardBackLabel={decisionCardBackLabel}
+            decisionCardBackAriaLabel={decisionCardBackAriaLabel}
+            onDecisionSelect={handleDecisionSelect}
+            onDecisionBack={handleDecisionBack}
+            selectedLibraryProviderId={selectedLibraryProviderId}
+            selectedLibraryProviderName={selectedLibraryProviderName}
+            onLibraryProvidersBack={handleLibraryProvidersBack}
+            onLibraryDocumentSelect={handleLibraryDocumentSelect}
+            libraryTab={libraryTab}
+            providerId={providerId}
+            onLibraryTabChange={handleLibraryTabChange}
+            onLibraryProviderSelect={handleLibraryProviderSelect}
+            onConnectLibrary={handleConnectLibrary}
+            libraryRefreshKey={libraryRefreshKey}
+            providerTabLabel="Your Library"
+          />
         )
       }
       case "new-match": {
@@ -1300,29 +1227,48 @@ const newMatchModeRef = useRef(false)
     }
   }
 
+  const getApiBase = () => (backendBase ?? "https://app.dialogue-ai.co").replace(/\/+$/, "")
+
+  const updateProviderWebsite = async (websiteUrl: string) => {
+    if (!providerId) {
+      throw new Error("Provider is required")
+    }
+    const normalizedUrl = websiteUrl.trim()
+    if (!normalizedUrl) {
+      throw new Error("Website URL is required")
+    }
+    const response = await fetch(`${getApiBase()}/api/provider-update-website`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider_id: providerId, website_url: normalizedUrl }),
+    })
+    if (!response.ok) {
+      const payload = await response.text()
+      throw new Error(payload || "Unable to save website")
+    }
+    return response.json()
+  }
+
   const handleOnboardingNext = async (websiteUrl: string) => {
     if (!providerId) {
       setToastMessage("Unable to save site without a provider")
       return
     }
-    fetch(`${backendBase}/api/provider-update-website`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider_id: providerId, website_url: websiteUrl }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Unable to save website")
-        }
-        return response.json()
-      })
-      .then(() => {
-        setToastMessage(`Website ${websiteUrl} saved. You're all set!`)
-      })
-      .catch((error) => {
-        console.error("[onboarding] update website failed", error)
-        setToastMessage("Unable to save website")
-    })
+    const normalizedUrl = websiteUrl.trim()
+    try {
+      await updateProviderWebsite(normalizedUrl)
+      setToastMessage(`Website ${normalizedUrl} saved. You're all set!`)
+    } catch (error) {
+      console.error("[onboarding] update website failed", error)
+      setToastMessage("Unable to save website")
+    }
+  }
+
+  const handleConnectLibrary = async (libraryUrl: string) => {
+    const normalizedUrl = libraryUrl.trim()
+    await updateProviderWebsite(normalizedUrl)
+    setToastMessage("Video library connected")
+    setLibraryRefreshKey((prev) => prev + 1)
   }
 
   const handleOnboardingComplete = () => {

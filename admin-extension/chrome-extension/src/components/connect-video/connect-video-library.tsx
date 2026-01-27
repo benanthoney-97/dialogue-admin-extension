@@ -8,6 +8,7 @@ type ConnectVideoLibraryProps = {
 export function ConnectVideoLibrary({ onNext }: ConnectVideoLibraryProps) {
   const [libraryUrl, setLibraryUrl] = useState("")
   const [info, setInfo] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const isValidUrl = () => {
     try {
@@ -24,15 +25,18 @@ export function ConnectVideoLibrary({ onNext }: ConnectVideoLibraryProps) {
       return
     }
     setInfo(null)
+    setSubmitting(true)
     try {
       await onNext(libraryUrl.trim())
     } catch (error: any) {
       setInfo(error?.message || "Unable to connect library")
+    } finally {
+      setSubmitting(false)
     }
   }
 
   return (
-    <div className="login-form">
+    <div className="login-form connect-video-library">
       <div className="login-form__header">Connect your video library</div>
       <div className="login-form__subtitle">
         Paste in your YouTube, Vimeo, or other library URL.
@@ -50,7 +54,7 @@ export function ConnectVideoLibrary({ onNext }: ConnectVideoLibraryProps) {
       <div className="login-form__actions login-form__actions--full">
         <button
           type="button"
-          disabled={!isValidUrl()}
+          disabled={!isValidUrl() || submitting}
           className="login-form__cta login-form__cta--full"
           onClick={handleNext}
         >

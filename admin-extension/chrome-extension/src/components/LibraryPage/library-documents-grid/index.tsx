@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react"
-import { ConnectVideoLibrary } from "../company-onboarding/connect-video-library"
 
 export interface LibraryDocument {
   id: number
@@ -11,33 +10,40 @@ export interface LibraryDocument {
   provider_id?: number
 }
 
+export interface LibraryDocumentsGridState {
+  loading: boolean
+  error: string | null
+  documents: LibraryDocument[]
+}
+
 export interface LibraryDocumentsGridProps {
   providerId: number
   onDocumentSelect?: (doc: LibraryDocument) => void
   showChooseTime?: boolean
+  refreshKey?: number
+  renderEmptyState?: () => React.ReactNode
 }
 
 export function LibraryDocumentsGrid({
   providerId,
   onDocumentSelect,
   showChooseTime,
+  refreshKey,
+  renderEmptyState,
 }: LibraryDocumentsGridProps) {
   const resolvedProviderId = providerId
   const [documents, setDocuments] = useState<LibraryDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
-  const [hasDocuments, setHasDocuments] = useState(false)
 
   useEffect(() => {
     let canceled = false
     setLoading(true)
     setError(null)
     const API_BASE =
-process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
+      process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co"
     const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
-    if (process.env.NODE_ENV !== "production") {
-    }
     fetch(endpoint)
       .then((res) => {
         if (!res.ok) {
@@ -51,7 +57,6 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           throw new Error("Unexpected payload")
         }
         setDocuments(data)
-        setHasDocuments(data.length > 0)
       })
       .catch((err) => {
         if (canceled) return
@@ -65,7 +70,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
     return () => {
       canceled = true
     }
-  }, [providerId])
+  }, [providerId, refreshKey])
 
   const handleSelect = (doc: LibraryDocument) => {
     if (!onDocumentSelect) return
@@ -96,15 +101,14 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           {loading && <div className="provider-documents__empty">Loading documents…</div>}
           {error && <div className="provider-documents__empty">Error: {error}</div>}
           {!loading && !error && documents.length === 0 && (
-            <div className="provider-documents__empty">No documents available.</div>
+            renderEmptyState ? (
+              renderEmptyState()
+            ) : (
+              <div className="provider-documents__empty">No documents available.</div>
+            )
           )}
           {!loading && !error && documents.length > 0 && filteredDocs.length === 0 && (
             <div className="provider-documents__empty">No documents match your search.</div>
-          )}
-          {!loading && !error && !hasDocuments && (
-            <div className="provider-documents__overlay">
-              <ConnectVideoLibrary onNext={() => setHasDocuments(true)} />
-            </div>
           )}
           {!loading && !error && filteredDocs.length > 0 && (
             <div className="provider-documents__grid">
@@ -158,16 +162,6 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           display: flex;
           flex-direction: column;
           padding: 0 0px;
-          position: relative;
-        }
-
-        .provider-documents__grid-header {
-          padding: 16px 0px 0px;
-          text-align: left;
-          color: #0f172a;
-          font-weight: 600;
-          font-size: 14px;
-          margin-bottom: 4px;
         }
 
         .provider-documents__grid-content {
@@ -192,7 +186,6 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
         .provider-documents__grid {
           flex: 1 1 auto;
           min-height: 0;
-          height: 0;
           display: grid;
           grid-template-columns: repeat(1, minmax(0, 1fr));
           gap: 12px;
@@ -201,78 +194,39 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
           align-content: flex-start;
           grid-auto-rows: minmax(auto, auto);
         }
-        .provider-documents__overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(246, 247, 251, 0.95);
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
-        }
 
-
-        .doc-card {
+                .doc-card {
           display: flex;
           flex-direction: column;
           border-radius: 12px;
           border: 1px solid #e2e8f0;
           overflow: hidden;
-          background: white;
+          background: #f8fafc;
           min-height: 150px;
-          cursor: pointer;
-          position: relative;
-        }
-        .doc-card:hover {
-          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.15);
-        }
-
-        .doc-cover {
-          background-size: cover;
-          background-position: center;
-          height: 100px;
-        }
-
-        .doc-content {
-          padding: 10px 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .doc-card__overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.65);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s ease;
-        }
-
-        .doc-card:hover .doc-card__overlay {
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .doc-card__choose-time {
-          border-radius: 8px;
-          border: none;
-          background: #0f172a;
-          color: #fff;
-          padding: 8px 16px;
-          font-size: 13px;
           cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .doc-card__choose-time:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+        .doc-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 16px 30px rgba(15, 23, 42, 0.15);
+        }
+
+        .doc-cover {
+          width: 100%;
+          height: 90px;
+          background-color: #cbd5f5;
+          background-size: cover;
+          background-position: center;
+          flex-shrink: 0;
+        }
+
+        .doc-content {
+          padding: 10px 12px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
 
         .doc-title {
@@ -290,17 +244,34 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
         }
 
         .doc-meta {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
           font-size: 12px;
           color: #475467;
+          display: flex;
+          justify-content: space-between;
+          gap: 4px;
+          align-items: center;
+        }
+
+        .doc-media-icon {
+          display: inline-flex;
+          width: 20px;
+          height: 20px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.05);
+          color: #0f172a;
         }
 
         .doc-meta a {
-          color: #5f61fb;
-          font-weight: 600;
-          text-decoration: none;
+          color: #0f172a;
+          text-decoration: underline;
+        }
+
+        .provider-documents__empty {
+          padding: 24px;
+          text-align: center;
+          color: #a1a1aa;
         }
       `}</style>
     </div>

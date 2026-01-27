@@ -76,6 +76,7 @@ process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co";
       (doc.media_type || "").toLowerCase().includes(normalizedFilter)
     )
   })
+  console.log("[provider-documents-grid] filteredDocs length", filteredDocs.length)
 
   return (
     <div className="provider-documents">
