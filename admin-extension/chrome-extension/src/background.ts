@@ -98,6 +98,8 @@ const sendMessageToActiveTab = (message: Record<string, unknown>) => {
     chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
         console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError)
+      } else {
+        console.log("[sl-background] sendMessage succeeded")
       }
     })
   }

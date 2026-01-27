@@ -64,11 +64,17 @@ const loadPlayerComponent = () => {
     }
   const script = document.createElement("script")
   script.id = PLAYER_SCRIPT_ID
-  script.src = chrome.runtime.getURL("player-component.js")
-    script.async = true
-    script.onload = () => resolve(window.DialoguePlayer)
-    script.onerror = () => resolve(window.DialoguePlayer)
-    document.head.appendChild(script)
+    script.src = chrome.runtime.getURL("static/player.js")
+  script.async = true
+  script.onload = () => {
+    console.log("[content] player script loaded")
+    resolve(window.DialoguePlayer)
+  }
+  script.onerror = (error) => {
+    console.error("[content] player script failed to load", error)
+    resolve(window.DialoguePlayer)
+  }
+  document.head.appendChild(script)
   })
   return playerModulePromise
 }
@@ -78,7 +84,12 @@ const ensureVisitorPlayer = async () => {
     return activeVisitorPlayer
   }
   const module = await loadPlayerComponent()
-  if (!module?.initVisitorPlayer) {
+  if (!module) {
+    console.warn("[content] player module unavailable")
+    return null
+  }
+  if (!module.initVisitorPlayer) {
+    console.warn("[content] player module missing initVisitorPlayer")
     return null
   }
   activeVisitorPlayer = module.initVisitorPlayer()
@@ -105,6 +116,7 @@ const previewLibraryVideo = async (__url?: string, rect?: PreviewPlayerRect | nu
     ratio: ratio ?? 16 / 9,
     url,
   })
+  console.log("[content] visitor player show invoked")
 }
 
 const parseMatchMapFromScript = () => {
@@ -224,7 +236,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false
   }
   if (request.action === "previewLibraryVideo") {
-    console.log("[content] previewLibraryVideo message received", request.videoUrl)
+  console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId })
     previewLibraryVideo(request.videoUrl)
     return false
   }
