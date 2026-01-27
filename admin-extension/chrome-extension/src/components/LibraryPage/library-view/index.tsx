@@ -5,7 +5,7 @@ import type { DecisionCardProps } from "../../decision-card"
 import { LibraryDocumentsGrid } from "../library-documents-grid"
 import type { LibraryDocument } from "../library-documents-grid"
 import { LibraryProvidersGrid, type LibraryProvider } from "../library-providers-grid"
-import { ConnectVideoLibrary } from "../../connect-video/connect-video-library"
+import { ConnectVideoLibrary } from "../../Auth/connect-video/connect-video-library"
 
 export interface LibraryViewProps {
   showDecisionCard: boolean

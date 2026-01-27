@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ThresholdSelector } from "../threshold-selector"
-import { ConfirmAction } from "../confirm-action"
+import { ConfirmAction } from "../Popups/confirm-action"
 
 export interface ThresholdControlsProps {
   value: number

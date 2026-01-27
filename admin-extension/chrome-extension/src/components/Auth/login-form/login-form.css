@@ -11,6 +11,18 @@
   text-align: center;
 }
 
+.connect-video-library {
+  border: 1px solid #0f172a;
+}
+
+.connect-video-library .login-form__header {
+  font-size: 14px;
+}
+
+.connect-video-library .login-form__subtitle {
+  font-size: 12px;
+}
+
 .login-panel {
   flex: 1;
   display: flex;

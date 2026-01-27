@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react"
 import type { SitemapFeed } from "../sitemap-feeds-table"
-import { formatHumanReadableDate } from "../../utils/format-date"
+import { formatHumanReadableDate } from "../../../utils/format-date"
 
 export interface SitemapPage {
   id: number

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import type { SitemapFeed } from "../sitemap-feeds-table"
 import { SitemapFeedsTable } from "../sitemap-feeds-table"
 import { SitemapFeedDetail } from "./sitemap-feed-detail"
-import { ThresholdControls } from "../threshold-controls"
+import { ThresholdControls } from "../../threshold-controls"
 
 export interface SitemapViewProps {
   providerId: number

@@ -15,13 +15,19 @@ const providerSiteSettingsHandler = require('../admin-extension/chrome-extension
 const sitemapFeedsHandler = require('../admin-extension/chrome-extension/api/sitemap-feeds');
 const sitemapPagesHandler = require('../admin-extension/chrome-extension/api/sitemap-pages');
 const sitemapPageStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-page-status');
+const inactiveViewPagelistHandler = require('../admin-extension/chrome-extension/api/inactive-view-pagelist');
 const pageMatchesHandler = require('../admin-extension/chrome-extension/api/page-matches');
 const sitemapFeedStatusHandler = require('../admin-extension/chrome-extension/api/sitemap-feed-status');
 const matchSuggestionsHandler = require('../admin-extension/chrome-extension/api/match-suggestions');
 const authRequestOtpHandler = require('../admin-extension/chrome-extension/api/auth/request-otp');
 const authVerifyOtpHandler = require('../admin-extension/chrome-extension/api/auth/verify-otp');
+const authSignupRequestHandler = require('../admin-extension/chrome-extension/api/auth/signup-request-otp');
+const authSignupVerifyHandler = require('../admin-extension/chrome-extension/api/auth/signup-verify-otp');
 const matchClickedHandler = require('../admin-extension/chrome-extension/api/match-clicked');
 const matchCompletionHandler = require('../admin-extension/chrome-extension/api/match-completion');
+const providerAnalyticsSummaryHandler = require('../admin-extension/chrome-extension/api/provider-analytics-summary');
+const providerUpdateWebsiteHandler = require('../admin-extension/chrome-extension/api/provider-update-website');
+const youtubeChannelVideosHandler = require('../admin-extension/chrome-extension/api/youtube-channel-videos');
 
 const WEB_ROOT = path.join(__dirname, '..', 'web-platform');
 const HTTP_PORT = 4173;
@@ -135,6 +141,19 @@ function startHttpServer() {
       return;
     }
 
+    if (parsedUrl.pathname === '/api/provider-analytics-summary') {
+      await providerAnalyticsSummaryHandler(req, res);
+      return;
+    }
+    if (parsedUrl.pathname === '/api/provider-update-website') {
+      await providerUpdateWebsiteHandler(req, res);
+      return;
+    }
+    if (parsedUrl.pathname === '/api/youtube-channel-videos') {
+      await youtubeChannelVideosHandler(req, res);
+      return;
+    }
+
     if (parsedUrl.pathname === '/api/sitemap-feeds') {
       await sitemapFeedsHandler(req, res);
       return;
@@ -159,6 +178,10 @@ function startHttpServer() {
       await sitemapPagesHandler(req, res);
       return;
     }
+    if (parsedUrl.pathname === '/api/inactive-view-pagelist') {
+      await inactiveViewPagelistHandler(req, res);
+      return;
+    }
 
     if (parsedUrl.pathname === '/api/site-content-seed') {
       await siteContentSeedHandler(req, res);
@@ -172,6 +195,15 @@ function startHttpServer() {
 
     if (parsedUrl.pathname === '/api/auth/verify-otp') {
       await authVerifyOtpHandler(req, res);
+      return;
+    }
+
+    if (parsedUrl.pathname === '/api/auth/signup-request-otp') {
+      await authSignupRequestHandler(req, res);
+      return;
+    }
+    if (parsedUrl.pathname === '/api/auth/signup-verify-otp') {
+      await authSignupVerifyHandler(req, res);
       return;
     }
 

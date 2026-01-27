@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { TimestampPicker } from "../timestamp-picker"
+import { TimestampPicker } from "../MatchSelector/timestamp-picker"
 import type { LibraryDocument } from "../LibraryPage/library-documents-grid"
 
 export interface PageMatchSummary {

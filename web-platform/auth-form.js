@@ -129,7 +129,7 @@ export function setupOtpForm(options) {
       const payload = await jsonFetch(buildUrl(resolvedBase, ENDPOINTS.requestOtp), { email })
       const ttl = payload && payload.expires_in
       const ttlMinutes = ttl ? ` · expires in ${Math.max(1, Math.round(ttl / 60))} minutes` : ""
-      setMessage(infoEl, `OTP sent—check your inbox${ttlMinutes}`)
+      setMessage(infoEl, `Code sent—check your inbox${ttlMinutes}`)
       setStage("otp")
       otpInput.focus()
     } catch (error) {

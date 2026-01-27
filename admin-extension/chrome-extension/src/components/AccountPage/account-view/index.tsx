@@ -1,4 +1,4 @@
-import { CodeInjectionSnippet } from "../code-injection-snippet"
+import { CodeInjectionSnippet } from "../../Auth/code-injection-snippet"
 
 export interface AccountViewProps {
   email: string | null

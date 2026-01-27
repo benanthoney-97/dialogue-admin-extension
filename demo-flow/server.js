@@ -5,20 +5,6 @@ import demoConfigs from './demo-configs.js';
 const app = express();
 const PORT = 3000;
 const DEFAULT_DEMO = 'default';
-const DEMO_COOKIE_NAME = 'dialogue_demo';
-
-const MY_COOKIE = `ahoy_visitor=f1ed83e8-210e-49b0-8e5d-7987542551c7; cookies_enabled=true; circle_gdpr_cookies_enabled=false; browser_time_zone=Europe/London; locale=en; __stripe_mid=5c1e9816-3040-4998-8f98-eb99e8e723c82ecf2a; _vwo_uuid=D145F5562791B9F5FE76C790D94FAA205; _vis_opt_s=1%7C; _vis_opt_test_cookie=1; hubspotutk=ad40272c30fbd45097126067e178a118; __hssrc=1; cookieyes-consent=consentid:VUp6TkdYaGtMTU1zdnBEY3c4bDVMRmtvRzkzcmxDUHA,consent:no,action:yes,necessary:yes,analytics:no,advertisement:no,other:no; _vwo_ds=3%3Aa_0%2Ct_0%3A0%241766129576%3A13.36012798%3A%3A%3A%3A0%3A1768839089%3A1766311079%3A6; __hstc=15923433.ad40272c30fbd45097126067e178a118.1766129580871.1766311080984.1768839092612.4; anonymous_user_uuid=a0e3eb85-1970-44e8-b2e2-7bf5f10625f8; community_member_visit_id=99853%3A74137865; ahoy_visit=1e759dd3-9ece-4f9d-afcf-0e2727c73e52; remember_user_token=eyJfcmFpbHMiOnsibWVzc2FnZSI6IlcxczFNVFEyTkRNMk0xMHNJaVF5WVNReE1TUXpla04xTGtGRllsVXdaRTVrZVRKb1FrUk1Ta1YxSWl3aU1UYzJPVEF5TXpFMk1TNHhNRFEzTmpVeUlsMD0iLCJleHAiOiIyMDI3LTAxLTIxVDE5OjE5OjIxLjEwNFoiLCJwdXIiOiJjb29raWUucmVtZW1iZXJfdXNlcl90b2tlbiJ9fQ%3D%3D--fd2cf0a0a00cba7d72f6f60f97a14a953ad426eb; user_session_identifier=tKzNFOgrBs%2Bs8I%2BUF6aDk3NbIeXwOrzXVszlYMepSmyrRLGrzqUSaMkMR%2F6LoY1QXAyiJyb5MW6rmxXPJrf8dOsd%2F0vZnPkUuz0b8qgEaKP6pWD9NVywfRbQ2De0%2F83Urm044g5MXs58YCkwpt9g9024IxXzqo4VMtFrr%2Bs37Hg79OPyRs12ULlmmXSLQwi%2F%2BVAoRXOjjofHTsNgdky5fJN15X9TDSdOmoUIKnbthkWdaVm1NFn1r5sJh3l%2F2jbWniA6GGKQW5Ga13gxiw%3D%3D--o%2BsNaIVIOT9Bx3NZ--bwxbd6kiIMpofN97yf2Ydw%3D%3D; cf_clearance=MnAhGbsb.Cs_qeBQb3XavZWYIJ5d9cIblnGIJWC1m78-1769023162-1.2.1.1-7SZt_Zcgo8o35VxIxbK4o.DfJzg0YqzLDdPY464QbB1nmwLEmr6MfgYCsTgqF8JXUiiph5wBrr3JjbBasezqg5KNY2loKSekuzXkdrfwc1.vZg_F3yk2PKHcShEvACxEFPks0JFheHDKpVY6z9Zb25r0h3W1dhyiy7k_5yO9c8WWbiqOQKxkQIqh4xfRQ4NVtbKtEMu5g8YanYtjdnKeP5mOCZaR.CzP.KfGZlNEs_U; __stripe_sid=e14eac9f-6bbb-4184-b515-7229a9790bee4bcb5c; _circle_session=g6PvDIGgEPaYfg99siGBXRWQnbqf1nMWrk1OH%2BgY%2B95SvJPfMACRpivSBBkgGI8yMarcL7uDDEt0oanVqjh0%2FEv1vcciRxAZXzFbo7h98ubt5th7SYAAIQ%2BeiesdAAQlTwX52BWq5Y34hplOxJoppVB8wdTC%2BK4yinuzgKc4s2gE8bCGXZQLoxQCU%2FOuDBDsCSF%2FWhZYWCIfRuPxwcHcAawsHMXeP7wLa%2FDJCY47E7KmeTYIdqqxP3B8t%2BRADqXi%2BGc5uWwM1%2FnyF6LDnIfQkMeMBKdEe6JpNkyCF8SUurtFfbY%2B0KJIY4N5RchIIhCUb7hV6Wbn0mJOTvtAfJ4%2BydgKOvCjfcTT6bkcJlzGXwJN21nM6UQfEFnn9m4wRkIsoec4rZGA07FR77LMnMhI1M4H1QpMs2BXV545w5UEYNZKK9TlQ%2B10RS9H8F%2Fujs4w1nG9--YmLJV75XCiDOzu7T--0ls%2Bf2e9FwWQ2%2Bxd6A23Mw%3D%3D; __cf_bm=dDBSjbPg49jG_7Q9iD19d5IKvu726nE5f6FFnie.348-1769024090-1.0.1.1-C7gmTUMOFlp7kFDXz.cs3FNwmxLvbqJuwTAQgiVbWmgIwBZpdihLzxw4TxhoQ9.xsq8X2mgerDHtrnk435x_ksXPjJ7xeio1zZbQTtCTBGk`;
-
-const getDemoKeyFromCookie = (cookieHeader) => {
-    if (!cookieHeader) return null;
-    const pairs = cookieHeader.split(';').map(part => part.trim());
-    for (const pair of pairs) {
-        if (pair.startsWith(`${DEMO_COOKIE_NAME}=`)) {
-            return pair.split('=')[1] || null;
-        }
-    }
-    return null;
-};
 
 const resolveDemoContext = (req) => {
     const queryKey = req.query?.demo;
@@ -28,21 +14,7 @@ const resolveDemoContext = (req) => {
             return { key: queryKey, config };
         }
     }
-
-    const cookieKey = getDemoKeyFromCookie(req.headers?.cookie || '');
-    if (cookieKey) {
-        const config = demoConfigs[cookieKey];
-        if (config) {
-            return { key: cookieKey, config };
-        }
-    }
-
     return { key: DEFAULT_DEMO, config: demoConfigs[DEFAULT_DEMO] };
-};
-
-const setActiveDemoCookie = (res, key) => {
-    const demoKey = key || DEFAULT_DEMO;
-    res.setHeader('Set-Cookie', `${DEMO_COOKIE_NAME}=${demoKey}; Path=/; SameSite=Lax`);
 };
 // --- MIDDLEWARE ---
 app.use((req, res, next) => {
@@ -59,7 +31,6 @@ app.use(express.json());
 app.get('/', async (req, res) => {
     try {
         const { key: demoKey, config } = resolveDemoContext(req);
-        setActiveDemoCookie(res, demoKey);
         const TARGET_URL = config.targetUrl;
         const TARGET_ORIGIN = config.targetOrigin;
         const MATCHES = config.matches;
@@ -67,8 +38,7 @@ app.get('/', async (req, res) => {
 
         const response = await fetch(TARGET_URL, {
             headers: { 
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0 Safari/537.36',
-                'Cookie': MY_COOKIE
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0 Safari/537.36'
             }
         });
 
@@ -83,11 +53,11 @@ app.get('/', async (req, res) => {
                     console.log("🌑 Forcing Dark Mode...");
                     const keys = ['theme', 'appearance', 'docusaurus-theme', 'color-mode'];
                     keys.forEach(k => {
-                        localStorage.setItem(k, 'dark');
+                        localStorage.setItem(k, 'light');
                     });
-                    document.documentElement.setAttribute('data-theme', 'black');
-                    document.documentElement.classList.add('black');
-                    document.documentElement.classList.remove('light');
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('black');
                     if(document.body) {
                         document.body.classList.add('black');
                         document.body.classList.remove('light');
@@ -99,32 +69,35 @@ app.get('/', async (req, res) => {
                     }
                 } catch(e) {}
 
-                // B. SUPER INTERCEPTOR
-                const originalFetch = window.fetch;
-                window.fetch = async function(input, init) {
-                    let url = input;
-                    if (typeof input === 'string' && input.includes('thegraduateguide.co.uk')) {
-                        url = input.replace('https://www.thegraduateguide.co.uk', '');
-                    }
-                    if (typeof input === 'object' && input instanceof Request) {
-                        if (input.url.includes('thegraduateguide.co.uk')) {
-                            const newUrl = input.url.replace('https://www.thegraduateguide.co.uk', '');
-                            url = new Request(newUrl, {
-                                method: input.method, headers: input.headers, body: input.body,
-                                mode: 'cors', credentials: input.credentials
-                            });
-                        }
-                    }
-                    return originalFetch(url, init);
-                };
-                
-                const originalOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function(method, url) {
-                    if (typeof url === 'string' && url.includes('thegraduateguide.co.uk')) {
-                        url = url.replace('https://www.thegraduateguide.co.uk', '');
-                    }
-                    return originalOpen.apply(this, arguments);
-                };
+// B. SUPER INTERCEPTOR
+const originalFetch = window.fetch;
+window.fetch = async function(input, init) {
+    let url = input;
+    
+    // 1. Handle String Inputs
+    if (typeof input === 'string') {
+        // DYNAMIC FIX: Replace the domain, keep the path
+        // This turns "https://seedlegals.../analysis" into "/~/changes/24/retrieve-match-analysis"
+        if (input.includes('seedlegals.dialogue-ai.co')) {
+            url = input.replace('https://seedlegals.dialogue-ai.co/', '');
+        }
+    }
+    
+    // 2. Handle Request Objects
+    if (typeof input === 'object' && input instanceof Request) {
+        if (input.url.includes('seedlegals.dialogue-ai.co')) {
+            const newUrl = input.url.replace('https://seedlegals.dialogue-ai.co/', '');
+            url = new Request(newUrl, {
+                method: input.method,
+                headers: input.headers,
+                body: input.body,
+                mode: 'cors',
+                credentials: input.credentials
+            });
+        }
+    }
+    return originalFetch(url, init);
+};
             </script>
         `;
 
@@ -216,8 +189,8 @@ app.get('/', async (req, res) => {
                 const FOOTER_HEIGHT = 40;
 
                 const formatSettings = {
-                    standard: { width: 320, ratio: 16 / 9 },
-                    short: { width: 260, ratio: 9 / 16 }
+                    standard: { width: 480, ratio: 16 / 9 },
+                    short: { width: 390, ratio: 9 / 16 }
                 };
                 let currentFormat = 'standard';
                 let currentAspectRatio = formatSettings.standard.ratio;
@@ -239,10 +212,10 @@ app.get('/', async (req, res) => {
                 const positionPlayerNearRect = (rect) => {
                     const offsetY = 12;
                     const playerWidth = player.offsetWidth;
-                    const desiredLeft = window.scrollX + rect.left;
+                    const rectLeft = window.scrollX + rect.left;
                     const maxLeft = Math.max(12, window.innerWidth - playerWidth - 12);
-                    const constrainedLeft = Math.min(Math.max(desiredLeft, 12), maxLeft);
-                    player.style.right = constrainedLeft + 'px';
+                    const constrainedLeft = Math.min(Math.max(rectLeft, 12), maxLeft);
+                    player.style.left = constrainedLeft + 'px';
                     player.style.top = (window.scrollY + rect.bottom + offsetY) + 'px';
                 };
 
@@ -443,7 +416,6 @@ app.use(async (req, res) => {
             headers: { 
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': config.targetOrigin,
-                'Cookie': MY_COOKIE,
                 'Content-Type': req.get('Content-Type') || 'application/json'
             },
             body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body)

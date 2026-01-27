@@ -1,5 +1,5 @@
 import { TimestampPicker } from "../timestamp-picker"
-import type { ProviderDocument } from "../provider-documents-grid"
+import type { ProviderDocument } from "../../provider-documents-grid"
 
 export interface TimestampViewProps {
   document: ProviderDocument

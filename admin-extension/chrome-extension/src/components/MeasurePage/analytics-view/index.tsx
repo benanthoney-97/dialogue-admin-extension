@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { HeaderCards } from "../header-cards"
-import { MatchCard } from "../match-card"
+import { HeaderCards } from "../../header-cards"
+import { MatchCard } from "../../match-card"
 
 type AnalyticsGroup = {
   group_key: string

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
-import { formatHumanReadableDate } from "../../utils/format-date"
-import { ConfirmAction } from "../confirm-action"
+import { formatHumanReadableDate } from "../../../utils/format-date"
+import { ConfirmAction } from "../../Popups/confirm-action"
 
 export interface SitemapFeed {
   id: number
