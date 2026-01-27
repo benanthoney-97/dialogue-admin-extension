@@ -33,6 +33,7 @@ type VideoPreview = {
 type ChannelPreview = {
   provider: "youtube" | "vimeo"
   title: string
+  name?: string
   description?: string | null
   thumbnail?: string | null
   videoCount: number
@@ -209,10 +210,11 @@ const convertYouTubePayload = (payload: any): ChannelPreview => {
     itemCount: pl.itemCount ?? null,
   }))
 
-  return {
-    provider: "youtube",
-    title: channel.title ?? "YouTube channel",
-    description: channel.description ?? null,
+    return {
+      provider: "youtube",
+      title: channel.title ?? "YouTube channel",
+      name: channel.title ?? "YouTube channel",
+      description: channel.description ?? null,
     thumbnail,
     videoCount: aggregatedVideos.length,
     latestVideoDate: getLatestVideoDate(aggregatedVideos),
@@ -238,14 +240,19 @@ const convertVimeoPayload = (payload: any): ChannelPreview => {
     videoEntries[0]?.thumbnail ??
     null
 
-  return {
-    provider: "vimeo",
-    title:
-      payload.sourceInfo?.name ??
-      payload.source?.id ??
-      payload.source?.type ??
-      "Vimeo channel",
-    description: payload.sourceInfo?.description ?? null,
+    return {
+      provider: "vimeo",
+      title:
+        payload.sourceInfo?.name ??
+        payload.source?.id ??
+        payload.source?.type ??
+        "Vimeo channel",
+      name:
+        payload.sourceInfo?.name ??
+        payload.source?.id ??
+        payload.source?.type ??
+        "Vimeo channel",
+      description: payload.sourceInfo?.description ?? null,
     thumbnail,
     videoCount: videoEntries.length,
     latestVideoDate: getLatestVideoDate(videoEntries),
@@ -335,6 +342,7 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
       const channelPayload = {
         platform: previewChannel.provider,
         channel_url: libraryUrl.trim(),
+        name: previewChannel.name ?? previewChannel.title,
         channel_description: previewChannel.description ?? null,
         video_count: previewChannel.videoCount,
         cover_image: previewChannel.thumbnail ?? null,

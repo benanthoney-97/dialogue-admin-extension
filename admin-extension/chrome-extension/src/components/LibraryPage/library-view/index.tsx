@@ -20,6 +20,7 @@ type ChannelSummary = {
   platform: "youtube" | "vimeo" | string
   channel_url: string
   channel_description?: string | null
+  name?: string | null
   video_count?: number | null
   cover_image?: string | null
   playlists?: ChannelPlaylist[]
@@ -259,9 +260,9 @@ export function LibraryView({
                   />
                 )}
                 <div className="connect-video-preview__content">
-                  <div className="connect-video-preview__title">
-                    {channel.channel_description ?? "Connected channel"}
-                  </div>
+                <div className="connect-video-preview__title">
+                  {channel.name ?? channel.channel_url ?? "Connected channel"}
+                </div>
                   <p className="connect-video-preview__meta">
                     {channel.video_count ?? 0} videos
                   </p>

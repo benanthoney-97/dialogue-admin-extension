@@ -75,6 +75,7 @@ async function handler(req, res) {
     provider_id: providerId,
     platform,
     channel_url: channelUrl,
+    name: channel.name ?? null,
     channel_description: channel.channel_description ?? null,
     video_count: Number(channel.video_count ?? null),
     cover_image: channel.cover_image ?? null,

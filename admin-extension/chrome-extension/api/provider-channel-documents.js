@@ -34,7 +34,7 @@ async function handler(req, res) {
   const { data: channelData, error: channelError } = await supabase
     .from("provider_channels")
     .select(
-      "id,platform,channel_url,channel_description,video_count,cover_image,channel_playlists(id,title,cover_image,video_count,description)"
+      "id,platform,channel_url,name,channel_description,video_count,cover_image,channel_playlists(id,title,cover_image,video_count,description)"
     )
     .eq("provider_id", providerId)
     .eq("id", channelId)

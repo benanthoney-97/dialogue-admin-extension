@@ -31,7 +31,7 @@ async function handler(req, res) {
   const { data, error } = await supabase
     .from("provider_channels")
     .select(
-      "id,provider_id,platform,channel_url,channel_description,video_count,cover_image,channel_playlists(id,title,cover_image,video_count,description)"
+      "id,provider_id,platform,channel_url,name,channel_description,video_count,cover_image,channel_playlists(id,title,cover_image,video_count,description)"
     )
     .eq("provider_id", providerId)
     .order("id")
