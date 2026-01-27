@@ -154,6 +154,7 @@ function initVisitorPlayer() {
 
   const metaTimestamp = playerNode.querySelector("#dialogue-meta-timestamp")
   const createMatchButton = playerNode.querySelector("#dialogue-create-match")
+  console.log("[player-component] create match button ready", Boolean(createMatchButton))
   const META_EVENT_NAME = "dialogueCreateMatch"
   let currentMetadata = null
   let currentVideoUrl = ""
@@ -188,6 +189,7 @@ function initVisitorPlayer() {
       timestamp: seconds,
       videoUrl: currentVideoUrl,
     }
+    console.log("[player-component] dispatching create match event", eventDetail)
     window.dispatchEvent(new CustomEvent(META_EVENT_NAME, { detail: eventDetail }))
   }
 
@@ -351,6 +353,7 @@ function initVisitorPlayer() {
       currentHost = ""
     }
     currentMetadata = metadata ?? null
+    console.log("[player-component] metadata applied to player", currentMetadata)
     updateButtonLabel()
     if (currentHost.includes("youtu")) {
       initYouTubePlayer().catch(() => {})
