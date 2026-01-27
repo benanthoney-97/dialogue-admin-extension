@@ -62,9 +62,9 @@ const loadPlayerComponent = () => {
       )
       return
     }
-    const script = document.createElement("script")
-    script.id = PLAYER_SCRIPT_ID
-    script.src = chrome.runtime.getURL("static/player.js")
+  const script = document.createElement("script")
+  script.id = PLAYER_SCRIPT_ID
+  script.src = chrome.runtime.getURL("player-component.js")
     script.async = true
     script.onload = () => resolve(window.DialoguePlayer)
     script.onerror = () => resolve(window.DialoguePlayer)

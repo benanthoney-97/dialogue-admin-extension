@@ -441,7 +441,7 @@ const newMatchModeRef = useRef(false)
     setManualStage("timestamp")
   }
 
-  const handleNewMatchLibraryDocumentSelect = (doc: { source_url?: string }) => {
+  const handleNewMatchLibraryDocumentSelect = (doc: LibraryDocument) => {
     previewLibraryVideoOnPage(doc)
   }
 
