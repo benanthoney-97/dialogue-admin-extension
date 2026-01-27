@@ -56,7 +56,30 @@ async function handler(req, res) {
       channelsUrl.searchParams.set("forUsername", username)
     }
 
-    const channelPayload = await fetchJson(channelsUrl.toString())
+    let channelPayload = await fetchJson(channelsUrl.toString())
+    if (!Array.isArray(channelPayload.items) || channelPayload.items.length === 0) {
+      if (username) {
+        const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search")
+        searchUrl.searchParams.set("part", "snippet")
+        searchUrl.searchParams.set("type", "channel")
+        searchUrl.searchParams.set("maxResults", "1")
+        searchUrl.searchParams.set("q", username.startsWith("@") ? username.slice(1) : username)
+        searchUrl.searchParams.set("key", YOUTUBE_API_KEY)
+
+        const searchPayload = await fetchJson(searchUrl.toString())
+        const firstResult = Array.isArray(searchPayload.items) ? searchPayload.items[0] : null
+        const resolvedId = firstResult?.id?.channelId ?? firstResult?.snippet?.channelId
+        if (!resolvedId) {
+          throw new Error("Channel not found")
+        }
+
+        channelsUrl.searchParams.delete("forUsername")
+        channelsUrl.searchParams.set("id", resolvedId)
+        channelPayload = await fetchJson(channelsUrl.toString())
+      } else {
+        throw new Error("Channel not found")
+      }
+    }
 
     if (!Array.isArray(channelPayload.items) || channelPayload.items.length === 0) {
       throw new Error("Channel not found")
