@@ -126,20 +126,23 @@ export function LibraryView({
 
   return (
     <div className="library-main-shell">
-      <div className="library-providers-shell">
-        <div className="library-providers-shell__header">
-          <div className="library-providers-shell__title">Video library</div>
-          <p className="library-providers-shell__subtitle">
-            Connect your video library and to partner channels
-          </p>
-        </div>
-        {libraryTab === "provider" ? (
-          providerId ? (
-            <LibraryDocumentsGrid
-              providerId={providerId}
-              onDocumentSelect={onLibraryDocumentSelect}
+        <div className="library-providers-shell">
+          {!showConnectPrompt && (
+            <div className="library-providers-shell__header">
+              <div className="library-providers-shell__title">Video library</div>
+              <p className="library-providers-shell__subtitle">
+                Connect your video library and to partner channels
+              </p>
+            </div>
+          )}
+          {libraryTab === "provider" ? (
+            providerId ? (
+              <LibraryDocumentsGrid
+                providerId={providerId}
+                onDocumentSelect={onLibraryDocumentSelect}
               refreshKey={libraryRefreshKey}
               onDocumentsLoaded={handleDocumentsLoaded}
+              showSearchBar={!showConnectPrompt}
               renderEmptyState={showConnectPrompt ? renderConnectPrompt : undefined}
             />
           ) : (

@@ -23,6 +23,7 @@ export interface LibraryDocumentsGridProps {
   refreshKey?: number
   onDocumentsLoaded?: (count: number) => void
   renderEmptyState?: () => React.ReactNode
+  showSearchBar?: boolean
 }
 
 export function LibraryDocumentsGrid({
@@ -32,6 +33,7 @@ export function LibraryDocumentsGrid({
   refreshKey,
   onDocumentsLoaded,
   renderEmptyState,
+  showSearchBar = true,
 }: LibraryDocumentsGridProps) {
   const resolvedProviderId = providerId
   const [documents, setDocuments] = useState<LibraryDocument[]>([])
@@ -95,14 +97,16 @@ export function LibraryDocumentsGrid({
     <div className="provider-documents">
       <div className="provider-documents__grid-shell">
         <div className="provider-documents__grid-content">
-          <div className="provider-documents__search">
-            <input
-              type="search"
-              placeholder="Search by title or media type"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            />
-          </div>
+          {showSearchBar && (
+            <div className="provider-documents__search">
+              <input
+                type="search"
+                placeholder="Search by title or media type"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+              />
+            </div>
+          )}
           {loading && <div className="provider-documents__empty">Loading documents…</div>}
           {error && <div className="provider-documents__empty">Error: {error}</div>}
           {!loading && !error && documents.length === 0 && (

@@ -12,7 +12,9 @@
 }
 
 .connect-video-library {
-  border: 1px solid #0f172a;
+  margin-top: 12px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .connect-video-library .login-form__header {
