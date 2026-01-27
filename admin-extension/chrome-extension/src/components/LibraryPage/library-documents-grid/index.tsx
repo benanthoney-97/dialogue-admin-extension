@@ -21,6 +21,7 @@ export interface LibraryDocumentsGridProps {
   onDocumentSelect?: (doc: LibraryDocument) => void
   showChooseTime?: boolean
   refreshKey?: number
+  onDocumentsLoaded?: (count: number) => void
   renderEmptyState?: () => React.ReactNode
 }
 
@@ -29,6 +30,7 @@ export function LibraryDocumentsGrid({
   onDocumentSelect,
   showChooseTime,
   refreshKey,
+  onDocumentsLoaded,
   renderEmptyState,
 }: LibraryDocumentsGridProps) {
   const resolvedProviderId = providerId
@@ -57,6 +59,9 @@ export function LibraryDocumentsGrid({
           throw new Error("Unexpected payload")
         }
         setDocuments(data)
+        onDocumentsLoaded
+          ? onDocumentsLoaded(data.length)
+          : undefined
       })
       .catch((err) => {
         if (canceled) return
@@ -70,7 +75,7 @@ export function LibraryDocumentsGrid({
     return () => {
       canceled = true
     }
-  }, [providerId, refreshKey])
+  }, [providerId, refreshKey, onDocumentsLoaded])
 
   const handleSelect = (doc: LibraryDocument) => {
     if (!onDocumentSelect) return

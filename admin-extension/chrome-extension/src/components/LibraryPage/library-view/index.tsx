@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useCallback, useEffect, useState } from "react"
 
 import { DecisionCard } from "../../decision-card"
 import type { DecisionCardProps } from "../../decision-card"
@@ -47,8 +47,26 @@ export function LibraryView({
   libraryRefreshKey,
 }: LibraryViewProps) {
   const resolvedProviderTabLabel = providerTabLabel ?? "Your Library"
+  const [showConnectPrompt, setShowConnectPrompt] = useState(true)
+
+  useEffect(() => {
+    setShowConnectPrompt(true)
+  }, [providerId])
+
+  const handleConnectLibraryPrompt = useCallback(
+    async (libraryUrl: string) => {
+      setShowConnectPrompt(false)
+      await onConnectLibrary(libraryUrl)
+    },
+    [onConnectLibrary]
+  )
+
+  const handleDocumentsLoaded = useCallback((count: number) => {
+    setShowConnectPrompt(count === 0)
+  }, [])
+
   const renderConnectPrompt = () => (
-    <ConnectVideoLibrary onNext={onConnectLibrary} providerId={providerId} />
+    <ConnectVideoLibrary onNext={handleConnectLibraryPrompt} providerId={providerId} />
   )
 
   if (showDecisionCard) {
@@ -112,32 +130,17 @@ export function LibraryView({
         <div className="library-providers-shell__header">
           <div className="library-providers-shell__title">Video library</div>
           <p className="library-providers-shell__subtitle">
-            Pick a provider to explore its video library.
+            Connect your video library and to partner channels
           </p>
-        </div>
-        <div className="library-tabs-pill">
-          <button
-            type="button"
-            className={`library-tabs-pill__button${libraryTab === "provider" ? " library-tabs-pill__button--active" : ""}`}
-            onClick={() => onLibraryTabChange("provider")}
-          >
-            {resolvedProviderTabLabel}
-          </button>
-          <button
-            type="button"
-            className={`library-tabs-pill__button${libraryTab === "marketplace" ? " library-tabs-pill__button--active" : ""}`}
-            onClick={() => onLibraryTabChange("marketplace")}
-          >
-            Marketplace
-          </button>
         </div>
         {libraryTab === "provider" ? (
           providerId ? (
             <LibraryDocumentsGrid
               providerId={providerId}
               onDocumentSelect={onLibraryDocumentSelect}
-              renderEmptyState={renderConnectPrompt}
               refreshKey={libraryRefreshKey}
+              onDocumentsLoaded={handleDocumentsLoaded}
+              renderEmptyState={showConnectPrompt ? renderConnectPrompt : undefined}
             />
           ) : (
             <div className="panel__loading">

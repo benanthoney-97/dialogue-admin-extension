@@ -279,11 +279,19 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
     try {
       const base =
         (process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co").replace(/\/+$/, "")
+      const channelPayload = {
+        platform: previewChannel.provider,
+        channel_url: libraryUrl.trim(),
+        channel_description: previewChannel.description ?? null,
+        video_count: previewChannel.videoCount,
+        cover_image: previewChannel.thumbnail ?? null,
+      }
       const response = await fetch(`${base}/api/import-provider-documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           provider_id: providerId,
+          channel: channelPayload,
           documents: previewChannel.videos.map((video) => ({
             title: video.title,
             source_url: video.sourceUrl,
@@ -313,6 +321,12 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
     setStage("idle")
   }
 
+  const handleClearInput = () => {
+    setLibraryUrl("")
+    setInfo(null)
+    resetPreview()
+  }
+
   return (
     <div className="login-form connect-video-library">
       <div className="login-form__header">Connect your video library</div>
@@ -320,7 +334,30 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
         Paste in your YouTube, Vimeo, or other library URL.
       </div>
       <label className="login-form__label">
-        Video library URL
+        <div className="connect-video-library__label-row">
+          <span>Video library URL</span>
+          <button
+            type="button"
+            className="connect-video-library__input-reset"
+            onClick={handleClearInput}
+            aria-label="Clear video library input and preview"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              className="bi bi-arrow-clockwise"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
+              />
+              <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
+            </svg>
+          </button>
+        </div>
         <input
           type="url"
           placeholder="https://www.youtube.com/channel/..."
@@ -330,67 +367,95 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
       </label>
       {stage === "preview" && previewChannel && (
         <div className="connect-video-preview">
-          <div className="connect-video-preview__header">
-            <div>
-              <strong>{previewChannel.videoCount} videos ready</strong>
-              <p className="connect-video-preview__subtitle">
-                Confirm the channel before saving to your library.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="connect-video-preview__reset"
-              onClick={resetPreview}
-            >
-              Start over
-            </button>
-          </div>
           <article className="connect-video-preview__card connect-video-preview__card--summary">
-            {previewChannel.thumbnail && (
+            <div className="connect-video-preview__provider-badge">
               <img
-                src={previewChannel.thumbnail}
-                alt={previewChannel.title}
-                className="connect-video-preview__thumb"
+                src={
+                  previewChannel.provider === "youtube"
+                  ? "https://lmnoftavsxqvkpcleehi.supabase.co/storage/v1/object/public/platform_logos/YouTube_full-color_icon_(2017).svg.png"
+                    : "https://lmnoftavsxqvkpcleehi.supabase.co/storage/v1/object/public/platform_logos/1280px-Vimeo_Logo.svg.png"
+                }
+                alt={`${previewChannel.provider} logo`}
               />
-            )}
-            <div className="connect-video-preview__content">
-              <div className="connect-video-preview__title">
-                {previewChannel.title}
-              </div>
-              <p className="connect-video-preview__meta">
-                {previewChannel.provider} • {previewChannel.videoCount} videos
-                {previewChannel.latestVideoDate && (
-                  <> • Latest video {formatPreviewDate(previewChannel.latestVideoDate)}</>
-                )}
-              </p>
-              {previewChannel.description && (
-                <p className="connect-video-preview__description">
-                  {previewChannel.description}
-                </p>
-              )}
             </div>
+            <div className="connect-video-preview__metadata-grid">
+              {previewChannel.thumbnail && (
+                <img
+                  src={previewChannel.thumbnail}
+                  alt={previewChannel.title}
+                  className="connect-video-preview__thumb"
+                />
+              )}
+              <div className="connect-video-preview__content">
+                <div className="connect-video-preview__title">
+                  {previewChannel.title}
+                </div>
+                <p className="connect-video-preview__meta">
+                  {previewChannel.videoCount} videos
+                  {previewChannel.latestVideoDate && (
+                    <> • Latest video {formatPreviewDate(previewChannel.latestVideoDate)}</>
+                  )}
+                </p>
+              </div>
+            </div>
+            {previewChannel.description && (
+              <p className="connect-video-preview__description connect-video-preview__description--full">
+                {previewChannel.description}
+              </p>
+            )}
           </article>
           <button
             type="button"
-            className="login-form__cta login-form__cta--full"
+            className={`login-form__cta login-form__cta--full${isSaving ? " connect-video-saving" : ""}`}
             disabled={isSaving}
             onClick={handleSave}
           >
-            {isSaving ? "Saving…" : "Save to my library"}
+            {isSaving ? (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  aria-hidden="true"
+                  className="connect-video-saving-icon"
+                >
+                  <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+                </svg>
+                <span className="connect-video-saving-text">Saving…</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  aria-hidden="true"
+                >
+                  <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+                </svg>
+                {`Connect to ${previewChannel ? previewChannel.title : "channel"}`}
+              </>
+            )}
           </button>
         </div>
       )}
       {info && <div className="login-form__info">{info}</div>}
-      <div className="login-form__actions login-form__actions--full">
-        <button
-          type="button"
-          disabled={!isValidUrl(libraryUrl) || isFetching || stage === "preview"}
-          className="login-form__cta login-form__cta--full"
-          onClick={handleNext}
-        >
-          {isFetching ? "Loading…" : "Connect"}
-        </button>
-      </div>
+      {stage !== "preview" && (
+        <div className="login-form__actions login-form__actions--full">
+          <button
+            type="button"
+            disabled={!isValidUrl(libraryUrl) || isFetching}
+            className="login-form__cta login-form__cta--full"
+            onClick={handleNext}
+          >
+            {isFetching ? "Loading…" : "Connect"}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

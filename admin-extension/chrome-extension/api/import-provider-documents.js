@@ -35,6 +35,7 @@ async function handler(req, res) {
 
   const providerId = Number(payload.provider_id)
   const documents = Array.isArray(payload.documents) ? payload.documents : []
+  const channel = payload.channel ?? {}
 
   if (!providerId) {
     res.writeHead(400, { "Content-Type": "application/json" })
@@ -42,9 +43,18 @@ async function handler(req, res) {
     return
   }
 
+  const platform = channel.platform
+  const channelUrl = channel.channel_url?.trim()
+  if (!platform || !channelUrl) {
+    res.writeHead(400, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ error: "channel platform and URL are required" }))
+    return
+  }
+
   const validDocs = documents
     .map((doc) => ({
       provider_id: providerId,
+      channel_id: null,
       title: doc.title ?? null,
       source_url: doc.source_url ?? null,
       media_type: doc.media_type ?? "video",
@@ -60,9 +70,43 @@ async function handler(req, res) {
     return
   }
 
+  const channelPayload = {
+    provider_id: providerId,
+    platform,
+    channel_url: channelUrl,
+    channel_description: channel.channel_description ?? null,
+    video_count: Number(channel.video_count ?? null),
+    cover_image: channel.cover_image ?? null,
+  }
+  const { data: channelData, error: channelError } = await supabase
+    .from("provider_channels")
+    .upsert(channelPayload, { onConflict: "provider_id,platform,channel_url" })
+    .select("id")
+    .single()
+
+  if (channelError) {
+    console.error("[import-provider-documents] channel upsert error", channelError)
+    res.writeHead(500, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ error: channelError.message }))
+    return
+  }
+
+  const channelId = channelData?.id
+  if (!channelId) {
+    res.writeHead(500, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ error: "Unable to resolve channel entry" }))
+    return
+  }
+
+  const docsWithChannel = validDocs.map((doc) => ({
+    ...doc,
+    channel_id: channelId,
+  }))
+
   const { error } = await supabase
     .from("provider_documents")
-    .upsert(validDocs, { onConflict: "provider_id,source_url" })
+    .upsert(docsWithChannel, { onConflict: "provider_id,source_url" })
+    .eq("channel_id", channelId)
 
   if (error) {
     console.error("[import-provider-documents] error", error)
