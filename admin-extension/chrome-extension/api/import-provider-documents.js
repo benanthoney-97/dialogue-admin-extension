@@ -104,6 +104,31 @@ async function handler(req, res) {
     channel_id: channelId,
   }))
 
+  const playlistsInput = Array.isArray(channel.playlists) ? channel.playlists : []
+  const playlistPayloads = playlistsInput
+    .map((pl) => ({
+      id: pl.id,
+      provider_channel_id: channelId,
+      title: pl.title ?? null,
+      cover_image: pl.cover_image ?? null,
+      video_count: Number(pl.itemCount ?? null),
+      description: pl.description ?? null,
+    }))
+    .filter((pl) => pl.id)
+
+  if (playlistPayloads.length > 0) {
+    const { error: playlistError } = await supabase
+      .from("channel_playlists")
+      .upsert(playlistPayloads, { onConflict: "id,provider_channel_id" })
+
+    if (playlistError) {
+      console.error("[import-provider-documents] playlist upsert error", playlistError)
+      res.writeHead(500, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: playlistError.message }))
+      return
+    }
+  }
+
   const { error } = await supabase
     .from("provider_documents")
     .upsert(docsWithChannel, { onConflict: "provider_id,source_url" })

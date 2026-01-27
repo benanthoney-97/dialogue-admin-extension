@@ -8,16 +8,13 @@ export interface LibraryDocument {
   cover_image_url?: string
   is_active?: boolean
   provider_id?: number
-}
-
-export interface LibraryDocumentsGridState {
-  loading: boolean
-  error: string | null
-  documents: LibraryDocument[]
+  channel_id?: number
+  playlist_id?: string | null
 }
 
 export interface LibraryDocumentsGridProps {
   providerId: number
+  channelId?: number | null
   onDocumentSelect?: (doc: LibraryDocument) => void
   showChooseTime?: boolean
   refreshKey?: number
@@ -28,6 +25,7 @@ export interface LibraryDocumentsGridProps {
 
 export function LibraryDocumentsGrid({
   providerId,
+  channelId,
   onDocumentSelect,
   showChooseTime,
   refreshKey,
@@ -40,15 +38,34 @@ export function LibraryDocumentsGrid({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState("")
+  const [playlists, setPlaylists] = useState<
+    {
+      id: string
+      title: string
+      cover_image?: string | null
+      video_count?: number | null
+    }[]
+  >([])
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!channelId) {
+      setDocuments([])
+      setPlaylists([])
+      setError(null)
+      setLoading(false)
+      return
+    }
     let canceled = false
     setLoading(true)
     setError(null)
     const API_BASE =
       process.env.PLASMO_PUBLIC_BACKEND_URL || "https://app.dialogue-ai.co"
-    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-documents?provider_id=${resolvedProviderId}`
-    fetch(endpoint)
+    const endpoint = `${API_BASE.replace(/\/+$/, "")}/api/provider-channel-documents`
+    const url = new URL(endpoint)
+    url.searchParams.set("provider_id", String(resolvedProviderId))
+    url.searchParams.set("channel_id", String(channelId))
+    fetch(url.toString())
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Failed to load documents (${res.status})`)
@@ -57,27 +74,26 @@ export function LibraryDocumentsGrid({
       })
       .then((data) => {
         if (canceled) return
-        if (!Array.isArray(data)) {
+        if (!data || !Array.isArray(data.documents)) {
           throw new Error("Unexpected payload")
         }
-        setDocuments(data)
-        onDocumentsLoaded
-          ? onDocumentsLoaded(data.length)
-          : undefined
+        setDocuments(data.documents)
+        const playlistList = Array.isArray(data.playlists) ? data.playlists : []
+        setPlaylists(playlistList)
+        setSelectedPlaylistId(playlistList[0]?.id ?? null)
+        onDocumentsLoaded?.(data.documents.length)
       })
       .catch((err) => {
         if (canceled) return
         setError(err?.message ?? "Unable to load documents")
       })
       .finally(() => {
-        if (!canceled) {
-          setLoading(false)
-        }
+        if (!canceled) setLoading(false)
       })
     return () => {
       canceled = true
     }
-  }, [providerId, refreshKey, onDocumentsLoaded])
+  }, [providerId, refreshKey, channelId, resolvedProviderId, onDocumentsLoaded])
 
   const handleSelect = (doc: LibraryDocument) => {
     if (!onDocumentSelect) return
@@ -85,13 +101,20 @@ export function LibraryDocumentsGrid({
   }
 
   const normalizedFilter = filter.trim().toLowerCase()
-  const filteredDocs = documents.filter((doc) => {
+  const playlistFilteredDocs = selectedPlaylistId
+    ? documents.filter((doc) => doc.playlist_id === selectedPlaylistId)
+    : documents
+  const filteredDocs = playlistFilteredDocs.filter((doc) => {
     if (!normalizedFilter) return true
     return (
       (doc.title || "").toLowerCase().includes(normalizedFilter) ||
       (doc.media_type || "").toLowerCase().includes(normalizedFilter)
     )
   })
+
+  const handlePlaylistSelect = (playlistId: string | null) => {
+    setSelectedPlaylistId(playlistId)
+  }
 
   return (
     <div className="provider-documents">
@@ -105,6 +128,40 @@ export function LibraryDocumentsGrid({
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
               />
+            </div>
+          )}
+          {playlists.length > 0 && (
+            <div className="provider-documents__playlist-row">
+              <button
+                type="button"
+                className={`provider-documents__playlist-card${!selectedPlaylistId ? " provider-documents__playlist-card--active" : ""}`}
+                onClick={() => handlePlaylistSelect(null)}
+              >
+                All videos
+              </button>
+              {playlists.map((playlist) => (
+                <button
+                  key={playlist.id}
+                  type="button"
+                  className={`provider-documents__playlist-card${selectedPlaylistId === playlist.id ? " provider-documents__playlist-card--active" : ""}`}
+                  onClick={() => handlePlaylistSelect(playlist.id)}
+                >
+                  {playlist.cover_image && (
+                    <span
+                      className="provider-documents__playlist-card-thumb"
+                      style={{ backgroundImage: `url(${playlist.cover_image})` }}
+                    />
+                  )}
+                  <div className="provider-documents__playlist-card-text">
+                    <div className="provider-documents__playlist-card-title">{playlist.title}</div>
+                    {typeof playlist.video_count === "number" && (
+                      <div className="provider-documents__playlist-card-meta">
+                        {playlist.video_count} videos
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
           {loading && <div className="provider-documents__empty">Loading documents…</div>}
@@ -192,6 +249,55 @@ export function LibraryDocumentsGrid({
           font-family: inherit;
         }
 
+        .provider-documents__playlist-row {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .provider-documents__playlist-card {
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          border-radius: 12px;
+          padding: 6px 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          flex: 0 0 auto;
+        }
+
+        .provider-documents__playlist-card--active {
+          border-color: #0f172a;
+          background: #eef2ff;
+        }
+
+        .provider-documents__playlist-card-thumb {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background-size: cover;
+          background-position: center;
+        }
+
+        .provider-documents__playlist-card-text {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .provider-documents__playlist-card-title {
+          font-weight: 600;
+          font-size: 12px;
+          margin-bottom: 2px;
+        }
+
+        .provider-documents__playlist-card-meta {
+          font-size: 11px;
+          color: #475467;
+        }
+
         .provider-documents__grid {
           flex: 1 1 auto;
           min-height: 0;
@@ -204,83 +310,41 @@ export function LibraryDocumentsGrid({
           grid-auto-rows: minmax(auto, auto);
         }
 
-                .doc-card {
+        .doc-card {
           display: flex;
           flex-direction: column;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          background: #fff;
           overflow: hidden;
-          background: #f8fafc;
-          min-height: 150px;
+          border: 1px solid #e2e8f0;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .doc-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 16px 30px rgba(15, 23, 42, 0.15);
         }
 
         .doc-cover {
           width: 100%;
-          height: 90px;
-          background-color: #cbd5f5;
+          padding-top: 56%;
           background-size: cover;
           background-position: center;
-          flex-shrink: 0;
         }
 
         .doc-content {
-          padding: 10px 12px;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
+          padding: 12px;
         }
 
         .doc-title {
-          font-size: 14px;
-          font-weight: 600;
-          color: #0f172a;
-          line-height: 1.3;
+          font-size: 13px;
           margin: 0;
-          flex: 1;
-          overflow: hidden;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          text-overflow: ellipsis;
+          font-weight: 600;
         }
 
-        .doc-meta {
-          font-size: 12px;
-          color: #475467;
-          display: flex;
-          justify-content: space-between;
-          gap: 4px;
-          align-items: center;
+        .doc-card__overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
         }
 
-        .doc-media-icon {
-          display: inline-flex;
-          width: 20px;
-          height: 20px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          background: rgba(15, 23, 42, 0.05);
-          color: #0f172a;
-        }
-
-        .doc-meta a {
-          color: #0f172a;
-          text-decoration: underline;
-        }
-
-        .provider-documents__empty {
-          padding: 24px;
-          text-align: center;
-          color: #a1a1aa;
+        .doc-card__choose-time {
+          border: none;
         }
       `}</style>
     </div>

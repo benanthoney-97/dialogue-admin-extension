@@ -10,6 +10,14 @@ type LibrarySource =
   | { provider: "youtube"; channelId?: string; username?: string }
   | { provider: "vimeo"; user?: string; channel?: string }
 
+type PlaylistMetadata = {
+  id: string
+  title: string
+  description?: string | null
+  cover_image?: string | null
+  itemCount?: number | null
+}
+
 type VideoPreview = {
   id: string
   title: string
@@ -30,6 +38,7 @@ type ChannelPreview = {
   videoCount: number
   latestVideoDate?: string | null
   videos: VideoPreview[]
+  playlists?: PlaylistMetadata[]
 }
 
 const parseYouTube = (parsed: URL): LibrarySource | null => {
@@ -188,6 +197,18 @@ const convertYouTubePayload = (payload: any): ChannelPreview => {
     channel.thumbnails?.default?.url ??
     null
 
+  const playlistMeta: PlaylistMetadata[] = (payload?.playlists ?? []).map((pl: any) => ({
+    id: pl.id,
+    title: pl.title ?? "Untitled playlist",
+    description: pl.description ?? null,
+    cover_image:
+      pl.thumbnails?.high?.url ??
+      pl.thumbnails?.medium?.url ??
+      pl.thumbnails?.default?.url ??
+      null,
+    itemCount: pl.itemCount ?? null,
+  }))
+
   return {
     provider: "youtube",
     title: channel.title ?? "YouTube channel",
@@ -196,6 +217,7 @@ const convertYouTubePayload = (payload: any): ChannelPreview => {
     videoCount: aggregatedVideos.length,
     latestVideoDate: getLatestVideoDate(aggregatedVideos),
     videos: aggregatedVideos,
+    playlists: playlistMeta,
   }
 }
 
@@ -228,6 +250,7 @@ const convertVimeoPayload = (payload: any): ChannelPreview => {
     videoCount: videoEntries.length,
     latestVideoDate: getLatestVideoDate(videoEntries),
     videos: videoEntries,
+    playlists: [],
   }
 }
 
@@ -315,6 +338,7 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
         channel_description: previewChannel.description ?? null,
         video_count: previewChannel.videoCount,
         cover_image: previewChannel.thumbnail ?? null,
+        playlists: previewChannel.playlists ?? [],
       }
       const response = await fetch(`${base}/api/import-provider-documents`, {
         method: "POST",
