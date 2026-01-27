@@ -20,6 +20,18 @@ let lastMatchTabId: number | null = null
 let globalThresholdLevel: ThresholdLevel = determineThresholdLevel(THRESHOLD_DEFAULT)
 let globalThresholdValue = THRESHOLD_DEFAULT
 let newMatchModeActive = false
+const NEW_MATCH_SELECTION_KEY = "selectedNewMatchText"
+let latestNewMatchSelection: string | null = null
+
+const persistNewMatchSelection = (text: string | null) => {
+  latestNewMatchSelection = text
+  if (!chrome?.storage?.local) return
+  if (text === null) {
+    chrome.storage.local.remove(NEW_MATCH_SELECTION_KEY)
+    return
+  }
+  chrome.storage.local.set({ [NEW_MATCH_SELECTION_KEY]: text })
+}
 
 declare global {
   interface Window {
@@ -65,6 +77,10 @@ chrome.storage?.local?.get?.({ providerId: null }, (result) => {
     fetchSiteSettings(stored)
     registerDynamicContentScriptForProvider(stored)
   }
+})
+
+chrome.storage?.local?.get?.({ [NEW_MATCH_SELECTION_KEY]: null }, (result) => {
+  latestNewMatchSelection = result?.[NEW_MATCH_SELECTION_KEY] ?? null
 })
 
 chrome.storage?.onChanged?.addListener((changes, area) => {
@@ -546,8 +562,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
   if (message.action === "newMatchSelection") {
-    if (newMatchModeActive && message.text) {
-      chrome.runtime.sendMessage({ action: "deliverNewMatchSelection", text: message.text })
+    if (message.text) {
+      persistNewMatchSelection(message.text)
+      if (newMatchModeActive) {
+        chrome.runtime.sendMessage({ action: "deliverNewMatchSelection", text: message.text })
+      }
     }
     return false
   }

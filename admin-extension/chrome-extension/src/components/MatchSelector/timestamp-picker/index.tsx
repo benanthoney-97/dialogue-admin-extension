@@ -7,7 +7,6 @@ export interface TimestampPickerProps {
   onConfirm?: (seconds: number) => void | Promise<void>
   showActions?: boolean
   originUrl?: string | null
-  forceHardcodedEmbed?: boolean
 }
 
 const parseHashTimestamp = (hash?: string) => {
@@ -92,19 +91,12 @@ const buildYouTubeEmbedUrl = (
   embedUrl.searchParams.set("mute", "1")
   embedUrl.searchParams.set("rel", "0")
   embedUrl.searchParams.set("modestbranding", "1")
-
-  // ✅ CRITICAL CHANGE: Trust the override. 
-  // Only fallback to window.location if override is missing.
-  // Only clear it if it's an extension AND we have no override.
   let targetOrigin = originOverride;
 
   if (!targetOrigin) {
-    // Fallback for dev/web mode
     if (typeof window !== "undefined" && !window.location.origin.startsWith("chrome-extension")) {
       targetOrigin = window.location.origin;
     } else {
-      // If we are in an extension and have no override, we are stuck.
-      // Better to default to a known safe origin or leave blank.
       console.warn("[timestamp-picker] No originOverride provided in Extension context.");
     }
   }
@@ -113,7 +105,7 @@ const buildYouTubeEmbedUrl = (
     embedUrl.searchParams.set("origin", targetOrigin)
   }
 
-  embedUrl.searchParams.set("enablejsapi", "1") 
+  embedUrl.searchParams.set("enablejsapi", "1")
 
   if (startSeconds) {
     embedUrl.searchParams.set("start", String(startSeconds))
@@ -130,15 +122,10 @@ const resolveOriginFromUrl = (value?: string) => {
   }
 }
 
-const HARD_CODED_YOUTUBE_EMBED =
-  "https://www.youtube.com/embed/z4x9fkbe8SI?si=Cmug6F-_iHP9bjjL"
-
 const toEmbeddedPlayerUrl = (
   value: string | undefined,
-  originOverride?: string,
-  forceHardcoded?: boolean
+  originOverride?: string
 ) => {
-  if (forceHardcoded) return HARD_CODED_YOUTUBE_EMBED
   if (!value) return ""
   try {
     const parsed = new URL(value, window.location.href)
@@ -188,7 +175,6 @@ export function TimestampPicker({
   onConfirm,
   showActions = true,
   originUrl,
-  forceHardcodedEmbed = false,
 }: TimestampPickerProps) {
   const [currentValue, setCurrentValue] = useState(() => {
     return Math.max(0, initialTimestamp)
@@ -198,8 +184,8 @@ export function TimestampPicker({
   const [isCreating, setIsCreating] = useState(false)
   const originOverride = useMemo(() => resolveOriginFromUrl(originUrl ?? undefined), [originUrl])
   const embeddedPlayerUrl = useMemo(
-    () => toEmbeddedPlayerUrl(videoUrl, originOverride, forceHardcodedEmbed),
-    [forceHardcodedEmbed, originOverride, videoUrl]
+    () => toEmbeddedPlayerUrl(videoUrl, originOverride),
+    [originOverride, videoUrl]
   )
 
   useEffect(() => {
@@ -316,11 +302,11 @@ export function TimestampPicker({
   return (
     <div className="timestamp-picker">
       <div className="timestamp-picker__player">
-<iframe
-  ref={iframeRef}
-  title="preview"
-  src={embeddedPlayerUrl}
-  allow="autoplay; fullscreen"
+        <iframe
+          ref={iframeRef}
+          title="preview"
+          src={embeddedPlayerUrl}
+          allow="autoplay; fullscreen"
   referrerPolicy="no-referrer" 
   sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
 ></iframe>

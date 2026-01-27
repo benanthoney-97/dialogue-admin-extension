@@ -111,20 +111,6 @@ export function LibraryDocumentsGrid({
     }
   }, [filter, searchExpanded])
 
-  useEffect(() => {
-    if (playlists.length === 0) {
-      hasSetInitialTab.current = false
-      if (activeView === "playlists") {
-        setActiveView("videos")
-      }
-      return
-    }
-    if (!hasSetInitialTab.current) {
-      setActiveView("playlists")
-      hasSetInitialTab.current = true
-    }
-  }, [playlists, activeView])
-
   const handleSelect = (doc: LibraryDocument) => {
     if (!onDocumentSelect) return
     onDocumentSelect(doc)
@@ -138,6 +124,20 @@ export function LibraryDocumentsGrid({
       (doc.media_type || "").toLowerCase().includes(normalizedFilter)
     )
   })
+
+  useEffect(() => {
+    if (playlists.length === 0) {
+      hasSetInitialTab.current = false
+      if (!loading && filteredDocs.length > 0 && activeView === "playlists") {
+        setActiveView("videos")
+      }
+      return
+    }
+    if (!hasSetInitialTab.current) {
+      setActiveView("playlists")
+      hasSetInitialTab.current = true
+    }
+  }, [playlists, activeView, filteredDocs.length, loading])
 
 const sortByCreatedAtDesc = (items: LibraryDocument[]) =>
     [...items].sort((a, b) => {

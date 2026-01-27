@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import "./style.css"
 import { DecisionCard } from "./components/decision-card"
 import type { DecisionCardProps } from "./components/decision-card"
@@ -70,6 +70,17 @@ type NavSection = "page" | "sitemap" | "new-match" | "library" | "measure" | "ac
 const logoUrl =
   "https://lmnoftavsxqvkpcleehi.supabase.co/storage/v1/object/public/platform_logos/694fab5082d1c37ac311541c_Untitled_design__9_-removebg-preview%20(1).png"
 
+const NEW_MATCH_SELECTION_KEY = "selectedNewMatchText"
+
+const persistNewMatchSelection = (text: string | null) => {
+  if (!chrome?.storage?.local) return
+  if (text === null) {
+    chrome.storage.local.remove(NEW_MATCH_SELECTION_KEY)
+    return
+  }
+  chrome.storage.local.set({ [NEW_MATCH_SELECTION_KEY]: text })
+}
+
 function SidePanel() {
   const [match, setMatch] = useState<MatchPayload | null>(null)
   const [view, setView] = useState<"documents" | "timestamp" | null>(null)
@@ -88,9 +99,12 @@ function SidePanel() {
   const [removeConfirmLoading, setRemoveConfirmLoading] = useState(false)
   const [pendingRemoveMatchId, setPendingRemoveMatchId] = useState<number | null>(null)
   const [selectedNewMatchText, setSelectedNewMatchText] = useState<string | null>(null)
+  const updateSelectedNewMatchText = useCallback((value: string | null) => {
+    setSelectedNewMatchText(value)
+    persistNewMatchSelection(value)
+  }, [])
   const [manualStage, setManualStage] = useState<"prompt" | "documents" | "timestamp">("prompt")
   const [manualSelectedDoc, setManualSelectedDoc] = useState<ProviderDocument | null>(null)
-  const [manualLibraryTab, setManualLibraryTab] = useState<"provider" | "marketplace">("provider")
   const [manualLibraryProviderId, setManualLibraryProviderId] = useState<number | null>(null)
   const [manualLibraryProviderName, setManualLibraryProviderName] = useState<string | null>(null)
   const [autoMatchResults, setAutoMatchResults] = useState<any[]>([])
@@ -176,7 +190,7 @@ const newMatchModeRef = useRef(false)
         }
       } else if (message.action === "deliverNewMatchSelection") {
         if (message.text) {
-          setSelectedNewMatchText(message.text)
+          updateSelectedNewMatchText(message.text)
           setToastMessage("Text captured")
         }
       }
@@ -193,6 +207,16 @@ const newMatchModeRef = useRef(false)
     return () => {
       chrome.runtime.onMessage.removeListener(listener)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!chrome?.storage?.local) return
+    chrome.storage.local.get({ [NEW_MATCH_SELECTION_KEY]: null }, (result) => {
+      const stored = result?.[NEW_MATCH_SELECTION_KEY] ?? null
+      if (stored) {
+        updateSelectedNewMatchText(stored)
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -240,7 +264,6 @@ const newMatchModeRef = useRef(false)
   }
 
   const resetManualLibrarySelection = () => {
-    setManualLibraryTab("provider")
     setManualLibraryProviderId(null)
     setManualLibraryProviderName(null)
   }
@@ -248,13 +271,11 @@ const newMatchModeRef = useRef(false)
   const handleManualLibraryProviderSelect = (provider: LibraryProvider) => {
     setManualLibraryProviderId(provider.id)
     setManualLibraryProviderName(provider.name ?? null)
-    setManualLibraryTab("provider")
   }
 
   const handleManualLibraryProvidersBack = () => {
     setManualLibraryProviderId(null)
     setManualLibraryProviderName(null)
-    setManualLibraryTab("marketplace")
   }
 
   const resetManualFlow = () => {
@@ -271,7 +292,7 @@ const newMatchModeRef = useRef(false)
 
   const enterNewMatchMode = () => {
     newMatchModeRef.current = true
-    setSelectedNewMatchText(null)
+    updateSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "enterNewMatchMode" })
   }
@@ -358,7 +379,7 @@ const newMatchModeRef = useRef(false)
       const createdMatch = await response.json()
       setToastMessage("Match saved")
       setAutoMatchResults([])
-      setSelectedNewMatchText(null)
+      updateSelectedNewMatchText(null)
       chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
       setActiveSection("page")
       setMatch(createdMatch)
@@ -416,7 +437,19 @@ const newMatchModeRef = useRef(false)
 
   const handleManualDocumentSelect = (doc: ProviderDocument) => {
     setManualSelectedDoc(doc)
+    previewLibraryVideoOnPage(doc)
     setManualStage("timestamp")
+  }
+
+  const previewLibraryVideoOnPage = (doc?: ProviderDocument) => {
+    const embedUrl = buildVideoUrl(doc?.source_url)
+    if (!embedUrl) return
+    try {
+      console.log("[sidepanel] previewLibraryVideo request", { sourceUrl: doc?.source_url, embedUrl })
+      chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl })
+    } catch (error) {
+      console.error("[sidepanel] previewLibraryVideo message failed", error)
+    }
   }
 
   const handleManualBackToDocuments = () => {
@@ -457,7 +490,7 @@ const newMatchModeRef = useRef(false)
       setToastMessage("Match saved")
       setManualStage("prompt")
       setManualSelectedDoc(null)
-      setSelectedNewMatchText(null)
+      updateSelectedNewMatchText(null)
       chrome.runtime.sendMessage({ action: "restoreMatchHighlight", match: createdMatch })
       setActiveSection("page")
       setMatch(createdMatch)
@@ -667,7 +700,7 @@ const newMatchModeRef = useRef(false)
     setAutoMatchResults([])
     setAutoMatchLoading(false)
     setToastMessage("New match mode reset")
-    setSelectedNewMatchText(null)
+    updateSelectedNewMatchText(null)
     resetManualFlow()
     chrome.runtime.sendMessage({ action: "exitNewMatchMode" })
     setPageNewMatchVisible(false)
@@ -778,7 +811,42 @@ const newMatchModeRef = useRef(false)
     return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&title=0&byline=0&portrait=0${suffix}`
   }
 
+  const extractYouTubeId = (sourceUrl?: string): string | null => {
+    if (!sourceUrl) return null
+    const patterns = [
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/,
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^?&/]+)/,
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^?&/]+)/,
+      /(?:https?:\/\/)?youtu\.be\/([^?&/]+)/,
+    ]
+    for (const pattern of patterns) {
+      const match = sourceUrl.match(pattern)
+      if (match && match[1]) {
+        return match[1]
+      }
+    }
+    return null
+  }
+
+  const toYouTubeEmbedUrl = (sourceUrl?: string, seconds?: number) => {
+    const videoId = extractYouTubeId(sourceUrl)
+    if (!videoId) return ""
+    const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`)
+    embedUrl.searchParams.set("autoplay", "1")
+    embedUrl.searchParams.set("mute", "1")
+    embedUrl.searchParams.set("rel", "0")
+    embedUrl.searchParams.set("enablejsapi", "1")
+    if (typeof seconds === "number" && Number.isFinite(seconds)) {
+      embedUrl.searchParams.set("start", String(Math.max(0, Math.round(seconds))))
+    }
+    return embedUrl.toString()
+  }
+
   const buildVideoUrl = (sourceUrl?: string, seconds?: number) => {
+    const youtubeEmbed = toYouTubeEmbedUrl(sourceUrl, seconds)
+    if (youtubeEmbed) {
+      return youtubeEmbed
+    }
     return toVimeoPlayerEmbedUrl(sourceUrl, seconds)
   }
 
@@ -944,39 +1012,16 @@ const newMatchModeRef = useRef(false)
                     </div>
                   ) : (
                     <>
-                      <div className="library-tabs-pill">
-                        <button
-                          type="button"
-                          className={`library-tabs-pill__button${manualLibraryTab === "provider" ? " library-tabs-pill__button--active" : ""}`}
-                          onClick={() => setManualLibraryTab("provider")}
-                        >
-                          {providerTabLabel}
-                        </button>
-                        <button
-                          type="button"
-                          className={`library-tabs-pill__button${manualLibraryTab === "marketplace" ? " library-tabs-pill__button--active" : ""}`}
-                          onClick={() => setManualLibraryTab("marketplace")}
-                        >
-                          Marketplace
-                        </button>
-                      </div>
-                      {manualLibraryTab === "provider" ? (
-                        resolvedProviderId ? (
-                          <LibraryDocumentsGrid
-                            providerId={resolvedProviderId}
-                            onDocumentSelect={handleManualDocumentSelect}
-                            showChooseTime
-                          />
-                        ) : (
-                          <div className="panel__loading">
-                            <span>Loading provider data…</span>
-                          </div>
-                        )
-                      ) : (
-                        <LibraryProvidersGrid
-                          excludeProviderId={resolvedProviderId ?? undefined}
-                          onSelect={handleManualLibraryProviderSelect}
+                      {resolvedProviderId ? (
+                        <LibraryDocumentsGrid
+                          providerId={resolvedProviderId}
+                          onDocumentSelect={handleManualDocumentSelect}
+                          showChooseTime
                         />
+                      ) : (
+                        <div className="panel__loading">
+                          <span>Loading provider data…</span>
+                        </div>
                       )}
                     </>
                   )}
@@ -996,16 +1041,58 @@ const newMatchModeRef = useRef(false)
           />
         ) : null
       default:
+        if (!selectedNewMatchText) {
+          return (
+            <NewMatchPrompt
+              selectedText={selectedNewMatchText}
+              onGetMatches={handleGetMatches}
+              onChooseManually={handleChooseManually}
+              onReset={handleNewMatchPromptReset}
+              matchResults={autoMatchResults}
+              loadingMatches={autoMatchLoading}
+              onSelectMatch={handleSelectMatchSuggestion}
+            />
+          )
+        }
         return (
-        <NewMatchPrompt
-          selectedText={selectedNewMatchText}
-          onGetMatches={handleGetMatches}
-          onChooseManually={handleChooseManually}
-          onReset={handleNewMatchPromptReset}
-          matchResults={autoMatchResults}
-          loadingMatches={autoMatchLoading}
-          onSelectMatch={handleSelectMatchSuggestion}
-        />
+          <div className="new-match-split">
+            <div className="new-match-split__prompt">
+              <NewMatchPrompt
+                selectedText={selectedNewMatchText}
+                onGetMatches={handleGetMatches}
+                onChooseManually={handleChooseManually}
+                onReset={handleNewMatchPromptReset}
+                matchResults={autoMatchResults}
+                loadingMatches={autoMatchLoading}
+                onSelectMatch={handleSelectMatchSuggestion}
+              />
+            </div>
+            <div className="new-match-split__hint">
+              or choose from your library
+            </div>
+            <div className="new-match-split__library">
+              <LibraryView
+                showDecisionCard={false}
+                cardProps={cardProps}
+                decisionCardBackLabel={decisionCardBackLabel}
+                decisionCardBackAriaLabel={decisionCardBackAriaLabel}
+                onDecisionSelect={handleDecisionSelect}
+                onDecisionBack={handleDecisionBack}
+                selectedLibraryProviderId={selectedLibraryProviderId}
+                selectedLibraryProviderName={selectedLibraryProviderName}
+                onLibraryProvidersBack={handleLibraryProvidersBack}
+                onLibraryDocumentSelect={handleManualDocumentSelect}
+                libraryTab={libraryTab}
+                providerId={providerId}
+                onLibraryTabChange={handleLibraryTabChange}
+                onLibraryProviderSelect={handleLibraryProviderSelect}
+                onConnectLibrary={handleConnectLibrary}
+                libraryRefreshKey={libraryRefreshKey}
+                providerTabLabel="Your Library"
+                hideProvidersHeading
+              />
+            </div>
+          </div>
         )
     }
   }

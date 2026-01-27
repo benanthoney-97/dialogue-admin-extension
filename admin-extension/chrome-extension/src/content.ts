@@ -1,5 +1,29 @@
 import type { PlasmoCSConfig } from "plasmo"
 
+type PreviewPlayerRect = {
+  left: number
+  bottom: number
+  width: number
+  height: number
+}
+
+type DialoguePlayerModule = {
+  initVisitorPlayer: () => {
+    show: (payload: {
+      rect?: PreviewPlayerRect
+      width?: number
+      ratio?: number
+      url?: string
+    }) => void
+  }
+}
+
+declare global {
+  interface Window {
+    DialoguePlayer?: DialoguePlayerModule
+  }
+}
+
 export const config: PlasmoCSConfig = {
   matches: [
 "https://*/*"
@@ -12,6 +36,74 @@ console.log("[content] script executing on", window.location.href)
 
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
 let cachedMatchMap: MatchPayload[] | null = null
+const PLAYER_SCRIPT_ID = "dialogue-player-component"
+let playerModulePromise: Promise<typeof window.DialoguePlayer> | null = null
+let activeVisitorPlayer: ReturnType<typeof window.DialoguePlayer["initVisitorPlayer"]> | null = null
+
+const loadPlayerComponent = () => {
+  if (window.DialoguePlayer) {
+    return Promise.resolve(window.DialoguePlayer)
+  }
+  if (playerModulePromise) {
+    return playerModulePromise
+  }
+  playerModulePromise = new Promise((resolve) => {
+    const existing = document.getElementById(PLAYER_SCRIPT_ID) as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener(
+        "load",
+        () => resolve(window.DialoguePlayer),
+        { once: true }
+      )
+      existing.addEventListener(
+        "error",
+        () => resolve(window.DialoguePlayer),
+        { once: true }
+      )
+      return
+    }
+    const script = document.createElement("script")
+    script.id = PLAYER_SCRIPT_ID
+    script.src = chrome.runtime.getURL("static/player.js")
+    script.async = true
+    script.onload = () => resolve(window.DialoguePlayer)
+    script.onerror = () => resolve(window.DialoguePlayer)
+    document.head.appendChild(script)
+  })
+  return playerModulePromise
+}
+
+const ensureVisitorPlayer = async () => {
+  if (activeVisitorPlayer) {
+    return activeVisitorPlayer
+  }
+  const module = await loadPlayerComponent()
+  if (!module?.initVisitorPlayer) {
+    return null
+  }
+  activeVisitorPlayer = module.initVisitorPlayer()
+  return activeVisitorPlayer
+}
+
+const DEFAULT_PREVIEW_RECT = () => ({
+  left: Math.max(12, window.innerWidth - 340),
+  bottom: 72,
+  width: 0,
+  height: 0,
+})
+
+const previewLibraryVideo = async (__url?: string, rect?: PreviewPlayerRect | null, width?: number, ratio?: number) => {
+  const url = __url || ""
+  if (!url) return
+  const player = await ensureVisitorPlayer()
+  if (!player) return
+  player.show({
+    rect: rect ?? DEFAULT_PREVIEW_RECT(),
+    width: width ?? 320,
+    ratio: ratio ?? 16 / 9,
+    url,
+  })
+}
 
 const parseMatchMapFromScript = () => {
   const script = document.getElementById(MATCH_MAP_SCRIPT_ID)
@@ -127,6 +219,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const id = request.page_match_id ?? request.match?.page_match_id ?? request.match?.id
     console.log("[content] removeMatchHighlight received", id)
     invokePageScriptRemoval(id)
+    return false
+  }
+  if (request.action === "previewLibraryVideo") {
+    previewLibraryVideo(request.videoUrl)
     return false
   }
 

@@ -48,12 +48,18 @@ export function SingleViewVideo({
       sourceUrl: document.source_url,
     })
   }, [document])
+
+  useEffect(() => {
+    console.log("[SingleViewVideo] view rendered", {
+      visible: true,
+      documentId: document?.id,
+    })
+  }, [document?.id])
   const initialTimestamp = extractTimestamp(videoUrl)
   const [matches, setMatches] = useState<PageMatchSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL;
-
   useEffect(() => {
     const docId = document?.id
     if (!docId || !providerId) {
@@ -125,7 +131,6 @@ export function SingleViewVideo({
         onConfirm={onConfirm}
         showActions={false}
         originUrl={pageUrl}
-        forceHardcodedEmbed
       />
         <div className="single-view-video__matches">
           <div className="single-view-video__matches-header">

@@ -56,6 +56,7 @@ export interface LibraryViewProps {
   onLibraryProviderSelect: (provider: LibraryProvider) => void
   onConnectLibrary: (libraryUrl: string) => Promise<void>
   libraryRefreshKey: number
+  hideProvidersHeading?: boolean
 }
 
 export function LibraryView({
@@ -76,6 +77,7 @@ export function LibraryView({
   providerTabLabel,
   onConnectLibrary,
   libraryRefreshKey,
+  hideProvidersHeading,
 }: LibraryViewProps) {
   const [channels, setChannels] = useState<ChannelSummary[]>([])
   const [channelsLoading, setChannelsLoading] = useState(false)
@@ -307,12 +309,14 @@ export function LibraryView({
   return (
     <div className="library-main-shell">
       <div className="library-providers-shell">
-        <div className="library-providers-shell__header">
-          <div className="library-providers-shell__title">Video channels</div>
-          <p className="library-providers-shell__subtitle">
-            Connect your video library and partner channels.
-          </p>
-        </div>
+        {!hideProvidersHeading && (
+          <div className="library-providers-shell__header">
+            <div className="library-providers-shell__title">Video channels</div>
+            <p className="library-providers-shell__subtitle">
+              Connect your video library and partner channels.
+            </p>
+          </div>
+        )}
         {renderChannelList()}
       </div>
     </div>
