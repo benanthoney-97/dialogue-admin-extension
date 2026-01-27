@@ -7,26 +7,112 @@ export interface TimestampPickerProps {
   onConfirm?: (seconds: number) => void | Promise<void>
   showActions?: boolean
 }
-const toVimeoPlayerUrl = (value: string | undefined) => {
+
+const parseHashTimestamp = (hash?: string) => {
+  if (!hash) return 0
+  const trimmed = hash.replace(/^#/, "")
+  const timeValue = trimmed.startsWith("t=") ? trimmed.slice(2) : trimmed
+  if (!timeValue) return 0
+  const regex = /(\d+)(h|m|s)?/g
+  let total = 0
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(timeValue))) {
+    const value = Number(match[1])
+    if (Number.isNaN(value)) continue
+    switch (match[2]) {
+      case "h":
+        total += value * 3600
+        break
+      case "m":
+        total += value * 60
+        break
+      case "s":
+      default:
+        total += value
+        break
+    }
+  }
+  if (total === 0 && /^\d+$/.test(timeValue)) {
+    total = Number(timeValue)
+  }
+  return total
+}
+
+const parseYouTubeId = (parsed: URL): string | null => {
+  const host = parsed.hostname.toLowerCase()
+  if (host.endsWith("youtu.be")) {
+    const id = parsed.pathname.slice(1).split("/")[0]
+    return id || null
+  }
+  const searchId = parsed.searchParams.get("v")
+  if (searchId) return searchId
+  const embedMatch = parsed.pathname.match(/\/embed\/([A-Za-z0-9_-]+)/)
+  if (embedMatch) return embedMatch[1]
+  const shortsMatch = parsed.pathname.match(/\/shorts\/([A-Za-z0-9_-]+)/)
+  if (shortsMatch) return shortsMatch[1]
+  return null
+}
+
+const buildVimeoEmbedUrl = (parsed: URL, startSeconds: number) => {
+  const videoHost = "https://player.vimeo.com"
+  const pathMatch =
+    parsed.pathname.match(/\/video\/(\d+)/) || parsed.pathname.match(/\/(\d+)/)
+  if (!pathMatch) {
+    return ""
+  }
+  const videoId = pathMatch[1]
+  const embedUrl = new URL(`${videoHost}/video/${videoId}`)
+  const playerId = "dialogue-timestamp-player"
+  embedUrl.searchParams.set("api", "1")
+  embedUrl.searchParams.set("player_id", playerId)
+  embedUrl.searchParams.set("autoplay", "1")
+  embedUrl.searchParams.set("muted", "1")
+  embedUrl.searchParams.set("background", "0")
+  if (startSeconds) {
+    embedUrl.searchParams.set("start", String(startSeconds))
+  }
+  if (parsed.hash) {
+    embedUrl.hash = parsed.hash
+  }
+  return embedUrl.toString()
+}
+
+const buildYouTubeEmbedUrl = (parsed: URL, startSeconds: number) => {
+  const videoId = parseYouTubeId(parsed)
+  if (!videoId) return ""
+  const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`)
+  embedUrl.searchParams.set("autoplay", "1")
+  embedUrl.searchParams.set("mute", "1")
+  embedUrl.searchParams.set("rel", "0")
+  const origin = window.location.origin || ""
+  if (origin) {
+    embedUrl.searchParams.set("origin", origin)
+  }
+  embedUrl.searchParams.set("enablejsapi", "1")
+  if (startSeconds) {
+    embedUrl.searchParams.set("start", String(startSeconds))
+  }
+  return embedUrl.toString()
+}
+
+const toEmbeddedPlayerUrl = (value: string | undefined) => {
   if (!value) return ""
   try {
     const parsed = new URL(value, window.location.href)
-    const videoHost = "https://player.vimeo.com"
-    const pathMatch = parsed.pathname.match(/\/video\/(\d+)/) || parsed.pathname.match(/\/(\d+)/)
-    if (!pathMatch) {
-      return value
+    const startSeconds = parseHashTimestamp(parsed.hash)
+    const host = parsed.hostname.toLowerCase()
+    if (host.includes("vimeo.com")) {
+      return buildVimeoEmbedUrl(parsed, startSeconds) || value
     }
-    const videoId = pathMatch[1]
-    const embedUrl = new URL(`${videoHost}/video/${videoId}`)
-    const playerId = "dialogue-timestamp-player"
-    embedUrl.searchParams.set("api", "1")
-    embedUrl.searchParams.set("player_id", playerId)
-    embedUrl.searchParams.set("autoplay", "1")
-    embedUrl.searchParams.set("muted", "1")
-    if (parsed.hash) {
-      embedUrl.hash = parsed.hash
+    if (
+      host.includes("youtube.com") ||
+      host.includes("youtu.be") ||
+      host.includes("youtube-nocookie.com")
+    ) {
+      const embed = buildYouTubeEmbedUrl(parsed, startSeconds)
+      if (embed) return embed
     }
-    return embedUrl.toString()
+    return value
   } catch {
     return value
   }
@@ -160,7 +246,7 @@ export function TimestampPicker({
         <iframe
           ref={iframeRef}
           title="preview"
-          src={toVimeoPlayerUrl(videoUrl)}
+          src={toEmbeddedPlayerUrl(videoUrl)}
           allow="autoplay; fullscreen"
         ></iframe>
       </div>

@@ -43,8 +43,33 @@ async function handler(req, res) {
     return
   }
 
+  let channels = Array.isArray(data) ? data : []
+  if (channels.length > 0) {
+    const channelIds = channels.map((channel) => channel.id).filter(Boolean)
+    const { data: latestDocs, error: docsError } = await supabase
+      .from("provider_documents")
+      .select("channel_id,created_at")
+      .in("channel_id", channelIds)
+      .eq("provider_id", providerId)
+      .order("created_at", { ascending: false })
+      .limit(1000)
+
+    if (!docsError && Array.isArray(latestDocs)) {
+      const latestMap = new Map()
+      for (const doc of latestDocs) {
+        if (!doc.channel_id || latestMap.has(doc.channel_id)) continue
+        latestMap.set(doc.channel_id, doc.created_at)
+        if (latestMap.size === channelIds.length) break
+      }
+      channels = channels.map((channel) => ({
+        ...channel,
+        latest_video_at: latestMap.get(channel.id) ?? null,
+      }))
+    }
+  }
+
   res.writeHead(200, { "Content-Type": "application/json" })
-  res.end(JSON.stringify({ channels: data ?? [] }))
+  res.end(JSON.stringify({ channels }))
 }
 
 module.exports = handler

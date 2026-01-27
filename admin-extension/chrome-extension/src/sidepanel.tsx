@@ -520,6 +520,9 @@ const newMatchModeRef = useRef(false)
   const handleLibraryDocumentSelect = (doc: LibraryDocument) => {
     setLibraryDocument(doc)
   }
+  const handleLibraryDocumentClose = () => {
+    setLibraryDocument(null)
+  }
 
   const handleLibraryTabChange = (tab: "provider" | "marketplace") => {
     setLibraryTab(tab)
@@ -1093,6 +1096,15 @@ const newMatchModeRef = useRef(false)
         )
       }
       case "library": {
+        if (libraryDocument) {
+          return (
+            <SingleViewVideo
+              document={libraryDocument}
+              providerId={providerId ?? 0}
+              onBack={handleLibraryDocumentClose}
+            />
+          )
+        }
         return (
           <LibraryView
             showDecisionCard={decisionCardVisible && !!match}

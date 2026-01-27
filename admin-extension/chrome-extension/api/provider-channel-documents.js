@@ -61,11 +61,30 @@ async function handler(req, res) {
     return
   }
 
+  const playlistLatest = new Map()
+  documents?.forEach((doc) => {
+    if (!doc.playlist_id) return
+    const current = playlistLatest.get(doc.playlist_id)
+    const created = doc.created_at ? new Date(doc.created_at).getTime() : 0
+    if (!current || created > current) {
+      playlistLatest.set(doc.playlist_id, created)
+    }
+  })
+
+  const playlists = Array.isArray(channelData?.channel_playlists)
+    ? [...channelData.channel_playlists]
+    : []
+  playlists.sort((a, b) => {
+    const aTime = playlistLatest.get(a.id) ?? 0
+    const bTime = playlistLatest.get(b.id) ?? 0
+    return bTime - aTime
+  })
+
   res.writeHead(200, { "Content-Type": "application/json" })
   res.end(
     JSON.stringify({
       channel: channelData ?? null,
-      playlists: channelData?.channel_playlists ?? [],
+      playlists,
       documents: documents ?? [],
     })
   )

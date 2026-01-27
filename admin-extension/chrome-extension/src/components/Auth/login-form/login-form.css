@@ -212,6 +212,10 @@
   color: #475467;
   margin-bottom: 16px;
 }
+
+.library-documents-header--spaced {
+  margin-top: 12px;
+}
 .login-form__label {
   display: flex;
   flex-direction: column;

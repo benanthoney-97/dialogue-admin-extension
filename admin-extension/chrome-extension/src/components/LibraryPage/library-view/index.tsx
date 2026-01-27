@@ -24,6 +24,18 @@ type ChannelSummary = {
   video_count?: number | null
   cover_image?: string | null
   playlists?: ChannelPlaylist[]
+  latest_video_at?: string | null
+}
+
+const formatChannelDate = (iso?: string | null) => {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date)
 }
 
 export interface LibraryViewProps {
@@ -135,7 +147,7 @@ export function LibraryView({
     return (
       <div className="library-main-shell">
         <div className="library-documents-shell">
-          <div className="library-documents-header">
+          <div className="library-documents-header library-documents-header--spaced">
             <button
               type="button"
               className="library-documents-back"
@@ -199,8 +211,17 @@ export function LibraryView({
               <span className="sr-only">Back to channels</span>
             </button>
             <div>
-              <div className="library-documents-title">
-                {selectedChannel.channel_description ?? "Channel documents"}
+              <div className="library-documents-title library-documents-title--with-cover">
+                {selectedChannel.cover_image && (
+                  <img
+                    src={selectedChannel.cover_image}
+                    alt={selectedChannel.name ?? selectedChannel.channel_url ?? "Channel cover"}
+                    className="library-documents-title__cover"
+                  />
+                )}
+                <span>
+                  {selectedChannel.name ?? selectedChannel.channel_url ?? "Channel documents"}
+                </span>
               </div>
             </div>
           </div>
@@ -259,14 +280,17 @@ export function LibraryView({
                     className="connect-video-preview__thumb"
                   />
                 )}
-                <div className="connect-video-preview__content">
-                <div className="connect-video-preview__title">
-                  {channel.name ?? channel.channel_url ?? "Connected channel"}
-                </div>
-                  <p className="connect-video-preview__meta">
-                    {channel.video_count ?? 0} videos
-                  </p>
-                </div>
+                  <div className="connect-video-preview__content">
+                    <div className="connect-video-preview__title">
+                      {channel.name ?? channel.channel_url ?? "Connected channel"}
+                    </div>
+                    <p className="connect-video-preview__meta">
+                      {channel.video_count ?? 0} videos
+                      {channel.latest_video_at && (
+                        <> • Latest {formatChannelDate(channel.latest_video_at)}</>
+                      )}
+                    </p>
+                  </div>
               </div>
               {channel.channel_description && (
                 <p className="connect-video-preview__description connect-video-preview__description--full">
@@ -276,7 +300,6 @@ export function LibraryView({
             </button>
           ))}
         </div>
-        <div className="library-connect-inline">{renderConnectPrompt()}</div>
       </>
     )
   }

@@ -189,6 +189,20 @@
   cursor: pointer;
 }
 
+.library-documents-title--with-cover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.library-documents-title__cover {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .new-match-documents {
   flex: 1;
   display: flex;
@@ -237,7 +251,8 @@
 .library-documents-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
+  margin-top: 12px
 }
 .library-documents-shell .provider-documents {
   margin-top: 0;
