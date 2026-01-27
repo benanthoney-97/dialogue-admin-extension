@@ -18,6 +18,8 @@ type VideoPreview = {
   sourceUrl: string
   createdAt?: string
   provider: "youtube" | "vimeo"
+  playlistId?: string | null
+  playlistTitle?: string | null
 }
 
 type ChannelPreview = {
@@ -113,6 +115,8 @@ const toVideoPreview = (
     (data.videoId ? `https://www.youtube.com/watch?v=${data.videoId}` : ""),
   createdAt: data.createdAt ?? data.publishedAt ?? data.created_time ?? null,
   provider,
+  playlistId: data.playlistId ?? data.playlist_id ?? null,
+  playlistTitle: data.playlistTitle ?? null,
 })
 
 const getLatestVideoDate = (videos: VideoPreview[]): string | null => {
@@ -144,14 +148,40 @@ const formatPreviewDate = (iso?: string | null) => {
 
 const convertYouTubePayload = (payload: any): ChannelPreview => {
   const channel = payload?.channel
-  const videos = Array.isArray(payload?.videos) ? payload.videos : []
   if (!channel) {
     throw new Error("Channel metadata missing from YouTube response")
   }
-  const videoEntries = videos.map((video) => toVideoPreview(video, "youtube"))
-  if (videoEntries.length === 0) {
+  const videosByPlaylist = payload?.videosByPlaylist ?? {}
+  const aggregatedVideos: VideoPreview[] = []
+  const seen = new Set<string>()
+
+  Object.entries(videosByPlaylist).forEach(([playlistId, videos]: [string, any[]]) => {
+    if (!Array.isArray(videos)) return
+    videos.forEach((video: any) => {
+      const normalized = toVideoPreview({ ...video, playlistId }, "youtube")
+      const key = normalized.sourceUrl ?? normalized.id
+      if (!key || seen.has(key)) return
+      seen.add(key)
+      aggregatedVideos.push(normalized)
+    })
+  })
+
+  if (aggregatedVideos.length === 0 && Array.isArray(payload?.videos)) {
+    payload.videos.forEach((video: any) => {
+      const normalized = toVideoPreview(video, "youtube")
+      const key = normalized.sourceUrl ?? normalized.id
+      if (!key || seen.has(key)) {
+        return
+      }
+      seen.add(key)
+      aggregatedVideos.push(normalized)
+    })
+  }
+
+  if (aggregatedVideos.length === 0) {
     throw new Error("No videos were returned for that library")
   }
+
   const thumbnail =
     channel.thumbnails?.high?.url ??
     channel.thumbnails?.medium?.url ??
@@ -163,9 +193,9 @@ const convertYouTubePayload = (payload: any): ChannelPreview => {
     title: channel.title ?? "YouTube channel",
     description: channel.description ?? null,
     thumbnail,
-    videoCount: videoEntries.length,
-    latestVideoDate: getLatestVideoDate(videoEntries),
-    videos: videoEntries,
+    videoCount: aggregatedVideos.length,
+    latestVideoDate: getLatestVideoDate(aggregatedVideos),
+    videos: aggregatedVideos,
   }
 }
 
@@ -298,6 +328,7 @@ export function ConnectVideoLibrary({ onNext, providerId }: ConnectVideoLibraryP
             media_type: "video",
             cover_image_url: video.thumbnail ?? null,
             created_at: video.createdAt ?? null,
+            playlist_id: video.playlistId ?? null,
             is_active: true,
           })),
         }),

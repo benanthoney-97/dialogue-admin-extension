@@ -17,6 +17,48 @@ const fetchJson = async (url) => {
   return response.json()
 }
 
+const fetchPlaylists = async (channelId) => {
+  const playlists = []
+  let nextPageToken = undefined
+  do {
+    const url = new URL("https://www.googleapis.com/youtube/v3/playlists")
+    url.searchParams.set("part", "snippet,contentDetails")
+    url.searchParams.set("channelId", channelId)
+    url.searchParams.set("maxResults", "50")
+    url.searchParams.set("key", YOUTUBE_API_KEY)
+    if (nextPageToken) {
+      url.searchParams.set("pageToken", nextPageToken)
+    }
+    const payload = await fetchJson(url.toString())
+    nextPageToken = payload.nextPageToken
+    if (Array.isArray(payload.items)) {
+      playlists.push(...payload.items)
+    }
+  } while (nextPageToken)
+  return playlists
+}
+
+const fetchPlaylistVideos = async (playlistId) => {
+  const videos = []
+  let nextPageToken = undefined
+  do {
+    const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems")
+    url.searchParams.set("part", "snippet,contentDetails")
+    url.searchParams.set("playlistId", playlistId)
+    url.searchParams.set("maxResults", "50")
+    url.searchParams.set("key", YOUTUBE_API_KEY)
+    if (nextPageToken) {
+      url.searchParams.set("pageToken", nextPageToken)
+    }
+    const payload = await fetchJson(url.toString())
+    nextPageToken = payload.nextPageToken
+    if (Array.isArray(payload.items)) {
+      videos.push(...payload.items)
+    }
+  } while (nextPageToken)
+  return videos
+}
+
 async function handler(req, res) {
   setCorsHeaders(res)
   if (req.method === "OPTIONS") {
@@ -91,36 +133,70 @@ async function handler(req, res) {
       throw new Error("Unable to resolve uploads playlist")
     }
 
-    const videos = []
-    let nextPageToken = undefined
+    const playlistPayload = await fetchPlaylists(channel.id)
+    const playlistMeta = new Map()
 
-    do {
-      const playlistUrl = new URL("https://www.googleapis.com/youtube/v3/playlistItems")
-      playlistUrl.searchParams.set("part", "snippet,contentDetails")
-      playlistUrl.searchParams.set("maxResults", "50")
-      playlistUrl.searchParams.set("playlistId", uploadsPlaylistId)
-      playlistUrl.searchParams.set("key", YOUTUBE_API_KEY)
-      if (nextPageToken) {
-        playlistUrl.searchParams.set("pageToken", nextPageToken)
-      }
+    const ensurePlaylistEntry = (entry) => {
+      if (!entry?.id) return
+      if (playlistMeta.has(entry.id)) return
+      playlistMeta.set(entry.id, {
+        id: entry.id,
+        title: entry.snippet?.title ?? "Untitled playlist",
+        description: entry.snippet?.description ?? null,
+        thumbnails: entry.snippet?.thumbnails ?? null,
+        itemCount: entry.contentDetails?.itemCount ?? null,
+      })
+    }
 
-      const playlistPayload = await fetchJson(playlistUrl.toString())
-      nextPageToken = playlistPayload.nextPageToken
-      if (Array.isArray(playlistPayload.items)) {
-        videos.push(
-          ...playlistPayload.items.map((item) => ({
-            videoId: item.contentDetails?.videoId,
-            title: item.snippet?.title,
-            description: item.snippet?.description,
-            publishedAt: item.snippet?.publishedAt,
-            thumbnails: item.snippet?.thumbnails ?? null,
-            playlistId: item.snippet?.playlistId ?? null,
-            playlistTitle: item.snippet?.playlistTitle ?? null,
-            position: item.snippet?.position,
-          }))
-        )
+    playlistPayload.forEach(ensurePlaylistEntry)
+    ensurePlaylistEntry({
+      id: uploadsPlaylistId,
+      snippet: { title: "Uploads" },
+      contentDetails: {},
+    })
+
+    const videosByPlaylist = {}
+    const uniqueVideos = new Map()
+
+    for (const playlistEntry of playlistMeta.values()) {
+      try {
+        const playlistVideos = await fetchPlaylistVideos(playlistEntry.id)
+        const normalizedVideos = playlistVideos
+          .map((item) => {
+            const videoId = item.contentDetails?.videoId
+            if (!videoId) return null
+            return {
+              id: videoId,
+              videoId,
+              title: item.snippet?.title,
+              description: item.snippet?.description,
+              publishedAt: item.snippet?.publishedAt,
+              thumbnails: item.snippet?.thumbnails ?? null,
+              playlistId: playlistEntry.id,
+              playlistTitle: playlistEntry.title,
+            }
+          })
+          .filter(Boolean)
+
+        videosByPlaylist[playlistEntry.id] = normalizedVideos
+
+        normalizedVideos.forEach((video) => {
+          const sourceUrl =
+            video.sourceUrl ?? `https://www.youtube.com/watch?v=${video.videoId}`
+          if (!sourceUrl) return
+          if (!uniqueVideos.has(sourceUrl)) {
+            uniqueVideos.set(sourceUrl, {
+              ...video,
+              sourceUrl,
+            })
+          }
+        })
+      } catch (info) {
+        console.warn("[youtube-channel-videos] playlist fetch failed", playlistEntry.id, info)
       }
-    } while (nextPageToken)
+    }
+
+    const videos = Array.from(uniqueVideos.values())
 
     res.writeHead(200, { "Content-Type": "application/json" })
     res.end(
@@ -131,7 +207,9 @@ async function handler(req, res) {
           description: channel.snippet?.description,
           thumbnails: channel.snippet?.thumbnails ?? null,
         },
+        playlists: Array.from(playlistMeta.values()),
         videos,
+        videosByPlaylist,
       })
     )
   } catch (error) {

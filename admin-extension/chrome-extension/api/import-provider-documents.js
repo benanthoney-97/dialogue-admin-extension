@@ -55,6 +55,7 @@ async function handler(req, res) {
     .map((doc) => ({
       provider_id: providerId,
       channel_id: null,
+      playlist_id: doc.playlist_id ?? null,
       title: doc.title ?? null,
       source_url: doc.source_url ?? null,
       media_type: doc.media_type ?? "video",
@@ -106,7 +107,6 @@ async function handler(req, res) {
   const { error } = await supabase
     .from("provider_documents")
     .upsert(docsWithChannel, { onConflict: "provider_id,source_url" })
-    .eq("channel_id", channelId)
 
   if (error) {
     console.error("[import-provider-documents] error", error)
