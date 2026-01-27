@@ -441,6 +441,10 @@ const newMatchModeRef = useRef(false)
     setManualStage("timestamp")
   }
 
+  const handleNewMatchLibraryDocumentSelect = (doc: { source_url?: string }) => {
+    previewLibraryVideoOnPage(doc)
+  }
+
   const previewLibraryVideoOnPage = (doc?: ProviderDocument) => {
     const embedUrl = buildVideoUrl(doc?.source_url)
     if (!embedUrl) return
@@ -1081,7 +1085,7 @@ const newMatchModeRef = useRef(false)
                 selectedLibraryProviderId={selectedLibraryProviderId}
                 selectedLibraryProviderName={selectedLibraryProviderName}
                 onLibraryProvidersBack={handleLibraryProvidersBack}
-                onLibraryDocumentSelect={handleManualDocumentSelect}
+                onLibraryDocumentSelect={handleNewMatchLibraryDocumentSelect}
                 libraryTab={libraryTab}
                 providerId={providerId}
                 onLibraryTabChange={handleLibraryTabChange}

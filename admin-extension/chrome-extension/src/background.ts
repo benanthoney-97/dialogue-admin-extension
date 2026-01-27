@@ -94,8 +94,10 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
 const sendMessageToActiveTab = (message: Record<string, unknown>) => {
   const targetTabId = lastMatchTabId
   const deliver = (tabId: number) => {
+    console.log("[sl-background] sending message to tab", { tabId, message })
     chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
+        console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError)
       }
     })
   }
@@ -654,6 +656,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "previewLibraryVideo") {
+    console.log("[sl-background] previewLibraryVideo relaying", { message, lastMatchTabId })
     sendMessageToActiveTab(message)
     return false
   }
