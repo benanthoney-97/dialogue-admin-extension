@@ -1265,8 +1265,6 @@ const newMatchModeRef = useRef(false)
   }
 
   const handleConnectLibrary = async (libraryUrl: string) => {
-    const normalizedUrl = libraryUrl.trim()
-    await updateProviderWebsite(normalizedUrl)
     setToastMessage("Video library connected")
     setLibraryRefreshKey((prev) => prev + 1)
   }

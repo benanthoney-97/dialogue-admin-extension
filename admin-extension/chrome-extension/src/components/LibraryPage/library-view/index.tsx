@@ -47,7 +47,9 @@ export function LibraryView({
   libraryRefreshKey,
 }: LibraryViewProps) {
   const resolvedProviderTabLabel = providerTabLabel ?? "Your Library"
-  const renderConnectPrompt = () => <ConnectVideoLibrary onNext={onConnectLibrary} />
+  const renderConnectPrompt = () => (
+    <ConnectVideoLibrary onNext={onConnectLibrary} providerId={providerId} />
+  )
 
   if (showDecisionCard) {
     return (

@@ -37,7 +37,6 @@ async function handler(req, res) {
     return
   }
 
-  const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`)
   const channelId = requestUrl.searchParams.get("channel_id")
   const username = requestUrl.searchParams.get("username")
   if (!channelId && !username) {

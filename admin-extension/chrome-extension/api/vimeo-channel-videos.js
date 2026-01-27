@@ -1,6 +1,5 @@
 const { Buffer } = require("buffer")
 const fetch = globalThis.fetch
-
 const VIMEO_CLIENT_ID = process.env.VIMEO_CLIENT_ID
 const VIMEO_CLIENT_SECRET = process.env.VIMEO_CLIENT_SECRET
 
