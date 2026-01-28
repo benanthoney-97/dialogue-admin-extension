@@ -16,6 +16,14 @@ export type VisitorPlayer = {
   node: HTMLElement
 }
 
+declare global {
+  interface Window {
+    DialoguePlayerTemplate?: {
+      buildPlayerNode: () => HTMLElement | null
+    }
+  }
+}
+
 const TEMPLATE_HTML = `
   <style>
     #dialogue-nano-player {
@@ -93,6 +101,19 @@ const buildPlayerNode = (): HTMLElement | null => {
   }
   return template.content.querySelector("#dialogue-nano-player") as HTMLElement | null
 }
+
+const registerDialoguePlayerTemplate = () => {
+  if (typeof window === "undefined") return
+  if (!window.DialoguePlayerTemplate) {
+    window.DialoguePlayerTemplate = { buildPlayerNode }
+    return
+  }
+  if (!window.DialoguePlayerTemplate.buildPlayerNode) {
+    window.DialoguePlayerTemplate.buildPlayerNode = buildPlayerNode
+  }
+}
+
+registerDialoguePlayerTemplate()
 
 const toDomRect = (value?: RectLike | DOMRect): DOMRect | null => {
   if (!value) return null
