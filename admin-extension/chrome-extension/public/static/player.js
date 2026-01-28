@@ -45,7 +45,7 @@ const TEMPLATE_HTML = `
       gap: 8px;
     }
     .d-meta-text {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #111;
       letter-spacing: -0.01em;

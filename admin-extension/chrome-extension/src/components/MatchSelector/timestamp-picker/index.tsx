@@ -97,7 +97,6 @@ const buildYouTubeEmbedUrl = (
     if (typeof window !== "undefined" && !window.location.origin.startsWith("chrome-extension")) {
       targetOrigin = window.location.origin;
     } else {
-      console.warn("[timestamp-picker] No originOverride provided in Extension context.");
     }
   }
 
@@ -131,15 +130,9 @@ const toEmbeddedPlayerUrl = (
     const parsed = new URL(value, window.location.href)
     const startSeconds = parseHashTimestamp(parsed.hash)
     const host = parsed.hostname.toLowerCase()
-    console.log("[timestamp-picker] toEmbeddedPlayerUrl", {
-      source: value,
-      host,
-      startSeconds,
-      originOverride,
-    })
+
     if (host.includes("vimeo.com")) {
       const embed = buildVimeoEmbedUrl(parsed, startSeconds)
-      console.log("[timestamp-picker] vimeo embed resolved", { embed })
       return embed || value
     }
     if (
@@ -148,16 +141,10 @@ const toEmbeddedPlayerUrl = (
       host.includes("youtube-nocookie.com")
     ) {
       const embed = buildYouTubeEmbedUrl(parsed, startSeconds, originOverride)
-      console.log("[timestamp-picker] youtube embed resolved", {
-        embed,
-        originOverride,
-        parsedHost: parsed.hostname,
-      })
       if (embed) return embed
     }
     return value
   } catch (error) {
-    console.warn("[timestamp-picker] failed to resolve embed url", value, error)
     return value
   }
 }
@@ -262,11 +249,6 @@ export function TimestampPicker({
 
   useEffect(() => {
     if (!videoUrl) return
-    console.log("[timestamp-picker] video URL transformed", {
-      sourceUrl: videoUrl,
-      embedUrl: embeddedPlayerUrl,
-      origin: originOverride,
-    })
   }, [videoUrl, embeddedPlayerUrl])
 
   useEffect(() => {

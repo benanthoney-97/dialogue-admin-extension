@@ -81,7 +81,7 @@ const TEMPLATE_HTML = `
       display: none;
     }
     .d-meta-text {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #111;
       letter-spacing: -0.01em;
@@ -161,6 +161,12 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
       createMatchButton.textContent = label
       createMatchButton.disabled = !currentMetadata
     }
+    console.log("[player-component] updateButtonLabel", {
+      button: Boolean(createMatchButton),
+      label: createMatchButton?.textContent,
+      timestamp: currentSeconds,
+      enabled: Boolean(createMatchButton && !createMatchButton.disabled),
+    })
   }
 
   const dispatchCreateMatchEvent = (seconds) => {
@@ -353,6 +359,14 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
     position(rect)
     if (url) loadVideo(url)
     setVisible(true)
+    console.log("[player-component] show called", {
+      rect,
+      width,
+      ratio,
+      url,
+      metadata,
+      buttonExists: Boolean(createMatchButton),
+    })
     currentVideoUrl = url || ""
     try {
       currentHost = new URL(currentVideoUrl).hostname.toLowerCase()
