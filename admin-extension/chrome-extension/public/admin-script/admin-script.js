@@ -22,13 +22,31 @@
     config: null,
   };
   let visitorPlayerInstance = null
-  const ensureVisitorPlayer = () => {
+  const ensureVisitorPlayerScript = () => {
+    if (window.DialoguePlayer) {
+      return Promise.resolve(window.DialoguePlayer)
+    }
+    return new Promise((resolve) => {
+      const script = document.createElement("script")
+      script.src = `${getApiOrigin().replace(/\/+$/, "")}/static/player.js`
+      script.async = true
+      script.onload = () => resolve(window.DialoguePlayer ?? null)
+      script.onerror = () => {
+        console.warn("[admin-script] failed to load visitor player", script.src)
+        resolve(null)
+      }
+      document.head.appendChild(script)
+    })
+  }
+
+  const ensureVisitorPlayer = async () => {
     if (visitorPlayerInstance) {
       return visitorPlayerInstance
     }
-    if (window.DialoguePlayer?.initVisitorPlayer) {
-      visitorPlayerInstance = window.DialoguePlayer.initVisitorPlayer()
-      console.log("[admin-script] visitor player initialized via global")
+    const module = window.DialoguePlayer ?? (await ensureVisitorPlayerScript())
+    if (module?.initVisitorPlayer) {
+      visitorPlayerInstance = module.initVisitorPlayer()
+      console.log("[admin-script] visitor player initialized")
     }
     return visitorPlayerInstance
   }
