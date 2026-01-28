@@ -92,11 +92,11 @@
   };
 
   const setInactiveInlineStyles = (span) => {
-    span.style.setProperty("border-color", "rgba(148, 163, 184, 0.8)", "important");
-    span.style.setProperty("background-color", "rgba(239, 241, 245, 0.85)", "important");
-    span.style.setProperty("color", "rgba(55, 65, 81, 0.9)", "important");
-    span.style.setProperty("box-shadow", "none", "important");
-    span.style.setProperty("cursor", "pointer", "important");
+    span.style.removeProperty("border-color");
+    span.style.removeProperty("background-color");
+    span.style.removeProperty("color");
+    span.style.removeProperty("box-shadow");
+    span.style.removeProperty("cursor");
   };
 
   const setRemovedInlineStyles = (span) => {
