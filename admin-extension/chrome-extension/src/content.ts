@@ -11,21 +11,11 @@ export const config: PlasmoCSConfig = {
 
 type MatchPayload = Record<string, unknown>
 
-declare global {
-  interface Window {
-    DialoguePlayer?: {
-      initVisitorPlayer: (options?: Record<string, unknown>) => VisitorPlayer | null
-    }
-  }
-}
-
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
 let cachedMatchMap: MatchPayload[] | null = null
 let activeVisitorPlayer: VisitorPlayer | null = null
 let lastNewMatchRect: RectLike | null = null
 let lastPreviewMetadata: PreviewPlayerMetadata | null = null
-let adminPlayerModulePromise: Promise<typeof window.DialoguePlayer | null> | null = null
-let adminPlayerInstance: VisitorPlayer | null = null
 
 const ensureVisitorPlayer = () => {
   if (activeVisitorPlayer) {
@@ -39,39 +29,6 @@ const ensureVisitorPlayer = () => {
   return activeVisitorPlayer
 }
 
-const loadAdminPlayerModule = () => {
-  if (window.DialoguePlayer) {
-    return Promise.resolve(window.DialoguePlayer)
-  }
-  if (adminPlayerModulePromise) {
-    return adminPlayerModulePromise
-  }
-  adminPlayerModulePromise = new Promise((resolve) => {
-    const script = document.createElement("script")
-    script.src = chrome.runtime.getURL("player-component.js")
-    script.async = true
-    script.onload = () => resolve(window.DialoguePlayer ?? null)
-    script.onerror = () => {
-      console.warn("[content] failed to load admin player component")
-      resolve(null)
-    }
-    document.head.appendChild(script)
-  })
-  return adminPlayerModulePromise
-}
-
-const ensureAdminPlayer = async () => {
-  if (adminPlayerInstance) {
-    return adminPlayerInstance
-  }
-  const module = await loadAdminPlayerModule()
-  if (!module?.initVisitorPlayer) {
-    return null
-  }
-  adminPlayerInstance = module.initVisitorPlayer()
-  return adminPlayerInstance
-}
-
 const DEFAULT_PREVIEW_RECT = () => ({
   left: Math.max(12, window.innerWidth - 340),
   bottom: 72,
@@ -79,45 +36,30 @@ const DEFAULT_PREVIEW_RECT = () => ({
   height: 0,
 })
 
-const previewLibraryVideo = async (
+const previewLibraryVideo = (
   __url?: string,
   rect?: PreviewPlayerRect | null,
   width?: number,
   ratio?: number,
-  metadata?: PreviewPlayerMetadata | null,
-  admin = false
+  metadata?: PreviewPlayerMetadata | null
 ) => {
   const url = __url || ""
   if (!url) return
-  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata, admin })
-  const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
-  lastPreviewMetadata = metadata ?? null
-  const normalizedRect = resolvedRect instanceof DOMRect
-    ? resolvedRect
-    : new DOMRect(
-        resolvedRect.left ?? DEFAULT_PREVIEW_RECT().left,
-        resolvedRect.bottom ?? DEFAULT_PREVIEW_RECT().bottom,
-        resolvedRect.width ?? DEFAULT_PREVIEW_RECT().width,
-        resolvedRect.height ?? DEFAULT_PREVIEW_RECT().height
-      )
-  if (admin) {
-    const adminPlayer = await ensureAdminPlayer()
-    if (!adminPlayer) return
-    adminPlayer.show({
-      rect: normalizedRect,
-      width: width ?? 320,
-      ratio: ratio ?? 16 / 9,
-      url,
-      metadata: lastPreviewMetadata ?? undefined,
-    })
-    console.log("[content] admin player show invoked")
-    return
-  }
+  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
   const player = ensureVisitorPlayer()
   if (!player) return
   console.log("[content] visitor player ready, showing preview")
+  const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
+  lastPreviewMetadata = metadata ?? null
   player.show({
-    rect: normalizedRect,
+    rect: resolvedRect instanceof DOMRect
+      ? resolvedRect
+      : new DOMRect(
+          resolvedRect.left ?? DEFAULT_PREVIEW_RECT().left,
+          resolvedRect.bottom ?? DEFAULT_PREVIEW_RECT().bottom,
+          resolvedRect.width ?? DEFAULT_PREVIEW_RECT().width,
+          resolvedRect.height ?? DEFAULT_PREVIEW_RECT().height
+        ),
     width: width ?? 320,
     ratio: ratio ?? 16 / 9,
     url,
@@ -253,8 +195,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.action === "previewLibraryVideo") {
     lastPreviewMetadata = request.metadata ?? null
-    console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId, metadata: request.metadata, admin: Boolean(request.admin) })
-    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata, Boolean(request.admin)).catch(() => {})
+    console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId, metadata: request.metadata })
+    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata)
     return false
   }
   if (request.action === "scrollToMatch") {

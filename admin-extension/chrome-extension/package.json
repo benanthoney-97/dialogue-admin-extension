@@ -61,7 +61,6 @@
     "web_accessible_resources": [
       {
         "resources": [
-          "player-component.js",
           "static/player.js"
         ],
         "matches": [
