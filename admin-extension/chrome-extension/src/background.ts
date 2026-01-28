@@ -93,27 +93,38 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
 })
 
 const sendMessageToActiveTab = (message: Record<string, unknown>) => {
-  const targetTabId = lastMatchTabId
-  const deliver = (tabId: number) => {
+  const sendToTab = (tabId: number, fallbackToActive = true) => {
     console.log("[sl-background] sending message to tab", { tabId, message })
     chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
-        console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError)
+        console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError, { tabId, message })
+        if (fallbackToActive) {
+          lastMatchTabId = null
+          console.log("[sl-background] sendMessageToActiveTab retrying via active tab query")
+          chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+            const active = tabs?.[0]
+            if (!active?.id || active.id === tabId) return
+            sendToTab(active.id, false)
+          })
+        }
       } else {
-        console.log("[sl-background] sendMessage succeeded")
+        console.log("[sl-background] sendMessage succeeded", { tabId, message })
       }
     })
   }
 
-  if (typeof targetTabId === "number") {
-    deliver(targetTabId)
+  if (typeof lastMatchTabId === "number") {
+    console.log("[sl-background] sendMessageToActiveTab targeting saved tab", lastMatchTabId)
+    sendToTab(lastMatchTabId)
     return
   }
+
+  console.log("[sl-background] sendMessageToActiveTab falling back to active query")
 
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
     const active = tabs?.[0]
     if (!active?.id) return
-    deliver(active.id)
+    sendToTab(active.id, false)
   })
 }
 

@@ -1,4 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
+console.log("[content] content script loaded")
 
 type RectLike = {
   left?: number
@@ -51,7 +52,9 @@ const ensureAdminPlayerModule = () => {
   if (adminPlayerModulePromise) {
     return adminPlayerModulePromise
   }
+  console.log("[content] loading admin player module", ADMIN_PLAYER_PATH)
   adminPlayerModulePromise = import(/* @vite-ignore */ ADMIN_PLAYER_PATH) as Promise<AdminPlayerModule>
+  adminPlayerModulePromise.catch((error) => console.error("[content] admin player module import rejected", error))
   return adminPlayerModulePromise
 }
 
@@ -64,11 +67,13 @@ const ensureAdminVisitorPlayer = async (): Promise<AdminVisitorPlayer | null> =>
     return null
   })
   if (!module) return null
+  console.log("[content] initializing admin player instance")
   adminPlayerInstance = module.initVisitorPlayer()
   if (!adminPlayerInstance) {
     console.warn("[content] admin player initialization failed")
     return null
   }
+  console.log("[content] admin player initialized")
   return adminPlayerInstance
 }
 

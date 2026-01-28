@@ -240,6 +240,7 @@ function initVisitorPlayer({ onCreateMatch, onClose } = {}) {
   }
 
   const show = ({ rect, width, ratio, url, metadata }) => {
+    console.log("[player-component] show called", { rect, width, ratio, url, metadata })
     size(width, ratio)
     position(rect)
     if (url) loadVideo(url)
