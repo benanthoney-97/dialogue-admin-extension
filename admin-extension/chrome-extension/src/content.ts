@@ -38,6 +38,7 @@ const ensurePlayerTemplate = () => {
   playerTemplatePromise = new Promise((resolve) => {
     const script = document.createElement("script")
     script.src = chrome.runtime.getURL("static/player-template.js")
+    console.log("[content] requesting shared template", script.src)
     script.async = true
     script.onload = () => resolve(window.DialoguePlayerTemplate)
     script.onerror = () => {
