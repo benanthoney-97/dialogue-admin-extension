@@ -208,8 +208,8 @@ async function handler(req, res) {
             'timestampEndSeconds',
             'stop',
           ]) ?? 0
-        const maxTimestamp = Math.max(start, end)
-        const suggestedTimestamp = Number.isFinite(maxTimestamp) ? maxTimestamp : start
+        const startTimestamp = Number.isFinite(start) ? start : null
+        const suggestedTimestamp = startTimestamp ?? (Number.isFinite(end) ? end : start)
         const document = entry.document_id ? documentMap[entry.document_id] : null
         const fallbackSource = document?.source_url || ''
         return {

@@ -530,7 +530,7 @@ const newMatchModeRef = useRef(false)
 
   const handleDecisionSelect = (action: string) => {
     if (action === "change") {
-      setView("documents")
+      setActiveSection("library")
       return
     }
     if (action === "remove") {

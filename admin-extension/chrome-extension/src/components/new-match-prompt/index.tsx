@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 
 export interface SelectedTextBlockProps {
   text?: string | null
@@ -71,10 +71,11 @@ export interface NewMatchPromptProps {
     confidence?: number
     similarity?: number
     snippet?: string
+    suggested_timestamp?: number
     source_url?: string
   }>
   loadingMatches?: boolean
-  onSelectMatch?: (result: any) => void
+  onSelectMatch?: (result: any) => Promise<void> | void
 }
 
 export function NewMatchPrompt({
@@ -86,6 +87,7 @@ export function NewMatchPrompt({
   onSelectMatch,
   onReset,
 }: NewMatchPromptProps) {
+  const [creatingMatchId, setCreatingMatchId] = useState<string | number | null>(null)
   const formatTimestamp = (seconds?: number) => {
     const value = Math.max(0, seconds ?? 0)
     const mins = Math.floor(value / 60)
@@ -147,14 +149,13 @@ export function NewMatchPrompt({
                 const percent = Math.max(0, Math.min(100, Math.round(score * 100)))
                 const videoSrc = result.video_url || result.source_url || ''
                 const displayTimestamp = result.suggested_timestamp ?? result.timestamp_start ?? 0
+                const resultId = result.knowledge_id ?? `${index}-${result.document_id ?? ""}`
                 return (
-                  <button
+                  <div
                     key={result.knowledge_id ?? `${index}-${result.document_id}`}
-                    type="button"
                     className="new-match-prompt__result"
-                    onClick={() => onSelectMatch?.(result)}
                   >
-                <div className="new-match-prompt__video">
+                    <div className="new-match-prompt__video">
                   {videoSrc ? (
                     <iframe
                       src={videoSrc}
@@ -174,36 +175,34 @@ export function NewMatchPrompt({
                       <span className="new-match-prompt__result-title">
                         {result.document_title || "Suggested clip"}
                       </span>
-                    <div className="new-match-prompt__result-meta">
+                      <div className="new-match-prompt__result-meta">
                         {!result.document_title && result.source_url && (
                           <span>{result.source_url.split("#")[0]}</span>
                         )}
                       </div>
                       <div className="new-match-prompt__result-footer">
-                        <div
-                          role="button"
-                          tabIndex={0}
+                        <button
+                          type="button"
                           className="new-match-prompt__result-button"
                           onClick={(event) => {
                             event.stopPropagation()
-                            onSelectMatch?.(result)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault()
-                              event.stopPropagation()
-                              onSelectMatch?.(result)
+                            setCreatingMatchId(resultId)
+                            const selection = onSelectMatch?.(result)
+                            if (selection && typeof (selection as Promise<void>).finally === "function") {
+                              ;(selection as Promise<void>).finally(() => setCreatingMatchId(null))
+                            } else {
+                              setTimeout(() => setCreatingMatchId(null), 0)
                             }
                           }}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-plus-lg" viewBox="0 0 16 16">
-                              <path fillRule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
-                            </svg>
-                          Create match at {formatTimestamp(displayTimestamp)}
-                        </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-plus-lg" viewBox="0 0 16 16">
+                            <path fillRule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+                          </svg>
+                          {creatingMatchId === resultId ? "Creating…" : `Create match at ${formatTimestamp(displayTimestamp)}`}
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -314,7 +313,6 @@ export function NewMatchPrompt({
           padding: 0;
           background: #ffffff;
           color: #0f172a;
-          cursor: pointer;
           font: inherit;
           display: flex;
           flex-direction: column;
