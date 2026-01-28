@@ -21,36 +21,16 @@
     visitorListenerAttached: false,
     config: null,
   };
-  const loadPlayerComponent = () => {
-    if (window.DialoguePlayer) {
-      return Promise.resolve(window.DialoguePlayer)
-    }
-    return new Promise((resolve) => {
-      const script = document.createElement("script")
-      script.src = `${getApiOrigin().replace(/\/+$/, "")}/player-component.js`
-      script.async = true
-      script.onload = () => resolve(window.DialoguePlayer)
-      script.onerror = () => resolve(null)
-      document.head.appendChild(script)
-    })
-  }
-
   let visitorPlayerInstance = null
-  const ensureVisitorPlayer = async () => {
-    console.log("[admin-script] ensureVisitorPlayer start")
+  const ensureVisitorPlayer = () => {
     if (visitorPlayerInstance) {
-      console.log("[admin-script] visitor player cached instance")
       return visitorPlayerInstance
     }
-    const module = await loadPlayerComponent()
-    console.log("[admin-script] loadPlayerComponent result", module)
-    if (module?.initVisitorPlayer) {
-      visitorPlayerInstance = module.initVisitorPlayer()
-      console.log("[admin-script] visitor player initialized")
-      return visitorPlayerInstance
+    if (window.DialoguePlayer?.initVisitorPlayer) {
+      visitorPlayerInstance = window.DialoguePlayer.initVisitorPlayer()
+      console.log("[admin-script] visitor player initialized via global")
     }
-    console.warn("[admin-script] visitor player not available")
-    return null
+    return visitorPlayerInstance
   }
 
   const hideVisitorPlayer = async () => {
