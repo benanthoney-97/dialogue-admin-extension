@@ -23,36 +23,24 @@ async function handler(req, res) {
     }
 
     if (req.method === "GET") {
-      const { data: feeds, error: feedError } = await supabase
-        .from("sitemap_feeds")
-        .select("id")
-        .eq("provider_id", providerId)
-      if (feedError) throw feedError
-
-      const feedIds = (feeds || []).map((feed) => feed.id).filter(Boolean)
-      if (!feedIds.length) {
-        res.writeHead(200)
-        res.end(JSON.stringify([]))
-        return
-      }
-
-      const { data: pages, error: pageError } = await supabase
-        .from("sitemap_pages")
-        .select("id, feed_id, page_url, tracked, processed, last_modified")
-        .in("feed_id", feedIds)
-        .order("page_url", { ascending: true })
-      if (pageError) throw pageError
+      const { data, error } = await supabase
+        .from("providers")
+        .select("id, name, website_url")
+        .eq("id", providerId)
+        .maybeSingle()
+      if (error) throw error
 
       res.writeHead(200)
-      res.end(JSON.stringify(pages || []))
+      res.end(JSON.stringify(data || null))
       return
     }
 
     res.writeHead(405)
     res.end(JSON.stringify({ error: "Method not allowed" }))
   } catch (error) {
+    console.error("[provider-info] handler error", error)
     res.writeHead(500)
-    res.end(JSON.stringify({ error: error.message }))
+    res.end(JSON.stringify({ error: error?.message || "Unexpected error" }))
   }
 }
 

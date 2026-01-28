@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import "./page-summary.css"
 
 type SitemapPage = {
   id: number
   page_url: string
   tracked: boolean | null
+}
+
+type ProviderInfo = {
+  name?: string
+  website_url?: string
 }
 
 type InactivePageProps = {
@@ -16,6 +21,7 @@ type InactivePageProps = {
 export function InactivePage({ providerId, feedId, onRefresh }: InactivePageProps) {
   const [pages, setPages] = useState<SitemapPage[]>([])
   const [loading, setLoading] = useState(true)
+  const [providerInfo, setProviderInfo] = useState<ProviderInfo | null>(null)
   const fetchTargetId =
     typeof feedId === "number"
       ? feedId
@@ -23,10 +29,11 @@ export function InactivePage({ providerId, feedId, onRefresh }: InactivePageProp
       ? providerId
       : 33
 
+  const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL || ""
+
   useEffect(() => {
     let canceled = false
     setLoading(true)
-    const backendBase = process.env.PLASMO_PUBLIC_BACKEND_URL || ""
     const endpoint = `${backendBase.replace(
       /\/+$/,
       ""
@@ -44,7 +51,72 @@ export function InactivePage({ providerId, feedId, onRefresh }: InactivePageProp
     return () => {
       canceled = true
     }
-  }, [fetchTargetId])
+  }, [fetchTargetId, backendBase, providerId, feedId])
+
+  useEffect(() => {
+    if (!providerId) {
+      setProviderInfo(null)
+      return
+    }
+
+    let canceled = false
+    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/provider-info?provider_id=${providerId}`
+    fetch(endpoint)
+      .then((res) => res.json())
+      .then((data) => {
+        if (canceled) return
+        setProviderInfo(data || null)
+      })
+      .catch(() => {
+        if (!canceled) setProviderInfo(null)
+      })
+    return () => {
+      canceled = true
+    }
+  }, [backendBase, providerId])
+
+  const deriveRootUrl = (value?: string) => {
+    if (!value) return ""
+    try {
+      const parsed = new URL(value)
+      return `${parsed.protocol}//${parsed.hostname}`
+    } catch {
+      return value
+    }
+  }
+
+  const fallbackUrl = pages[0]?.page_url
+  const providerRootUrl = providerInfo?.website_url || fallbackUrl
+  const targetUrl = deriveRootUrl(providerRootUrl) || ""
+
+  const buttonLabel = providerInfo?.name
+    ? `Return to ${providerInfo.name}`
+    : targetUrl
+    ? "Return to your site"
+    : "Return to supported site"
+
+  const handleNavigate = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    if (!targetUrl) return
+    console.log("[inactive-page] navigating to", targetUrl)
+    if (typeof chrome !== "undefined" && chrome.tabs?.update) {
+      chrome.tabs.update({ url: targetUrl })
+    } else {
+      window.location.href = targetUrl
+    }
+  }
+
+  const hostnameLabel = useMemo(() => {
+    if (providerInfo?.name) return providerInfo.name
+    if (targetUrl) {
+      try {
+        return new URL(targetUrl).hostname
+      } catch {
+        return targetUrl
+      }
+    }
+    return "your site"
+  }, [providerInfo, targetUrl])
 
   return (
     <div className="inactive-page">
@@ -57,42 +129,17 @@ export function InactivePage({ providerId, feedId, onRefresh }: InactivePageProp
         <h3>Dialogue paused</h3>
       </div>
       <p className="inactive-page__body">
-        Dialogue is currently inactive. Jump to one of your supported sites to resume:
+        Dialogue is currently inactive. Return to {hostnameLabel} to resume.
       </p>
-      <div className="inactive-page__list">
-        {loading && <div className="inactive-page__message">Loading supported sites…</div>}
-        {!loading &&
-          pages.map((page) => {
-            let hostname = page.page_url
-            try {
-              hostname = new URL(page.page_url).hostname
-            } catch {
-              hostname = page.page_url
-            }
-            return (
-              <a
-                key={page.id}
-                className="inactive-page__card"
-                href={page.page_url}
-                rel="noreferrer"
-                onClick={(event) => {
-                  console.log("[inactive-page] navigating to", page.page_url)
-                  event.preventDefault()
-                  if (typeof chrome !== "undefined" && chrome.tabs?.update) {
-                    chrome.tabs.update({ url: page.page_url })
-                  } else {
-                    window.location.href = page.page_url
-                  }
-                }}
-              >
-                <span className="inactive-page__url">{hostname}</span>
-                <span className="inactive-page__arrow">→</span>
-              </a>
-            )
-          })}
-        {!loading && pages.length === 0 && (
-          <div className="inactive-page__message">No supported sites available.</div>
-        )}
+      <div className="inactive-page__button-row">
+        <button
+          type="button"
+          className="inactive-page__button"
+          onClick={handleNavigate}
+          disabled={!targetUrl}
+        >
+          {buttonLabel}
+        </button>
       </div>
     </div>
   )

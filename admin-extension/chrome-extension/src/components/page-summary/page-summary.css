@@ -96,6 +96,35 @@
   text-decoration: none;
 }
 
+.inactive-page__button-row {
+  display: flex;
+  width: 100%;
+}
+
+.inactive-page__button {
+  flex: 1;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inactive-page__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.inactive-page__button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 39, 0.2);
+}
+
 .page-summary__matches-section {
   flex: 1 1 auto;
   display: flex;
