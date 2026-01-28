@@ -88,7 +88,6 @@
     span.style.setProperty("cursor", "pointer", "important");
     span.style.setProperty("font-weight", "400", "important");
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
-    span.style.setProperty("line-height", "1.2", "important");
     span.style.setProperty("display", "inline-block", "important");
   };
 
