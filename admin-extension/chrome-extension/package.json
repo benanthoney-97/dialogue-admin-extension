@@ -9,6 +9,7 @@
     "prebuild": "node ./scripts/generate-admin-config.js",
     "dev": "PLASMO_PORT=4175 plasmo dev",
     "build": "plasmo build",
+    "postbuild": "node ./scripts/copy-static.js",
     "sync-admin-script": "true",
     "package": "plasmo package"
   },
