@@ -404,7 +404,6 @@
         cursor: pointer !important;
         font-weight: normal;
         transition: border-color 0.2s ease, color 0.2s ease !important;
-        line-height: 1.2 !important;
         display: inline !important;
         color: #5F61FB !important;
         text-decoration-line: underline !important;
@@ -486,9 +485,6 @@
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--preview-dim {
         opacity: 0.35 !important;
         filter: grayscale(1) !important;
-      }
-      body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
-        display: none;
       }
       #sl-visitor-player {
         position: fixed;
@@ -820,6 +816,7 @@
     if (!spans.length) {
       return;
     }
+    console.log("[admin-script] markSpansInactive", pageMatchId, spans.length);
     spans.forEach((span) => {
       span.classList.remove("sl-smart-link--hover", "sl-smart-link--inactive");
       span.classList.add("sl-smart-link--removed");
@@ -834,6 +831,7 @@
     const normalized = getMatchIdentifier({ page_match_id: pageMatchId });
     if (!normalized) return;
     const targetId = String(normalized);
+    console.log("[admin-script] removeMatchHighlight", pageMatchId, targetId);
     markSpansInactive(targetId);
     state.matches = state.matches.map((match) => {
       const identifier = getMatchIdentifier(match);
@@ -859,10 +857,11 @@
     });
   };
 
-  const applyMode = (mode) => {
-    state.mode = mode === MODE_ADMIN ? MODE_ADMIN : MODE_VISITOR;
-    const root = document.documentElement;
-    const body = document.body;
+const applyMode = (mode) => {
+  state.mode = mode === MODE_ADMIN ? MODE_ADMIN : MODE_VISITOR;
+  console.log("[admin-script] applying mode", state.mode);
+  const root = document.documentElement;
+  const body = document.body;
     if (root) {
       root.classList.toggle("sl-admin-mode", state.mode === MODE_ADMIN);
       root.classList.toggle("sl-visitor-mode", state.mode === MODE_VISITOR);

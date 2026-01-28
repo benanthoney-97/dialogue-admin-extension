@@ -1,5 +1,4 @@
 import type { PlasmoCSConfig } from "plasmo"
-console.log("[content] content script loaded")
 
 type MatchPayload = Record<string, unknown>
 
@@ -24,7 +23,6 @@ const parseMatchMapFromScript = () => {
       return parsed
     }
   } catch (error) {
-    console.error("[content] failed to parse match map", error)
   }
 
   return []
@@ -45,17 +43,14 @@ const getMatchMap = () => {
 }
 
 const sendMatchClick = (matchIndex: number) => {
-  console.log("[content] preparing match click", matchIndex)
   const match = getMatchMap()[matchIndex]
   if (!match) {
-    console.warn("[content] no match found at index", matchIndex)
     return
   }
 
   const targetIsVisitor = document.documentElement?.classList.contains("sl-visitor-mode") ||
     document.body?.classList.contains("sl-visitor-mode")
   if (targetIsVisitor) {
-    console.log("[content] page is in visitor mode, not sending matchClicked")
     return
   }
 
@@ -63,13 +58,10 @@ const sendMatchClick = (matchIndex: number) => {
     ...match,
     page_match_id: match.page_match_id ?? match.id ?? null
   }
-  console.log("[content] sending matchClicked to extension", match)
   chrome.runtime.sendMessage({ action: "matchClicked", match }, (response) => {
     const err = chrome.runtime.lastError
     if (err) {
-      console.error("[content] sendMessage error", err)
     } else {
-      console.log("[content] message acknowledged", response)
     }
   })
 }
@@ -99,15 +91,8 @@ document.addEventListener("click", (event) => {
   const target = (event.target as HTMLElement).closest(".sl-smart-link")
   if (!target) return
   event.preventDefault()
-  console.log("[content] clicked smart-link", {
-    text: target.textContent,
-    idx: target.getAttribute("data-match-index"),
-    pageMatchId: target.getAttribute("data-page-match-id"),
-    classList: Array.from(target.classList)
-  })
   const index = Number(target.getAttribute("data-match-index"))
   if (!Number.isNaN(index)) {
-    console.log("[content] matched index", index)
     sendMatchClick(index)
   }
 })
@@ -123,19 +108,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.action === "removeMatchHighlight") {
     const id = request.page_match_id ?? request.match?.page_match_id ?? request.match?.id
-    console.log("[content] removeMatchHighlight received", id)
     invokePageScriptRemoval(id)
     return false
   }
   if (request.action === "scrollToMatch") {
     if (typeof request.matchId === "number") {
-      console.log("[content] scrollToMatch received", request.matchId)
       scrollToMatchHighlight(request.matchId)
     }
     return false
   }
   if (request.action === "pageReady") {
-    console.log("[content] pageReady message received")
     chrome.runtime.sendMessage({ action: "pageReadyAck" }, () => {})
     return false
   }
@@ -157,7 +139,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 const handleCreateMatchEvent = (event: Event) => {
   const detail = (event as CustomEvent).detail
-  console.log("[content] preview create match event", detail)
   chrome.runtime.sendMessage({ action: "previewCreateMatch", payload: detail })
 }
 window.addEventListener("dialogueCreateMatch", handleCreateMatchEvent)
@@ -175,12 +156,10 @@ const scrollToMatchHighlight = (matchId: number) => {
   const attempt = (tries = 0) => {
     const element = document.querySelector(selector)
     if (element) {
-      console.log("[content] scrolling to match element", { selector, matchId, tries })
       element.scrollIntoView({ behavior: "smooth", block: "center" })
       return
     }
     if (tries >= 5) {
-      console.warn("[content] no match element found after retries", { selector, matchId })
       return
     }
     window.setTimeout(() => attempt(tries + 1), 300)

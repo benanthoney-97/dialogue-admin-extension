@@ -1,8 +1,8 @@
 {
   "name": "Dialogue",
   "displayName": "Dialogue",
-  "version": "0.1.3",
-  "description": "The contextual intelligence layer for your website.",
+  "version": "0.1.4",
+  "description": "Put Your Video Library to Work",
   "author": "Dialogue",
   "scripts": {
     "predev": "node ./scripts/generate-admin-config.js",
