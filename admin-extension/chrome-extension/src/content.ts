@@ -46,6 +46,7 @@ const previewLibraryVideo = (
   const url = __url || ""
   if (!url) return
   console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
+  console.log("[content] visitor preview path active")
   const player = ensureVisitorPlayer()
   if (!player) return
   console.log("[content] visitor player ready, showing preview")
