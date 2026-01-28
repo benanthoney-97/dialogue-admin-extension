@@ -346,15 +346,21 @@ const newMatchModeRef = useRef(false)
       setToastMessage("Unable to determine document for this match")
       return
     }
-    const normalizedUrl = buildVideoUrl(result.video_url || result.source_url || result.videoUrl, result.timestamp_start ?? result.timestampStart ?? 0)
-    const timestampValue =
-      typeof result.timestamp_start === "number"
+    const preferredTimestamp =
+      typeof result.suggested_timestamp === "number"
+        ? result.suggested_timestamp
+        : typeof result.timestamp_start === "number"
         ? result.timestamp_start
         : typeof result.timestampStart === "number"
         ? result.timestampStart
         : typeof result.timestamp === "number"
         ? result.timestamp
         : null
+    const normalizedUrl = buildVideoUrl(
+      result.video_url || result.source_url || result.videoUrl,
+      preferredTimestamp ?? 0
+    )
+    const timestampValue = preferredTimestamp
     const endpoint = `${backendBase.replace(/\/+$/, "")}/api/create-page-match`
 
     try {
@@ -530,6 +536,9 @@ const newMatchModeRef = useRef(false)
 
   const handleDecisionSelect = (action: string) => {
     if (action === "change") {
+      setPageNewMatchVisible(false)
+      resetManualFlow()
+      setDecisionCardVisible(false)
       setActiveSection("library")
       return
     }
@@ -568,6 +577,7 @@ const newMatchModeRef = useRef(false)
   const handleLibraryDocumentSelect = (doc: LibraryDocument) => {
     setLibraryDocument(doc)
     setReturnToSingleViewDoc(null)
+    previewLibraryVideoOnPage(doc)
   }
   const handleLibraryDocumentClose = (options?: { rememberDocument?: LibraryDocument | null }) => {
     if (options?.rememberDocument) {
