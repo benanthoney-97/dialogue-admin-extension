@@ -115,6 +115,8 @@ function SidePanel() {
   const [libraryTab, setLibraryTab] = useState<"provider" | "marketplace">("provider")
   const [providerName, setProviderName] = useState<string | null>(null)
   const [providerLogoUrl, setProviderLogoUrl] = useState<string | null>(null)
+  const [selectedLibraryChannelId, setSelectedLibraryChannelId] = useState<number | null>(null)
+  const [returnToSingleViewDoc, setReturnToSingleViewDoc] = useState<LibraryDocument | null>(null)
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
@@ -432,6 +434,7 @@ const newMatchModeRef = useRef(false)
       setLibraryDocument(null)
       setSelectedLibraryProviderId(null)
       setSelectedLibraryProviderName(null)
+      setSelectedLibraryChannelId(null)
     }
   }, [activeSection])
 
@@ -564,8 +567,14 @@ const newMatchModeRef = useRef(false)
 
   const handleLibraryDocumentSelect = (doc: LibraryDocument) => {
     setLibraryDocument(doc)
+    setReturnToSingleViewDoc(null)
   }
-  const handleLibraryDocumentClose = () => {
+  const handleLibraryDocumentClose = (options?: { rememberDocument?: LibraryDocument | null }) => {
+    if (options?.rememberDocument) {
+      setReturnToSingleViewDoc(options.rememberDocument)
+    } else {
+      setReturnToSingleViewDoc(null)
+    }
     setLibraryDocument(null)
   }
 
@@ -580,6 +589,7 @@ const newMatchModeRef = useRef(false)
     setSelectedLibraryProviderName(provider.name ?? null)
     setLibraryDocument(null)
     setLibraryTab("marketplace")
+    setSelectedLibraryChannelId(null)
   }
 
   const handleLibraryProvidersBack = () => {
@@ -587,6 +597,15 @@ const newMatchModeRef = useRef(false)
     setSelectedLibraryProviderName(null)
     setLibraryDocument(null)
     setLibraryTab("marketplace")
+    setSelectedLibraryChannelId(null)
+  }
+
+  const handleLibraryChannelSelect = (channel: { id: number } | null) => {
+    setSelectedLibraryChannelId(channel?.id ?? null)
+  }
+
+  const handleLibraryChannelBack = () => {
+    setSelectedLibraryChannelId(null)
   }
 
   const handleThresholdChange = (value: number) => {
@@ -784,6 +803,10 @@ const newMatchModeRef = useRef(false)
 
   const handleDecisionBack = () => {
     setDecisionCardVisible(false)
+    if (returnToSingleViewDoc) {
+      setLibraryDocument(returnToSingleViewDoc)
+      setReturnToSingleViewDoc(null)
+    }
   }
 
   useEffect(() => {
@@ -1202,29 +1225,33 @@ const newMatchModeRef = useRef(false)
               providerId={providerId ?? 0}
               pageUrl={resolvedPageUrl}
               onBack={handleLibraryDocumentClose}
+              onMatchSelect={handleMatchSelect}
             />
           )
         }
         return (
-          <LibraryView
-            showDecisionCard={decisionCardVisible && !!match}
-            cardProps={cardProps}
-            decisionCardBackLabel={decisionCardBackLabel}
-            decisionCardBackAriaLabel={decisionCardBackAriaLabel}
-            onDecisionSelect={handleDecisionSelect}
-            onDecisionBack={handleDecisionBack}
-            selectedLibraryProviderId={selectedLibraryProviderId}
-            selectedLibraryProviderName={selectedLibraryProviderName}
-            onLibraryProvidersBack={handleLibraryProvidersBack}
-            onLibraryDocumentSelect={handleLibraryDocumentSelect}
-            libraryTab={libraryTab}
-            providerId={providerId}
-            onLibraryTabChange={handleLibraryTabChange}
-            onLibraryProviderSelect={handleLibraryProviderSelect}
-            onConnectLibrary={handleConnectLibrary}
-            libraryRefreshKey={libraryRefreshKey}
-            providerTabLabel="Your Library"
-          />
+            <LibraryView
+              showDecisionCard={decisionCardVisible && !!match}
+              cardProps={cardProps}
+              decisionCardBackLabel={decisionCardBackLabel}
+              decisionCardBackAriaLabel={decisionCardBackAriaLabel}
+              onDecisionSelect={handleDecisionSelect}
+              onDecisionBack={handleDecisionBack}
+              selectedLibraryProviderId={selectedLibraryProviderId}
+              selectedLibraryProviderName={selectedLibraryProviderName}
+              onLibraryProvidersBack={handleLibraryProvidersBack}
+              onLibraryDocumentSelect={handleLibraryDocumentSelect}
+              libraryTab={libraryTab}
+              providerId={providerId}
+              onLibraryTabChange={handleLibraryTabChange}
+              onLibraryProviderSelect={handleLibraryProviderSelect}
+              onConnectLibrary={handleConnectLibrary}
+              libraryRefreshKey={libraryRefreshKey}
+              providerTabLabel="Your Library"
+              selectedChannelId={selectedLibraryChannelId}
+              onLibraryChannelSelect={handleLibraryChannelSelect}
+              onLibraryChannelBack={handleLibraryChannelBack}
+            />
         )
       }
       case "new-match": {

@@ -8,7 +8,7 @@ import "./page-summary.css"
 export interface PageSummaryProps {
   pageUrl: string
   providerId: number
-  onMatchSelect?: (matchId: number) => void
+  onMatchSelect?: (matchId: number, context?: string) => void
   showBackToList?: boolean
   onReturnToSitemap?: () => void
   onRefresh?: () => void

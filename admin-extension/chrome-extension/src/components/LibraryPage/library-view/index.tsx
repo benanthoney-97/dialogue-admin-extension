@@ -57,6 +57,9 @@ export interface LibraryViewProps {
   onConnectLibrary: (libraryUrl: string) => Promise<void>
   libraryRefreshKey: number
   hideProvidersHeading?: boolean
+  selectedChannelId?: number | null
+  onLibraryChannelSelect?: (channel: ChannelSummary | null) => void
+  onLibraryChannelBack?: () => void
 }
 
 export function LibraryView({
@@ -78,6 +81,9 @@ export function LibraryView({
   onConnectLibrary,
   libraryRefreshKey,
   hideProvidersHeading,
+  selectedChannelId,
+  onLibraryChannelSelect,
+  onLibraryChannelBack,
 }: LibraryViewProps) {
   const [channels, setChannels] = useState<ChannelSummary[]>([])
   const [channelsLoading, setChannelsLoading] = useState(false)
@@ -125,11 +131,22 @@ export function LibraryView({
 
   const handleChannelSelect = (channel: ChannelSummary) => {
     setSelectedChannel(channel)
+    onLibraryChannelSelect?.(channel)
   }
 
   const handleChannelBack = () => {
     setSelectedChannel(null)
+    onLibraryChannelSelect?.(null)
+    onLibraryChannelBack?.()
   }
+
+  useEffect(() => {
+    if (!selectedChannelId || !channels.length) return
+    const candidate = channels.find((channel) => channel.id === selectedChannelId)
+    if (candidate) {
+      setSelectedChannel(candidate)
+    }
+  }, [selectedChannelId, channels])
 
   if (showDecisionCard) {
     return (

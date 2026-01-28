@@ -17,6 +17,7 @@ chrome.sidePanel
 type MatchPayload = Record<string, unknown>
 let latestMatch: MatchPayload | null = null
 let lastMatchTabId: number | null = null
+let pendingScrollMatchId: number | null = null
 let globalThresholdLevel: ThresholdLevel = determineThresholdLevel(THRESHOLD_DEFAULT)
 let globalThresholdValue = THRESHOLD_DEFAULT
 let newMatchModeActive = false
@@ -663,6 +664,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
+  if (message.action === "navigateToMatch") {
+    const url = message.url
+    const targetTabId = lastMatchTabId ?? sender.tab?.id
+    console.log("[sl-background] navigateToMatch request", { url, matchId: message.matchId, targetTabId })
+    if (url && targetTabId) {
+      chrome.tabs.update(targetTabId, { url }, () => {
+        pendingScrollMatchId = message.matchId ?? null
+        notifyTabOfScroll(targetTabId)
+      })
+      lastMatchTabId = targetTabId
+    }
+    return false
+  }
+
   if (message.action === "setMatchHover") {
     const matchId = toNumber(message.page_match_id ?? message.match?.page_match_id ?? message.match?.id)
     const hovered = Boolean(message.hovered)
@@ -738,4 +753,24 @@ chrome.runtime.onConnect.addListener((port) => {
       }
     })
   })
+})
+const notifyTabOfScroll = (tabId: number) => {
+  if (!pendingScrollMatchId) return
+  chrome.tabs.sendMessage(
+    tabId,
+    { action: "scrollToMatch", matchId: pendingScrollMatchId },
+    () => {
+      if (!chrome.runtime.lastError) {
+        console.log("[sl-background] scrollToMatch acknowledged", { tabId, matchId: pendingScrollMatchId })
+        pendingScrollMatchId = null
+      }
+    }
+  )
+}
+
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+  if (tabId !== lastMatchTabId) return
+  if (changeInfo.status === "complete" && pendingScrollMatchId) {
+    notifyTabOfScroll(tabId)
+  }
 })

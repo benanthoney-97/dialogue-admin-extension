@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { TimestampPicker } from "../MatchSelector/timestamp-picker"
 import type { LibraryDocument } from "../LibraryPage/library-documents-grid"
 
@@ -10,6 +10,7 @@ export interface PageMatchSummary {
   status?: string
   video_url?: string
   confidence_color?: string
+  url?: string
   created_at?: string | null
 }
 
@@ -18,9 +19,9 @@ export interface SingleViewVideoProps {
   providerId: number
   pageUrl?: string
   videoUrl?: string
-  onBack: () => void
+  onBack: (options?: { rememberDocument?: LibraryDocument | null }) => void
   onConfirm?: (seconds: number) => void
-  onMatchSelect?: (matchId: number) => void
+  onMatchSelect?: (matchId: number, context?: string) => void
 }
 
 const extractTimestamp = (url?: string) => {
@@ -117,13 +118,22 @@ export function SingleViewVideo({
   }
   const handleMatchClick = (matchId: number) => {
     if (!matchId) return
-    onMatchSelect?.(matchId)
+    onMatchSelect?.(matchId, "video")
+  }
+  const handleMatchReview = (match: PageMatchSummary, event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.stopPropagation()
+    onBack({ rememberDocument: document })
+    handleMatchClick(match.page_match_id)
+    if (match.url) {
+      console.log("[single-view-video] review match clicked", { matchId: match.page_match_id, url: match.url })
+      chrome.runtime?.sendMessage?.({ action: "navigateToMatch", url: match.url, matchId: match.page_match_id })
+    }
   }
 
   return (
     <div className="timestamp-view single-view-video">
       <div className="timestamp-view__back-row">
-        <button type="button" className="timestamp-view__back" onClick={onBack}>
+        <button type="button" className="timestamp-view__back" onClick={() => onBack()}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path
               fillRule="evenodd"
@@ -157,22 +167,21 @@ export function SingleViewVideo({
             <article
               key={match.page_match_id}
               className="single-view-video__match-card single-view-video__match-card--interactive"
-              role="button"
-              tabIndex={0}
-              onClick={() => handleMatchClick(match.page_match_id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault()
-                  handleMatchClick(match.page_match_id)
-                }
-              }}
             >
               <p>{match.phrase}</p>
               <div className="single-view-video__match-footer">
                 <span className="single-view-video__match-date">
-                  {formatMatchDate(match.created_at ?? null)}
+                  <strong>Created:</strong> {formatMatchDate(match.created_at ?? null)}
                 </span>
               </div>
+              <div className="single-view-video__match-overlay" aria-hidden="true" />
+              <button
+                type="button"
+                className="single-view-video__match-overlay-button"
+                onClick={(event) => handleMatchReview(match, event)}
+              >
+                Review match
+              </button>
             </article>
           ))}
         </div>
@@ -251,6 +260,7 @@ export function SingleViewVideo({
           display: flex;
           flex-direction: column;
           gap: 4px;
+          position: relative;
         }
         .single-view-video__match-card--interactive {
           cursor: pointer;
@@ -272,7 +282,7 @@ export function SingleViewVideo({
         }
         .single-view-video__match-footer {
           display: flex;
-          justify-content: flex-end;
+          justify-content: flex-start;
           align-items: center;
           gap: 8px;
           margin-top: 4px;
@@ -283,6 +293,38 @@ export function SingleViewVideo({
           color: #475467;
           text-transform: none;
         }
+        .single-view-video__match-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          border-radius: 12px;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .single-view-video__match-card--interactive:hover .single-view-video__match-overlay {
+          opacity: 1;
+        }
+        .single-view-video__match-overlay-button {
+          border: none;
+          background: rgba(255, 255, 255, 0.95);
+          color: #0f172a;
+          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+          pointer-events: auto;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 1;
+        }
+        .single-view-video__match-card--interactive:hover .single-view-video__match-overlay-button {
+          opacity: 1;
       `}</style>
     </div>
   )

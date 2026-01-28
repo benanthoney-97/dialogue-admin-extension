@@ -201,6 +201,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata)
     return false
   }
+  if (request.action === "scrollToMatch") {
+    if (typeof request.matchId === "number") {
+      console.log("[content] scrollToMatch received", request.matchId)
+      scrollToMatchHighlight(request.matchId)
+    }
+    return false
+  }
 
   if (request.action === "read_page") {
     const content = document.body.innerText || ""
@@ -232,5 +239,16 @@ const invokePageScriptRemoval = (matchId: number | string | undefined | null) =>
   const removeFn = (window as any).__SL_removeMatchHighlight
   if (typeof removeFn === "function") {
     removeFn(matchId)
+  }
+}
+
+const scrollToMatchHighlight = (matchId: number) => {
+  const selector = `[data-page-match-id="${matchId}"]`
+  const element = document.querySelector(selector)
+  if (element) {
+    console.log("[content] scrolling to match element", { selector, matchId })
+    element.scrollIntoView({ behavior: "smooth", block: "center" })
+  } else {
+    console.log("[content] no match element found for", { selector, matchId })
   }
 }
