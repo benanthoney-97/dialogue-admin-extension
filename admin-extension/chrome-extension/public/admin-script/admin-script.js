@@ -86,11 +86,11 @@
 
   const setActiveInlineStyles = (span) => {
     span.style.setProperty("cursor", "pointer", "important");
-    span.style.setProperty("font-weight", "500", "important");
+    span.style.setProperty("font-weight", "400", "important");
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
-    span.style.setProperty("display", "inline-block", "important");
-    span.style.setProperty("padding", "0 6px", "important");
+    span.style.setProperty("display", "inline", "important");
+    span.style.setProperty("padding", "0", "important");
   };
 
   const setInactiveInlineStyles = (span) => {
