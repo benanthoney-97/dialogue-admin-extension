@@ -573,10 +573,67 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, box-shadow 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.account-view__button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .account-view__button:hover {
   background: #f8fafc;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+.account-view__button-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.account-view__snippet-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+.account-view__snippet-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+}
+.account-view__snippet-overlay__content {
+  position: relative;
+  background: #fff;
+  padding: 12px 0 12px 0;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+  max-width: min(640px, calc(100% - 48px));
+  width: 100%;
+  z-index: 1;
+}
+.account-view__snippet-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #0f172a;
+}
+.account-view__snippet-dropdown {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 4px;
+}
+.account-view__snippet-dropdown--open {
+  max-height: 360px;
+  padding: 8px 4px 0;
 }
 .sr-only {
   position: absolute;

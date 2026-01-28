@@ -344,7 +344,7 @@
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   z-index: 2;
 }
 .page-new-match-overlay .new-match-prompt {

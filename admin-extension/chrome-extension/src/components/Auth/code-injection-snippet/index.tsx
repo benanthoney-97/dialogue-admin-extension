@@ -46,63 +46,40 @@ export function CodeInjectionSnippet({ providerId, onCopy, showHeader = true }: 
   const ariaLabel = useMemo(() => (copied ? "Snippet copied" : "Copy snippet to clipboard"), [copied])
 
   return (
-      <div className="code-injection-snippet">
-
+    <div className="code-injection-snippet">
       <div className="code-injection-snippet__container">
-        <button type="button" className="code-injection-snippet__copy" onClick={handleCopy} aria-label={ariaLabel}>
-          {copied ? "Copied" : "Copy"}
-        </button>
         <pre className="code-injection-snippet__code">
           <code>{snippet}</code>
         </pre>
       </div>
+      <button type="button" className="code-injection-snippet__copy" onClick={handleCopy} aria-label={ariaLabel}>
+        {copied ? "Copied" : "Copy"}
+      </button>
       <style>
         {`
         .code-injection-snippet {
           background: #ffffff;
           color: #0f172a;
-          border: 1px solid #e2e8f0;
+          border: none;
           border-radius: 16px;
-          padding: 16px 0;
+          padding: 16px;
           width: 100%;
           box-sizing: border-box;
-        }
-        .code-injection-snippet__header {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-          font-weight: 600;
-          font-family: inherit;
-        }
-        .code-injection-snippet__copy {
-          border: none;
-          border-radius: 8px;
-          padding: 6px 12px;
-          background: #0f1727;
-          color: #ffffff;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.2s ease;
-          position: absolute;
-          top: 8px;
-          right: 8px;
-        }
-        .code-injection-snippet__copy:active {
-          transform: translateY(1px);
+          flex-direction: column;
+          gap: 12px;
         }
         .code-injection-snippet__container {
-          border: 1px solid rgba(248, 250, 252, 0.4);
-          border-radius: 12px;
-          padding: 6px 12px;
+          border: none;
+          border-radius: 12px 12px 0 0;
+          background: #e3ebff;
+          padding: 12px 16px;
           white-space: pre-wrap;
           word-break: break-word;
           font-size: 13px;
           line-height: 1.5;
           margin: 0;
           text-align: left;
-          position: relative;
           width: 100%;
           box-sizing: border-box;
         }
@@ -110,11 +87,27 @@ export function CodeInjectionSnippet({ providerId, onCopy, showHeader = true }: 
           font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
           margin: 0;
           background: transparent;
-          padding-right: 12px;
+          padding: 0;
           max-height: 160px;
           overflow: auto;
           width: 100%;
           box-sizing: border-box;
+        }
+        .code-injection-snippet__copy {
+          border: none;
+          border-radius: 12px;
+          padding: 12px 16px;
+          background: #0f1727;
+          color: #ffffff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+          text-align: center;
+          transition: transform 0.2s ease;
+        }
+        .code-injection-snippet__copy:active {
+          transform: translateY(1px);
         }
         `}
       </style>
