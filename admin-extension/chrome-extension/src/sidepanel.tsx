@@ -467,7 +467,7 @@ const newMatchModeRef = useRef(false)
         phrase: selectedNewMatchText ?? undefined,
         page_url: pageUrl,
       }
-      chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl, metadata })
+    chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl, metadata, admin: true })
     } catch (error) {
       console.error("[sidepanel] previewLibraryVideo message failed", error)
     }

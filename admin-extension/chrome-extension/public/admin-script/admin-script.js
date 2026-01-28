@@ -21,20 +21,6 @@
     visitorListenerAttached: false,
     config: null,
   };
-  const loadPlayerTemplate = () => {
-    if (window.DialoguePlayerTemplate) {
-      return Promise.resolve(window.DialoguePlayerTemplate)
-    }
-    return new Promise((resolve) => {
-      const script = document.createElement("script")
-      script.src = `${getApiOrigin().replace(/\/+$/, "")}/static/player-template.js`
-      script.async = true
-      script.onload = () => resolve(window.DialoguePlayerTemplate)
-      script.onerror = () => resolve(null)
-      document.head.appendChild(script)
-    })
-  }
-
   const loadPlayerComponent = () => {
     if (window.DialoguePlayer) {
       return Promise.resolve(window.DialoguePlayer)
