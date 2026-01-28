@@ -363,29 +363,31 @@ const pillStyle = (label?: string, color?: string) => {
             {!loading && !matches.length && !error && (
               <div className="page-summary__matches-state">No matches for this page yet.</div>
             )}
-            <div className="page-summary__match-list">
-              {matches.map((match) => (
-                <MatchCard
-                  key={match.page_match_id}
-                  phrase={previewPhrase(match.phrase)}
-                  coverImageUrl={match.cover_image_url}
-                  documentTitle={match.document_title}
-                  confidenceLabel={match.confidence_label}
-                  confidenceColor={match.confidence_color}
-                  pillText={formatMatchLabel(match)}
-                  onClick={() => onMatchSelect?.(match.page_match_id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault()
-                      onMatchSelect?.(match.page_match_id)
-                    }
-                  }}
-                  onMouseEnter={() => sendHoverMessage(match, true)}
-                  onMouseLeave={() => sendHoverMessage(match, false)}
-                  onFocus={() => sendHoverMessage(match, true)}
-                  onBlur={() => sendHoverMessage(match, false)}
-                />
-              ))}
+            <div className="page-summary__match-list-wrapper">
+              <div className="page-summary__match-list">
+                {matches.map((match) => (
+                  <MatchCard
+                    key={match.page_match_id}
+                    phrase={previewPhrase(match.phrase)}
+                    coverImageUrl={match.cover_image_url}
+                    documentTitle={match.document_title}
+                    confidenceLabel={match.confidence_label}
+                    confidenceColor={match.confidence_color}
+                    pillText={formatMatchLabel(match)}
+                    onClick={() => onMatchSelect?.(match.page_match_id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault()
+                        onMatchSelect?.(match.page_match_id)
+                      }
+                    }}
+                    onMouseEnter={() => sendHoverMessage(match, true)}
+                    onMouseLeave={() => sendHoverMessage(match, false)}
+                    onFocus={() => sendHoverMessage(match, true)}
+                    onBlur={() => sendHoverMessage(match, false)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
