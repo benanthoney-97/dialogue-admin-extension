@@ -671,11 +671,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (url && targetTabId) {
       chrome.tabs.update(targetTabId, { url }, () => {
         pendingScrollMatchId = message.matchId ?? null
-        notifyTabOfScroll(targetTabId)
       })
       lastMatchTabId = targetTabId
     }
     return false
+  }
+
+  if (message.action === "pageReady") {
+    console.log("[sl-background] pageReady received", { pendingScrollMatchId, tabId: sender.tab?.id ?? lastMatchTabId })
+    const response = { matchId: pendingScrollMatchId }
+    pendingScrollMatchId = null
+    sendResponse(response)
+    return true
   }
 
   if (message.action === "setMatchHover") {
@@ -753,24 +760,4 @@ chrome.runtime.onConnect.addListener((port) => {
       }
     })
   })
-})
-const notifyTabOfScroll = (tabId: number) => {
-  if (!pendingScrollMatchId) return
-  chrome.tabs.sendMessage(
-    tabId,
-    { action: "scrollToMatch", matchId: pendingScrollMatchId },
-    () => {
-      if (!chrome.runtime.lastError) {
-        console.log("[sl-background] scrollToMatch acknowledged", { tabId, matchId: pendingScrollMatchId })
-        pendingScrollMatchId = null
-      }
-    }
-  )
-}
-
-chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
-  if (tabId !== lastMatchTabId) return
-  if (changeInfo.status === "complete" && pendingScrollMatchId) {
-    notifyTabOfScroll(tabId)
-  }
 })

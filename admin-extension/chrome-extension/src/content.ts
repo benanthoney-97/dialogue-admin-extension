@@ -208,6 +208,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return false
   }
+  if (request.action === "pageReady") {
+    console.log("[content] pageReady message received")
+    chrome.runtime.sendMessage({ action: "pageReadyAck" }, () => {})
+    return false
+  }
 
   if (request.action === "read_page") {
     const content = document.body.innerText || ""
@@ -244,11 +249,26 @@ const invokePageScriptRemoval = (matchId: number | string | undefined | null) =>
 
 const scrollToMatchHighlight = (matchId: number) => {
   const selector = `[data-page-match-id="${matchId}"]`
-  const element = document.querySelector(selector)
-  if (element) {
-    console.log("[content] scrolling to match element", { selector, matchId })
-    element.scrollIntoView({ behavior: "smooth", block: "center" })
-  } else {
-    console.log("[content] no match element found for", { selector, matchId })
+  const attempt = (tries = 0) => {
+    const element = document.querySelector(selector)
+    if (element) {
+      console.log("[content] scrolling to match element", { selector, matchId, tries })
+      element.scrollIntoView({ behavior: "smooth", block: "center" })
+      return
+    }
+    if (tries >= 5) {
+      console.warn("[content] no match element found after retries", { selector, matchId })
+      return
+    }
+    window.setTimeout(() => attempt(tries + 1), 300)
   }
+  attempt()
 }
+
+setTimeout(() => {
+  chrome.runtime?.sendMessage?.({ action: "pageReady" }, (response) => {
+    if (response?.matchId) {
+      scrollToMatchHighlight(response.matchId)
+    }
+  })
+}, 0)
