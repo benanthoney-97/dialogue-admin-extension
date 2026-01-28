@@ -42,7 +42,6 @@
       console.log("[admin-script] visitor player cached instance")
       return visitorPlayerInstance
     }
-    await loadPlayerTemplate()
     const module = await loadPlayerComponent()
     console.log("[admin-script] loadPlayerComponent result", module)
     if (module?.initVisitorPlayer) {
