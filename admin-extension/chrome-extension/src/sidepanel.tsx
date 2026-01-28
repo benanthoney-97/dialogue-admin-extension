@@ -1537,11 +1537,13 @@ const newMatchModeRef = useRef(false)
         </div>
       )
     }
+    const contentScrollClass = `sidepanel__content-scroll${pageNewMatchVisible ? " sidepanel__content-scroll--locked" : ""}`
+
     return (
       <div className="flex h-screen w-full flex-col bg-transparent font-sans text-slate-900">
         {toastMessage && <div className="panel-toast">{toastMessage}</div>}
         <div className="sidepanel__body">
-          <div className="sidepanel__content-scroll">{renderAuthenticatedContent()}</div>
+          <div className={contentScrollClass}>{renderAuthenticatedContent()}</div>
         </div>
         <BottomNavigation
           active={activeSection}

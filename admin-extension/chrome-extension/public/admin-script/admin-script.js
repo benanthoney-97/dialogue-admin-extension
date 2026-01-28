@@ -413,22 +413,27 @@
         text-decoration-thickness: 2px !important;
         text-decoration-skip-ink: none !important;
         border-radius: 8px !important;
+        background: transparent !important;
+      }
+      @keyframes sl-shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
       }
       .sl-smart-link:hover,
       .sl-admin-mode .sl-smart-link:hover,
-      body.sl-visitor-mode .sl-smart-link:hover {
-        text-decoration-color: #6366F1 !important;
-        background-color: rgba(99, 102, 241, 0.1) !important;
-        box-shadow: none !important;
-        border-radius: 8px !important;
-      }
+      body.sl-visitor-mode .sl-smart-link:hover,
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
         text-decoration-color: #6366F1 !important;
-        background-color: rgba(99, 102, 241, 0.1) !important;
         box-shadow: none !important;
-        border-radius: 8px !important;
+        background-image: linear-gradient(120deg, rgba(255, 255, 255, 0) 0%, rgba(99, 102, 241, 0.15) 30%, rgba(255, 255, 255, 0.2) 50%, rgba(99, 102, 241, 0.15) 70%, rgba(255, 255, 255, 0) 100%);
+        background-size: 200% 100%;
+        animation: sl-shimmer 2s linear infinite;
       }
       .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
       .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
