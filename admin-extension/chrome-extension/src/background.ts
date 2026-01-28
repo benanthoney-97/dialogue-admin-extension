@@ -92,10 +92,18 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
   }
 })
 
-const sendMessageToActiveTab = (message: Record<string, unknown>) => {
-  const sendToTab = (tabId: number, fallbackToActive = true) => {
-    console.log("[sl-background] sending message to tab", { tabId, message })
-    chrome.tabs.sendMessage(tabId, message, () => {
+  const sendMessageToActiveTab = (message: Record<string, unknown>) => {
+    const sendToTab = (tabId: number, fallbackToActive = true) => {
+      console.log("[sl-background] sending message to tab", { tabId, message })
+      chrome.tabs.get(tabId, (tab) => {
+        console.log("[sl-background] target tab info", {
+          tabId,
+          url: tab?.url,
+          title: tab?.title,
+          status: tab?.status,
+        })
+      })
+      chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
         console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError, { tabId, message })
         if (fallbackToActive) {
