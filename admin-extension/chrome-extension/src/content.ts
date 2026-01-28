@@ -37,7 +37,7 @@ const ensurePlayerTemplate = () => {
   }
   playerTemplatePromise = new Promise((resolve) => {
     const script = document.createElement("script")
-    script.src = chrome.runtime.getURL("shared/player-template.js")
+    script.src = chrome.runtime.getURL("static/player-template.js")
     script.async = true
     script.onload = () => resolve(window.DialoguePlayerTemplate)
     script.onerror = () => {

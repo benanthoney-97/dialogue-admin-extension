@@ -27,7 +27,7 @@
     }
     return new Promise((resolve) => {
       const script = document.createElement("script")
-      script.src = `${getApiOrigin().replace(/\/+$/, "")}/shared/player-template.js`
+      script.src = `${getApiOrigin().replace(/\/+$/, "")}/static/player-template.js`
       script.async = true
       script.onload = () => resolve(window.DialoguePlayerTemplate)
       script.onerror = () => resolve(null)
