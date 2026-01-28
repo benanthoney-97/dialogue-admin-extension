@@ -9,7 +9,6 @@
     "prebuild": "node ./scripts/generate-admin-config.js",
     "dev": "PLASMO_PORT=4175 plasmo dev",
     "build": "plasmo build",
-    "postbuild": "node ./scripts/copy-static.js",
     "sync-admin-script": "true",
     "package": "plasmo package"
   },
@@ -61,9 +60,10 @@
     ],
     "web_accessible_resources": [
       {
-      "resources": [
-        "static/visitor-player.js"
-      ],
+        "resources": [
+          "static/visitor-player.js",
+          "static/admin-player.js"
+        ],
         "matches": [
           "<all_urls>"
         ]
