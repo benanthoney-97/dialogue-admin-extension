@@ -1,38 +1,6 @@
 import type { PlasmoCSConfig } from "plasmo"
 console.log("[content] content script loaded")
 
-type RectLike = {
-  left?: number
-  bottom?: number
-  width?: number
-  height?: number
-}
-
-type PreviewPlayerRect = RectLike | DOMRect
-type PreviewPlayerMetadata = Record<string, unknown>
-
-type PlayerOptions = {
-  rect?: RectLike | DOMRect
-  width?: number
-  ratio?: number
-  url?: string
-  metadata?: PreviewPlayerMetadata
-}
-
-type AdminVisitorPlayer = {
-  show: (options: PlayerOptions) => void
-  hide: () => void
-  loadVideo?: (url?: string) => void
-  size?: (width?: number, ratio?: number) => void
-}
-
-type AdminPlayerModule = {
-  initVisitorPlayer: (options?: {
-    onCreateMatch?: (detail: unknown) => void
-    onClose?: () => void
-  }) => AdminVisitorPlayer | null
-}
-
 type MatchPayload = Record<string, unknown>
 
 export const config: PlasmoCSConfig = {
@@ -41,91 +9,7 @@ export const config: PlasmoCSConfig = {
 
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
 let cachedMatchMap: MatchPayload[] | null = null
-let adminPlayerInstance: AdminVisitorPlayer | null = null
-let lastNewMatchRect: RectLike | null = null
-let lastPreviewMetadata: PreviewPlayerMetadata | null = null
-let adminPlayerModulePromise: Promise<AdminPlayerModule> | null = null
 
-const ADMIN_PLAYER_PATH = chrome.runtime.getURL("static/admin-player.js")
-
-const ensureAdminPlayerModule = () => {
-  if (adminPlayerModulePromise) {
-    return adminPlayerModulePromise
-  }
-  console.log("[content] loading admin player module", ADMIN_PLAYER_PATH)
-  adminPlayerModulePromise = import(/* @vite-ignore */ ADMIN_PLAYER_PATH) as Promise<AdminPlayerModule>
-  adminPlayerModulePromise.catch((error) => console.error("[content] admin player module import rejected", error))
-  return adminPlayerModulePromise
-}
-
-const ensureAdminVisitorPlayer = async (): Promise<AdminVisitorPlayer | null> => {
-  if (adminPlayerInstance) {
-    return adminPlayerInstance
-  }
-  const module = await ensureAdminPlayerModule().catch((error) => {
-    console.error("[content] failed to load admin player module", error)
-    return null
-  })
-  if (!module) return null
-  console.log("[content] initializing admin player instance")
-  adminPlayerInstance = module.initVisitorPlayer()
-  if (!adminPlayerInstance) {
-    console.warn("[content] admin player initialization failed")
-    return null
-  }
-  console.log("[content] admin player initialized")
-  return adminPlayerInstance
-}
-
-const toDomRect = (value?: RectLike | DOMRect): DOMRect | null => {
-  if (!value) return null
-  if (value instanceof DOMRect) return value
-  return new DOMRect(
-    value.left ?? 0,
-    value.bottom ?? 0,
-    value.width ?? 0,
-    value.height ?? 0
-  )
-}
-
-const DEFAULT_PREVIEW_RECT = () => ({
-  left: Math.max(12, window.innerWidth - 340),
-  bottom: 72,
-  width: 0,
-  height: 0,
-})
-
-const previewLibraryVideo = async (
-  __url?: string,
-  rect?: PreviewPlayerRect | null,
-  width?: number,
-  ratio?: number,
-  metadata?: PreviewPlayerMetadata | null
-) => {
-  const url = __url || ""
-  if (!url) return
-  console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
-  const player = await ensureAdminVisitorPlayer()
-  if (!player) return
-  console.log("[content] admin preview player ready, showing preview")
-  const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
-  lastPreviewMetadata = metadata ?? null
-  player.show({
-    rect: resolvedRect instanceof DOMRect
-      ? resolvedRect
-      : new DOMRect(
-          resolvedRect.left ?? DEFAULT_PREVIEW_RECT().left,
-          resolvedRect.bottom ?? DEFAULT_PREVIEW_RECT().bottom,
-          resolvedRect.width ?? DEFAULT_PREVIEW_RECT().width,
-          resolvedRect.height ?? DEFAULT_PREVIEW_RECT().height
-        ),
-    width: width ?? 320,
-    ratio: ratio ?? 16 / 9,
-    url,
-    metadata: lastPreviewMetadata ?? undefined,
-  })
-  console.log("[content] admin preview player show invoked")
-}
 
 const parseMatchMapFromScript = () => {
   const script = document.getElementById(MATCH_MAP_SCRIPT_ID)
@@ -195,15 +79,6 @@ const handleNewMatchSelection = () => {
   const selection = window.getSelection()
   const text = selection?.toString().trim()
   if (!text) return
-  if (selection?.rangeCount) {
-    const rect = selection.getRangeAt(0).getBoundingClientRect()
-    lastNewMatchRect = {
-      left: rect.left,
-      bottom: rect.bottom,
-      width: rect.width,
-      height: rect.height,
-    }
-  }
   chrome.runtime.sendMessage({ action: "newMatchSelection", text })
   disableNewMatchSelection()
 }
@@ -250,12 +125,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const id = request.page_match_id ?? request.match?.page_match_id ?? request.match?.id
     console.log("[content] removeMatchHighlight received", id)
     invokePageScriptRemoval(id)
-    return false
-  }
-  if (request.action === "previewLibraryVideo") {
-    lastPreviewMetadata = request.metadata ?? null
-    console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId, metadata: request.metadata })
-    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata)
     return false
   }
   if (request.action === "scrollToMatch") {

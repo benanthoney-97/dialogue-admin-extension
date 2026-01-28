@@ -47,7 +47,6 @@
     const module = window.DialoguePlayer ?? (await ensureVisitorPlayerScript())
     if (module?.initVisitorPlayer) {
       visitorPlayerInstance = module.initVisitorPlayer()
-      console.log("[admin-script] visitor player initialized")
     }
     return visitorPlayerInstance
   }
@@ -62,12 +61,10 @@
 
   const showVisitorPlayer = async (match, rect) => {
     if (!match) return
-    console.log("[admin-script] showVisitorPlayer start", { matchId: getMatchIdentifier(match), rect })
     const player = await ensureVisitorPlayer()
     if (!player) return
     player.size(320, 16 / 9)
     const url = toVimeoPlayerUrl(match.video_url)
-    console.log("[admin-script] player show data", { rect, url })
     player.show({ rect, width: 320, ratio: 16 / 9, url })
   }
 
@@ -407,7 +404,7 @@
       body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed) {
         border-bottom: none !important;
         cursor: pointer !important;
-        font-weight: 500 !important;
+        font-weight: normal;
         transition: border-color 0.2s ease, color 0.2s ease !important;
         line-height: 1.2 !important;
         display: inline !important;
@@ -415,6 +412,7 @@
         text-decoration-color: #6366F1 !important;
         text-decoration-thickness: 2px !important;
         text-decoration-skip-ink: none !important;
+        border-radius: 12px !important;
       }
       .sl-smart-link:hover,
       .sl-admin-mode .sl-smart-link:hover,
@@ -422,6 +420,7 @@
         text-decoration-color: #6366F1 !important;
         background-color: rgba(99, 102, 241, 0.1) !important;
         box-shadow: none !important;
+        border-radius: 12px !important;
       }
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
@@ -429,6 +428,7 @@
         text-decoration-color: #6366F1 !important;
         background-color: rgba(99, 102, 241, 0.1) !important;
         box-shadow: none !important;
+        border-radius: 12px !important;
       }
       .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
       .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
@@ -740,11 +740,6 @@
     const pageMatchId = match.page_match_id ?? match.pageMatchId ?? match.id;
     const rect = matchEl.getBoundingClientRect();
     if (providerId && pageMatchId) {
-      console.log("[admin-script] sending match-clicked", {
-        providerId,
-        pageMatchId,
-        videoUrl: match.video_url || match.page_url,
-      });
       fetch(`${getApiOrigin()}/api/match-clicked`, {
         method: "POST",
         headers: {

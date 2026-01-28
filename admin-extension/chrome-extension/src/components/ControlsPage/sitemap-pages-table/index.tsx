@@ -232,7 +232,7 @@ export function SitemapPagesTable({ feedId, feed, filter = "", onPageToggle, onV
           box-shadow: none;
         }
         .sitemap-feed-card__url-unique {
-          font-size: 14px;
+          font-size: 12px;
           color: #0f172a;
           font-weight: 600;
           word-break: break-word;

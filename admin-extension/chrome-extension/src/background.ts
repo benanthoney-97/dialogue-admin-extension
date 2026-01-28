@@ -94,21 +94,13 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
 
   const sendMessageToActiveTab = (message: Record<string, unknown>) => {
     const sendToTab = (tabId: number, fallbackToActive = true) => {
-      console.log("[sl-background] sending message to tab", { tabId, message })
       chrome.tabs.get(tabId, (tab) => {
-        console.log("[sl-background] target tab info", {
-          tabId,
-          url: tab?.url,
-          title: tab?.title,
-          status: tab?.status,
-        })
+
       })
       chrome.tabs.sendMessage(tabId, message, () => {
       if (chrome.runtime.lastError) {
-        console.warn("[sl-background] sendMessage failed", chrome.runtime.lastError, { tabId, message })
         if (fallbackToActive) {
           lastMatchTabId = null
-          console.log("[sl-background] sendMessageToActiveTab retrying via active tab query")
           chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
             const active = tabs?.[0]
             if (!active?.id || active.id === tabId) return
@@ -116,18 +108,15 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
           })
         }
       } else {
-        console.log("[sl-background] sendMessage succeeded", { tabId, message })
       }
     })
   }
 
   if (typeof lastMatchTabId === "number") {
-    console.log("[sl-background] sendMessageToActiveTab targeting saved tab", lastMatchTabId)
     sendToTab(lastMatchTabId)
     return
   }
 
-  console.log("[sl-background] sendMessageToActiveTab falling back to active query")
 
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
     const active = tabs?.[0]
@@ -525,7 +514,6 @@ const executePageMode = async (tabId: number, mode: string) => {
 }
 
 async function executeThresholdUpdate(tabId: number, value: number) {
-  console.log("[sl-background] executeThresholdUpdate", { tabId, value })
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -677,16 +665,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false
   }
 
-  if (message.action === "previewLibraryVideo") {
-    console.log("[sl-background] previewLibraryVideo relaying", { message, lastMatchTabId })
-    sendMessageToActiveTab(message)
-    return false
-  }
-
   if (message.action === "navigateToMatch") {
     const url = message.url
     const targetTabId = lastMatchTabId ?? sender.tab?.id
-    console.log("[sl-background] navigateToMatch request", { url, matchId: message.matchId, targetTabId })
     if (url && targetTabId) {
       chrome.tabs.update(targetTabId, { url }, () => {
         pendingScrollMatchId = message.matchId ?? null
@@ -697,7 +678,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "pageReady") {
-    console.log("[sl-background] pageReady received", { pendingScrollMatchId, tabId: sender.tab?.id ?? lastMatchTabId })
     const response = { matchId: pendingScrollMatchId }
     pendingScrollMatchId = null
     sendResponse(response)

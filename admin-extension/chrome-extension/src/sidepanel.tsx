@@ -118,6 +118,8 @@ function SidePanel() {
   const [selectedLibraryChannelId, setSelectedLibraryChannelId] = useState<number | null>(null)
   const [returnToSingleViewDoc, setReturnToSingleViewDoc] = useState<LibraryDocument | null>(null)
   const [pageSummarySlideActive, setPageSummarySlideActive] = useState(false)
+  const [replaceMatchMode, setReplaceMatchMode] = useState(false)
+  const [replaceTargetMatch, setReplaceTargetMatch] = useState<MatchPayload | null>(null)
   const pageSummarySlideTimerRef = useRef<number | null>(null)
   const [sitemapBreadcrumbVisible, setSitemapBreadcrumbVisible] = useState(false)
   const [pageNewMatchVisible, setPageNewMatchVisible] = useState(false)
@@ -446,31 +448,12 @@ const newMatchModeRef = useRef(false)
 
   const handleManualDocumentSelect = (doc: ProviderDocument) => {
     setManualSelectedDoc(doc)
-    previewLibraryVideoOnPage(doc)
     setManualStage("timestamp")
   }
 
   const handleNewMatchLibraryDocumentSelect = (doc: LibraryDocument) => {
-    previewLibraryVideoOnPage(doc)
-  }
-
-  const previewLibraryVideoOnPage = (doc?: ProviderDocument) => {
-    const embedUrl = buildVideoUrl(doc?.source_url)
-    if (!embedUrl) return
-    try {
-      console.log("[sidepanel] previewLibraryVideo request", { sourceUrl: doc?.source_url, embedUrl })
-      const metadata = {
-        document_id: doc?.id,
-        document_title: doc?.title,
-        provider_id: doc?.provider_id ?? resolveProviderId(),
-        source_provider_id: manualLibraryProviderId ?? resolveProviderId(),
-        phrase: selectedNewMatchText ?? undefined,
-        page_url: pageUrl,
-      }
-    chrome.runtime.sendMessage({ action: "previewLibraryVideo", videoUrl: embedUrl, metadata })
-    } catch (error) {
-      console.error("[sidepanel] previewLibraryVideo message failed", error)
-    }
+    setManualSelectedDoc(doc)
+    setManualStage("timestamp")
   }
 
   const handleManualBackToDocuments = () => {
@@ -540,6 +523,10 @@ const newMatchModeRef = useRef(false)
       resetManualFlow()
       setDecisionCardVisible(false)
       setActiveSection("library")
+      setLibraryDocument(null)
+      setReturnToSingleViewDoc(null)
+      setReplaceMatchMode(true)
+      setReplaceTargetMatch(match)
       return
     }
     if (action === "remove") {
@@ -577,7 +564,58 @@ const newMatchModeRef = useRef(false)
   const handleLibraryDocumentSelect = (doc: LibraryDocument) => {
     setLibraryDocument(doc)
     setReturnToSingleViewDoc(null)
-    previewLibraryVideoOnPage(doc)
+  }
+
+  const handleLibraryReplaceTimestampConfirm = async (seconds: number) => {
+    if (!libraryDocument) {
+      setReplaceMatchMode(false)
+      setReplaceTargetMatch(null)
+      return
+    }
+    const targetMatch = replaceTargetMatch ?? match
+    const pageMatchId = targetMatch?.page_match_id
+    if (!pageMatchId) {
+      setReplaceMatchMode(false)
+      setReplaceTargetMatch(null)
+      setLibraryDocument(null)
+      return
+    }
+    const videoUrl = buildVideoUrl(libraryDocument.source_url, seconds)
+    const endpoint = `${backendBase.replace(/\/+$/, "")}/api/page-match`
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          page_match_id: pageMatchId,
+          document_id: libraryDocument.id,
+          ...(videoUrl ? { video_url: videoUrl } : {}),
+        }),
+      })
+      if (!response.ok) {
+        const payload = await response.text()
+        throw new Error(`Failed to update match (${response.status}): ${payload}`)
+      }
+      const refreshedMatch: MatchPayload = {
+        ...(targetMatch ?? match ?? {}),
+        document_id: libraryDocument.id,
+        video_url: videoUrl || targetMatch?.video_url,
+      }
+      setToastMessage("Match updated")
+      setMatch(refreshedMatch)
+      setDecisionCardVisible(true)
+      chrome.runtime.sendMessage({ action: "refreshMatch", match: refreshedMatch })
+      setActiveSection("page")
+    } catch (error) {
+      setToastMessage("Unable to replace match")
+    } finally {
+      setLibraryDocument(null)
+      setReturnToSingleViewDoc(null)
+      setReplaceMatchMode(false)
+      setReplaceTargetMatch(null)
+    }
   }
   const handleLibraryDocumentClose = (options?: { rememberDocument?: LibraryDocument | null }) => {
     if (options?.rememberDocument) {
@@ -728,6 +766,13 @@ const newMatchModeRef = useRef(false)
     }
   }, [activeSection])
 
+  useEffect(() => {
+    if (activeSection !== "library") {
+      setReplaceMatchMode(false)
+      setReplaceTargetMatch(null)
+    }
+  }, [activeSection])
+
   const handleChooseManually = () => {
     if (!selectedNewMatchText) {
       setToastMessage("Highlight text first to choose manually")
@@ -817,6 +862,8 @@ const newMatchModeRef = useRef(false)
       setLibraryDocument(returnToSingleViewDoc)
       setReturnToSingleViewDoc(null)
     }
+    setReplaceMatchMode(false)
+    setReplaceTargetMatch(null)
   }
 
   useEffect(() => {
@@ -1229,6 +1276,16 @@ const newMatchModeRef = useRef(false)
       }
       case "library": {
         if (libraryDocument) {
+          if (replaceMatchMode) {
+            return (
+              <TimestampView
+                document={libraryDocument}
+                videoUrl={libraryDocument.source_url}
+                onBack={handleLibraryDocumentClose}
+                onConfirm={handleLibraryReplaceTimestampConfirm}
+              />
+            )
+          }
           return (
             <SingleViewVideo
               document={libraryDocument}

@@ -329,7 +329,7 @@ export function SitemapFeedsTable({
         }
 
         .sitemap-feed-card__url-unique {
-          font-size: 14px;
+          font-size: 12px;
           color: #0f172a;
           word-break: break-word;
           margin-bottom: none;

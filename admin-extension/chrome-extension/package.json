@@ -61,10 +61,9 @@
     ],
     "web_accessible_resources": [
       {
-        "resources": [
-          "static/visitor-player.js",
-          "static/admin-player.js"
-        ],
+      "resources": [
+        "static/visitor-player.js"
+      ],
         "matches": [
           "<all_urls>"
         ]
