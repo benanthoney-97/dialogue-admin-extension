@@ -106,7 +106,7 @@ const PLAYER_TEMPLATE_HTML = `
       <iframe id="dialogue-player-iframe" allow="autoplay; fullscreen"></iframe>
     </div>
     <div class="d-meta">
-      <span class="d-meta-text">Relevant video</span>
+      <span class="d-meta-text">Related video</span>
       <div class="resize-handle" id="dialogue-resize-handle"></div>
     </div>
     <div class="d-player-footer">
