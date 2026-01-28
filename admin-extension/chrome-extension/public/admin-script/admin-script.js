@@ -421,9 +421,9 @@
           background-position: -200% 0;
         }
       }
-      .sl-smart-link:hover,
-      .sl-admin-mode .sl-smart-link:hover,
-      body.sl-visitor-mode .sl-smart-link:hover,
+      .sl-smart-link:not(.sl-smart-link--inactive):hover,
+      .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):hover,
+      body.sl-visitor-mode .sl-smart-link:not(.sl-smart-link--inactive):hover,
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
@@ -452,11 +452,13 @@
       .sl-smart-link.sl-smart-link--inactive,
       .sl-admin-mode .sl-smart-link.sl-smart-link--inactive,
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--inactive {
-        border-color: rgba(148, 163, 184, 0.8) !important;
-        background-color: rgba(239, 241, 245, 0.85) !important;
-        color: rgba(55, 65, 81, 0.9) !important;
+        border: none !important;
+        background: transparent !important;
+        color: inherit !important;
         box-shadow: none !important;
-        cursor: pointer !important;
+        cursor: default !important;
+        text-decoration: none !important;
+        text-decoration-color: transparent !important;
       }
       .sl-smart-link.sl-smart-link--inactive::after,
       .sl-admin-mode .sl-smart-link.sl-smart-link--inactive::after,
