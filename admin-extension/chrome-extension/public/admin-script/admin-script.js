@@ -90,7 +90,7 @@
     span.style.setProperty("transition", "border-color 0.2s ease, color 0.2s ease", "important");
     span.style.setProperty("line-height", "1.2", "important");
     span.style.setProperty("display", "inline", "important");
-    span.style.setProperty("padding", "0", "important");
+    span.style.setProperty("padding", "0 4px", "important");
   };
 
   const setInactiveInlineStyles = (span) => {
@@ -412,7 +412,7 @@
         text-decoration-color: #6366F1 !important;
         text-decoration-thickness: 2px !important;
         text-decoration-skip-ink: none !important;
-        border-radius: 12px !important;
+        border-radius: 8px !important;
       }
       .sl-smart-link:hover,
       .sl-admin-mode .sl-smart-link:hover,
@@ -420,7 +420,7 @@
         text-decoration-color: #6366F1 !important;
         background-color: rgba(99, 102, 241, 0.1) !important;
         box-shadow: none !important;
-        border-radius: 12px !important;
+        border-radius: 8px !important;
       }
       .sl-smart-link.sl-smart-link--hover,
       .sl-admin-mode .sl-smart-link.sl-smart-link--hover,
@@ -428,7 +428,7 @@
         text-decoration-color: #6366F1 !important;
         background-color: rgba(99, 102, 241, 0.1) !important;
         box-shadow: none !important;
-        border-radius: 12px !important;
+        border-radius: 8px !important;
       }
       .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
       .sl-admin-mode .sl-smart-link:not(.sl-smart-link--inactive):not(.sl-smart-link--removed)::after,
