@@ -1,32 +1,86 @@
 import type { PlasmoCSConfig } from "plasmo"
-import { initVisitorPlayer } from "./visitor-player"
-import type { VisitorPlayer, RectLike } from "./visitor-player"
+
+type RectLike = {
+  left?: number
+  bottom?: number
+  width?: number
+  height?: number
+}
 
 type PreviewPlayerRect = RectLike | DOMRect
 type PreviewPlayerMetadata = Record<string, unknown>
+
+type PlayerOptions = {
+  rect?: RectLike | DOMRect
+  width?: number
+  ratio?: number
+  url?: string
+  metadata?: PreviewPlayerMetadata
+}
+
+type AdminVisitorPlayer = {
+  show: (options: PlayerOptions) => void
+  hide: () => void
+  loadVideo?: (url?: string) => void
+  size?: (width?: number, ratio?: number) => void
+}
+
+type AdminPlayerModule = {
+  initVisitorPlayer: (options?: {
+    onCreateMatch?: (detail: unknown) => void
+    onClose?: () => void
+  }) => AdminVisitorPlayer | null
+}
+
+type MatchPayload = Record<string, unknown>
 
 export const config: PlasmoCSConfig = {
   matches: ["https://*/*"],
 }
 
-type MatchPayload = Record<string, unknown>
-
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
 let cachedMatchMap: MatchPayload[] | null = null
-let activeVisitorPlayer: VisitorPlayer | null = null
+let adminPlayerInstance: AdminVisitorPlayer | null = null
 let lastNewMatchRect: RectLike | null = null
 let lastPreviewMetadata: PreviewPlayerMetadata | null = null
+let adminPlayerModulePromise: Promise<AdminPlayerModule> | null = null
 
-const ensureVisitorPlayer = () => {
-  if (activeVisitorPlayer) {
-    return activeVisitorPlayer
+const ADMIN_PLAYER_PATH = chrome.runtime.getURL("static/admin-player.js")
+
+const ensureAdminPlayerModule = () => {
+  if (adminPlayerModulePromise) {
+    return adminPlayerModulePromise
   }
-  activeVisitorPlayer = initVisitorPlayer()
-  if (!activeVisitorPlayer) {
-    console.warn("[content] visitor player initialization failed")
+  adminPlayerModulePromise = import(/* @vite-ignore */ ADMIN_PLAYER_PATH) as Promise<AdminPlayerModule>
+  return adminPlayerModulePromise
+}
+
+const ensureAdminVisitorPlayer = async (): Promise<AdminVisitorPlayer | null> => {
+  if (adminPlayerInstance) {
+    return adminPlayerInstance
+  }
+  const module = await ensureAdminPlayerModule().catch((error) => {
+    console.error("[content] failed to load admin player module", error)
+    return null
+  })
+  if (!module) return null
+  adminPlayerInstance = module.initVisitorPlayer()
+  if (!adminPlayerInstance) {
+    console.warn("[content] admin player initialization failed")
     return null
   }
-  return activeVisitorPlayer
+  return adminPlayerInstance
+}
+
+const toDomRect = (value?: RectLike | DOMRect): DOMRect | null => {
+  if (!value) return null
+  if (value instanceof DOMRect) return value
+  return new DOMRect(
+    value.left ?? 0,
+    value.bottom ?? 0,
+    value.width ?? 0,
+    value.height ?? 0
+  )
 }
 
 const DEFAULT_PREVIEW_RECT = () => ({
@@ -36,7 +90,7 @@ const DEFAULT_PREVIEW_RECT = () => ({
   height: 0,
 })
 
-const previewLibraryVideo = (
+const previewLibraryVideo = async (
   __url?: string,
   rect?: PreviewPlayerRect | null,
   width?: number,
@@ -46,10 +100,9 @@ const previewLibraryVideo = (
   const url = __url || ""
   if (!url) return
   console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
-  console.log("[content] visitor preview path active")
-  const player = ensureVisitorPlayer()
+  const player = await ensureAdminVisitorPlayer()
   if (!player) return
-  console.log("[content] visitor player ready, showing preview")
+  console.log("[content] admin preview player ready, showing preview")
   const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
   lastPreviewMetadata = metadata ?? null
   player.show({
@@ -66,7 +119,7 @@ const previewLibraryVideo = (
     url,
     metadata: lastPreviewMetadata ?? undefined,
   })
-  console.log("[content] visitor player show invoked")
+  console.log("[content] admin preview player show invoked")
 }
 
 const parseMatchMapFromScript = () => {
@@ -215,20 +268,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "read_page") {
     const content = document.body.innerText || ""
-    
-    // 1. Send response immediately
+
     sendResponse({
       title: document.title,
       url: window.location.href,
       content: content.replace(/\s+/g, " ").trim()
     })
-    
-    // 2. Do NOT return true here, because we just finished responding.
-    return false 
+
+    return false
   }
-  
-  // 3. If it's a message we don't recognize, return false to close the channel immediately.
-  return false 
+
+  return false
 })
 
 const handleCreateMatchEvent = (event: Event) => {
