@@ -181,6 +181,7 @@ const playlistIdSet = useMemo(
     playlists.length > 0 && filteredDocs.length > 0 && activeView === "playlists"
   const showVideoGrid =
     filteredDocs.length > 0 && (activeView === "videos" || playlists.length === 0)
+  const showPlaylistsTab = playlists.length > 0
 
   return (
     <div className="provider-documents">
@@ -189,17 +190,18 @@ const playlistIdSet = useMemo(
           {showSearchBar && (
             <div className="provider-documents__tabs-search-row">
               <div className="provider-documents__tab-group">
-                <button
-                  type="button"
-                  className={`provider-documents__tab${
-                    activeView === "playlists" ? " provider-documents__tab--active" : ""
-                  }`}
-                  onClick={() => setActiveView("playlists")}
-                  disabled={playlists.length === 0}
-                  aria-pressed={activeView === "playlists"}
-                >
-                  Playlists
-                </button>
+                {showPlaylistsTab && (
+                  <button
+                    type="button"
+                    className={`provider-documents__tab${
+                      activeView === "playlists" ? " provider-documents__tab--active" : ""
+                    }`}
+                    onClick={() => setActiveView("playlists")}
+                    aria-pressed={activeView === "playlists"}
+                  >
+                    Playlists
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`provider-documents__tab${
@@ -691,6 +693,7 @@ const playlistIdSet = useMemo(
           display: flex;
           flex-direction: column;
           gap: 4px;
+          min-height: 60px;
         }
 
         .doc-content--playlist {
@@ -698,6 +701,7 @@ const playlistIdSet = useMemo(
           display: flex;
           flex-direction: column;
           gap: 4px;
+          min-height: 60px;
         }
 
         .doc-title {

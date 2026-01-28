@@ -10,6 +10,7 @@ export interface PageMatchSummary {
   status?: string
   video_url?: string
   confidence_color?: string
+  created_at?: string | null
 }
 
 export interface SingleViewVideoProps {
@@ -104,6 +105,16 @@ export function SingleViewVideo({
 
   const matchCount = matches.length
   const matchList = useMemo(() => matches, [matches])
+  const formatMatchDate = (iso?: string | null) => {
+    if (!iso) return "Unknown date"
+    const parsed = new Date(iso)
+    if (Number.isNaN(parsed.getTime())) return "Unknown date"
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(parsed)
+  }
   const handleMatchClick = (matchId: number) => {
     if (!matchId) return
     onMatchSelect?.(matchId)
@@ -158,12 +169,8 @@ export function SingleViewVideo({
             >
               <p>{match.phrase}</p>
               <div className="single-view-video__match-footer">
-                <span
-                  className={`single-view-video__match-status status-chip ${
-                    match.status === "inactive" ? "status-chip--inactive" : "status-chip--active"
-                  }`}
-                >
-                  {match.status === "inactive" ? "Inactive" : "Live"}
+                <span className="single-view-video__match-date">
+                  {formatMatchDate(match.created_at ?? null)}
                 </span>
               </div>
             </article>
@@ -271,8 +278,9 @@ export function SingleViewVideo({
           margin-top: 4px;
           background: white;
         }
-        .single-view-video__match-status {
+        .single-view-video__match-date {
           font-size: 11px;
+          color: #475467;
           text-transform: none;
         }
       `}</style>

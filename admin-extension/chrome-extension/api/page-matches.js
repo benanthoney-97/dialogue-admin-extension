@@ -44,7 +44,7 @@ async function handler(req, res) {
   try {
     let query = supabase
       .from("page_matches")
-      .select("id, phrase, confidence, status, document_id, url")
+      .select("id, phrase, confidence, status, document_id, url, created_at")
       .eq("provider_id", providerId)
       .order("id", { ascending: true })
       .limit(50)
@@ -123,6 +123,7 @@ async function handler(req, res) {
         confidence_label: tier?.display_label || "",
         confidence_color: tier?.color_theme || "",
         url: row.url,
+        created_at: row.created_at,
         tracked: pageRow?.tracked ?? null,
       }
     })

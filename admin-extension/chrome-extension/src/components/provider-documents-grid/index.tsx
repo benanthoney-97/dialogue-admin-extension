@@ -7,6 +7,7 @@ export interface ProviderDocument {
   media_type?: string
   cover_image_url?: string
   is_active?: boolean
+  provider_id?: number
 }
 
 export interface ProviderDocumentsGridProps {
