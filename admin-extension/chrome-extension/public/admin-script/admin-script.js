@@ -408,6 +408,7 @@
         transition: border-color 0.2s ease, color 0.2s ease !important;
         line-height: 1.2 !important;
         display: inline !important;
+        color: #5F61FB !important;
         text-decoration-line: underline !important;
         text-decoration-color: #6366F1 !important;
         text-decoration-thickness: 2px !important;
@@ -431,6 +432,7 @@
       body.sl-visitor-mode .sl-smart-link.sl-smart-link--hover {
         text-decoration-color: #6366F1 !important;
         box-shadow: none !important;
+        color: #5F61FB !important;
         background-image: linear-gradient(120deg, rgba(255, 255, 255, 0) 0%, rgba(99, 102, 241, 0.15) 30%, rgba(255, 255, 255, 0.2) 50%, rgba(99, 102, 241, 0.15) 70%, rgba(255, 255, 255, 0) 100%);
         background-size: 200% 100%;
         animation: sl-shimmer 2s linear infinite;
