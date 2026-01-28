@@ -21,6 +21,20 @@
     visitorListenerAttached: false,
     config: null,
   };
+  const loadPlayerTemplate = () => {
+    if (window.DialoguePlayerTemplate) {
+      return Promise.resolve(window.DialoguePlayerTemplate)
+    }
+    return new Promise((resolve) => {
+      const script = document.createElement("script")
+      script.src = `${getApiOrigin().replace(/\/+$/, "")}/shared/player-template.js`
+      script.async = true
+      script.onload = () => resolve(window.DialoguePlayerTemplate)
+      script.onerror = () => resolve(null)
+      document.head.appendChild(script)
+    })
+  }
+
   const loadPlayerComponent = () => {
     if (window.DialoguePlayer) {
       return Promise.resolve(window.DialoguePlayer)
@@ -42,6 +56,7 @@
       console.log("[admin-script] visitor player cached instance")
       return visitorPlayerInstance
     }
+    await loadPlayerTemplate()
     const module = await loadPlayerComponent()
     console.log("[admin-script] loadPlayerComponent result", module)
     if (module?.initVisitorPlayer) {

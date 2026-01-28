@@ -11,6 +11,14 @@ export const config: PlasmoCSConfig = {
 
 type MatchPayload = Record<string, unknown>
 
+declare global {
+  interface Window {
+    DialoguePlayerTemplate?: {
+      buildPlayerNode: () => HTMLElement | null
+    }
+  }
+}
+
 console.log("[content] script executing on", window.location.href)
 
 const MATCH_MAP_SCRIPT_ID = "sl-match-map-data"
@@ -18,11 +26,34 @@ let cachedMatchMap: MatchPayload[] | null = null
 let activeVisitorPlayer: VisitorPlayer | null = null
 let lastNewMatchRect: RectLike | null = null
 let lastPreviewMetadata: PreviewPlayerMetadata | null = null
+let playerTemplatePromise: Promise<typeof window.DialoguePlayerTemplate> | null = null
 
-const ensureVisitorPlayer = () => {
+const ensurePlayerTemplate = () => {
+  if (window.DialoguePlayerTemplate) {
+    return Promise.resolve(window.DialoguePlayerTemplate)
+  }
+  if (playerTemplatePromise) {
+    return playerTemplatePromise
+  }
+  playerTemplatePromise = new Promise((resolve) => {
+    const script = document.createElement("script")
+    script.src = chrome.runtime.getURL("shared/player-template.js")
+    script.async = true
+    script.onload = () => resolve(window.DialoguePlayerTemplate)
+    script.onerror = () => {
+      console.warn("[content] failed to load shared player template")
+      resolve(window.DialoguePlayerTemplate)
+    }
+    document.head.appendChild(script)
+  })
+  return playerTemplatePromise
+}
+
+const ensureVisitorPlayer = async () => {
   if (activeVisitorPlayer) {
     return activeVisitorPlayer
   }
+  await ensurePlayerTemplate()
   activeVisitorPlayer = initVisitorPlayer()
   if (!activeVisitorPlayer) {
     console.warn("[content] visitor player initialization failed")
@@ -38,7 +69,7 @@ const DEFAULT_PREVIEW_RECT = () => ({
   height: 0,
 })
 
-const previewLibraryVideo = (
+const previewLibraryVideo = async (
   __url?: string,
   rect?: PreviewPlayerRect | null,
   width?: number,
@@ -48,7 +79,7 @@ const previewLibraryVideo = (
   const url = __url || ""
   if (!url) return
   console.log("[content] previewLibraryVideo invoked", { url, rect, width, ratio, metadata })
-  const player = ensureVisitorPlayer()
+  const player = await ensureVisitorPlayer()
   if (!player) return
   console.log("[content] visitor player ready, showing preview")
   const resolvedRect = rect ?? lastNewMatchRect ?? DEFAULT_PREVIEW_RECT()
@@ -198,7 +229,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "previewLibraryVideo") {
     lastPreviewMetadata = request.metadata ?? null
     console.log("[content] previewLibraryVideo message received", request.videoUrl, { tabId: request.tabId, metadata: request.metadata })
-    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata)
+    previewLibraryVideo(request.videoUrl, undefined, undefined, undefined, request.metadata).catch(() => {})
     return false
   }
   if (request.action === "scrollToMatch") {
