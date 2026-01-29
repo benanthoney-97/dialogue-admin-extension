@@ -111,24 +111,28 @@ const syncProviderVideos = async (client, providerId, videos) => {
   let skipped = 0;
   const newVideos = [];
   
-  for (const video of videos) {
-    let coverImage = null;
-    if (video.pictures?.sizes?.length) {
-      const sorted = [...video.pictures.sizes].sort((a, b) => b.width - a.width);
-      coverImage = sorted[0]?.link || null;
-    }
-    
-    // Using a simpler insert logic for clarity
-    const query = `
-      INSERT INTO provider_documents
-        (provider_id, title, source_url, media_type, cover_image_url, is_active)
-      SELECT $1, $2, $3, 'video', $4, false
-      WHERE NOT EXISTS (
-        SELECT 1 FROM provider_documents
-        WHERE provider_id = $1 AND source_url = $3
-      )
-    `;
-    const values = [providerId, video.name, video.link, coverImage];
+for (const video of videos) {
+  let coverImage = null;
+  if (video.pictures?.sizes?.length) {
+    const sorted = [...video.pictures.sizes].sort((a, b) => b.width - a.width);
+    coverImage = sorted[0]?.link || null;
+  }
+
+  const videoId = video.uri.replace('/videos/', '');
+  const canonicalUrl = `https://vimeo.com/${videoId}`;
+
+  const query = `
+    INSERT INTO provider_documents
+      (provider_id, title, source_url, media_type, cover_image_url, is_active)
+    SELECT $1, $2, $3, 'video', $4, false
+    WHERE NOT EXISTS (
+      SELECT 1 FROM provider_documents
+      WHERE provider_id = $1 AND source_url = $3
+    )
+  `;
+  
+  // Use 'canonicalUrl' instead of 'video.link'
+  const values = [providerId, video.name, canonicalUrl, coverImage];
     
     try {
       const res = await client.query(query, values);
