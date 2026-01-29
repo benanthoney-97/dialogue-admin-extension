@@ -106,33 +106,52 @@ const fetchVideosForUser = async (accessToken, externalId) => {
   return videos;
 };
 
-const syncProviderVideos = async (client, providerId, videos) => {
+const resolveChannelId = async (client, providerId, vimeoProfileUrl) => {
+  // Normalize URL (strip trailing slashes for safer matching)
+  const normalizedUrl = vimeoProfileUrl.replace(/\/$/, "");
+
+  const res = await client.query(`
+    SELECT id 
+    FROM provider_channels
+    WHERE provider_id = $1
+      AND (
+         channel_url = $2 
+         OR channel_url = $2 || '/' -- Check for trailing slash version too
+      )
+  `, [providerId, normalizedUrl]);
+
+  return res.rows[0]?.id || null;
+};
+
+const syncProviderVideos = async (client, providerId, videos, channelId = null) => {
   let inserted = 0;
   let skipped = 0;
   const newVideos = [];
   
-for (const video of videos) {
-  let coverImage = null;
-  if (video.pictures?.sizes?.length) {
-    const sorted = [...video.pictures.sizes].sort((a, b) => b.width - a.width);
-    coverImage = sorted[0]?.link || null;
-  }
+  for (const video of videos) {
+    let coverImage = null;
+    if (video.pictures?.sizes?.length) {
+      const sorted = [...video.pictures.sizes].sort((a, b) => b.width - a.width);
+      coverImage = sorted[0]?.link || null;
+    }
+    
+    // Canonical URL Fix
+    const videoId = video.uri.replace('/videos/', '');
+    const canonicalUrl = `https://vimeo.com/${videoId}`;
 
-  const videoId = video.uri.replace('/videos/', '');
-  const canonicalUrl = `https://vimeo.com/${videoId}`;
-
-  const query = `
-    INSERT INTO provider_documents
-      (provider_id, title, source_url, media_type, cover_image_url, is_active)
-    SELECT $1, $2, $3, 'video', $4, false
-    WHERE NOT EXISTS (
-      SELECT 1 FROM provider_documents
-      WHERE provider_id = $1 AND source_url = $3
-    )
-  `;
-  
-  // Use 'canonicalUrl' instead of 'video.link'
-  const values = [providerId, video.name, canonicalUrl, coverImage];
+    // INSERT with Dynamic Channel ID
+    // Note: is_active is explicitly FALSE
+    const query = `
+      INSERT INTO provider_documents
+        (provider_id, title, source_url, media_type, cover_image_url, is_active, channel_id)
+      SELECT $1, $2, $3, 'video', $4, false, $5
+      WHERE NOT EXISTS (
+        SELECT 1 FROM provider_documents
+        WHERE provider_id = $1 AND source_url = $3
+      )
+    `;
+    
+    const values = [providerId, video.name, canonicalUrl, coverImage, channelId];
     
     try {
       const res = await client.query(query, values);
@@ -141,14 +160,28 @@ for (const video of videos) {
         newVideos.push({
           providerId,
           title: video.name,
-          sourceUrl: video.link,
+          sourceUrl: canonicalUrl,
+          channelId: channelId
         });
       } else skipped++;
     } catch (err) {
-      console.error(`   ⚠️ DB Error inserting ${video.link}: ${err.message}`);
+      console.error(`   ⚠️ DB Error inserting ${canonicalUrl}: ${err.message}`);
     }
   }
   return { inserted, skipped, newVideos };
+};
+
+// Add this helper to get the user profile link
+const getVimeoUserLink = async (accessToken, externalId) => {
+  const url = `https://api.vimeo.com/users/${externalId}`;
+  const response = await fetchWithRetry(url, {
+    headers: { 
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": "DialogueAdmin/1.0"
+    },
+  });
+  const data = await response.json();
+  return data.link; // e.g. "https://vimeo.com/seedlegals"
 };
 
 const doVimeoSync = async () => {
@@ -161,16 +194,29 @@ const doVimeoSync = async () => {
     const providers = await fetchVimeoProviders(client);
     
     const summary = [];
-    for (const provider of providers) {
-      console.log(`▶️ Processing provider ${provider.provider_id} (${provider.external_id})`);
-      
-      const videos = await fetchVideosForUser(accessToken, provider.external_id);
-      
-      const { inserted, skipped, newVideos } = await syncProviderVideos(
-        client,
-        provider.provider_id,
-        videos
-      );
+for (const provider of providers) {
+  console.log(`▶️ Processing provider ${provider.provider_id}`);
+
+  // 1. Get the Profile URL from Vimeo (e.g. "https://vimeo.com/seedlegals")
+  const vimeoProfileLink = await getVimeoUserLink(accessToken, provider.external_id);
+  
+  // 2. Find the matching Channel ID in your DB
+  const channelId = await resolveChannelId(client, provider.provider_id, vimeoProfileLink);
+  
+  if (!channelId) {
+    console.warn(`   ⚠️ No matching provider_channel found for URL: ${vimeoProfileLink}. Inserting as Orphan.`);
+  }
+
+  // 3. Fetch Videos
+  const videos = await fetchVideosForUser(accessToken, provider.external_id);
+  
+  // 4. Sync (Passing the channelId)
+  const { inserted, skipped, newVideos } = await syncProviderVideos(
+    client,
+    provider.provider_id,
+    videos,
+    channelId // <--- Pass it here
+  );
       
       console.log(`   ✅ Updated ${inserted} new, skipped ${skipped} duplicates.`);
       summary.push(...newVideos);
